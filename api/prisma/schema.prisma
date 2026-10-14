@@ -1,0 +1,291 @@
+// HisabFlow — Prisma Schema Design (Draft for Phase 1 Architecture)
+// Database: PostgreSQL
+// Monetary Values: Decimal(14, 2) for standard precision avoiding IEEE 754 floating point issues
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum AccountType {
+  CASH
+  BANK
+  MOBILE_BANKING
+}
+
+enum AccountStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER_OUT
+  TRANSFER_IN
+  LOAN_DISBURSEMENT_GIVEN
+  LOAN_DISBURSEMENT_RECEIVED
+  LOAN_REPAYMENT_RECEIVED
+  LOAN_REPAYMENT_MADE
+  OPENING_BALANCE
+}
+
+enum TransactionStatus {
+  COMPLETED
+  PENDING
+  REVERSED
+  FAILED
+}
+
+enum LoanType {
+  LENT       // Money Lent to others (Asset / Receivable)
+  BORROWED   // Money Borrowed from others (Liability / Payable)
+}
+
+enum LoanStatus {
+  ACTIVE
+  PARTIALLY_REPAID
+  SETTLED
+  DEFAULTED
+  WRITTEN_OFF
+}
+
+model User {
+  id           String        @id @default(uuid())
+  username     String        @unique
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  fullName     String        @map("full_name")
+  role         Role          @default(USER)
+  isActive     Boolean       @default(true) @map("is_active")
+  currency     String        @default("BDT")
+  timezone     String        @default("Asia/Dhaka")
+  dateFormat   String        @default("DD MMM YYYY") @map("date_format")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  accounts       Account[]
+  categories     Category[]
+  transactions   Transaction[]
+  transfers      Transfer[]
+  loans          Loan[]
+  expenseBatches ExpenseBatch[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id             String        @id @default(uuid())
+  userId         String        @map("user_id")
+  name           String        // e.g. "Cash Wallet", "City Bank Priority", "bKash Personal"
+  type           AccountType
+  providerName   String?       @map("provider_name") // e.g. "bKash", "Nagad", "Eastern Bank Ltd"
+  accountNumber  String?       @map("account_number") // e.g. "017XXXXXXXX" or masked "**** 1234"
+  openingBalance Decimal       @default(0.00) @db.Decimal(14, 2) @map("opening_balance")
+  currentBalance Decimal       @default(0.00) @db.Decimal(14, 2) @map("current_balance")
+  currency       String        @default("BDT")
+  status         AccountStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions        Transaction[]
+  transfersAsSource   Transfer[]     @relation("SourceAccount")
+  transfersAsDest     Transfer[]     @relation("DestinationAccount")
+  loansDisbursed      Loan[]         @relation("LoanAccount")
+  repaymentsMade      LoanRepayment[]
+
+  @@index([userId, status])
+  @@map("accounts")
+}
+
+model Category {
+  id        String       @id @default(uuid())
+  userId    String       @map("user_id")
+  parentId  String?      @map("parent_id")
+  name      String
+  type      CategoryType // INCOME or EXPENSE
+  icon      String?
+  color     String?
+  isSystem  Boolean      @default(false) @map("is_system")
+  isArchived Boolean     @default(false) @map("is_archived")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Category?      @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  subcategories Category[]     @relation("CategoryHierarchy")
+  transactions  Transaction[]
+  expenseItems  ExpenseBatchItem[]
+
+  @@unique([userId, name, type, parentId])
+  @@index([userId, type, isArchived])
+  @@map("categories")
+}
+
+model Transaction {
+  id              String            @id @default(uuid())
+  userId          String            @map("user_id")
+  accountId       String            @map("account_id")
+  categoryId      String?           @map("category_id")
+  transferId      String?           @map("transfer_id")
+  loanId          String?           @map("loan_id")
+  loanRepaymentId String?           @map("loan_repayment_id")
+  batchItemId     String?           @unique @map("batch_item_id")
+  type            TransactionType
+  status          TransactionStatus @default(COMPLETED)
+  amount          Decimal           @db.Decimal(14, 2) // Always positive magnitude
+  date            DateTime          @db.Date
+  description     String
+  referenceNumber String?           @map("reference_number")
+  metadata        Json?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account        @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transfer      Transfer?      @relation(fields: [transferId], references: [id], onDelete: SetNull)
+  loan          Loan?          @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  loanRepayment LoanRepayment? @relation(fields: [loanRepaymentId], references: [id], onDelete: SetNull)
+  batchItem     ExpenseBatchItem? @relation(fields: [batchItemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([userId, accountId, date])
+  @@index([userId, type, date])
+  @@index([userId, categoryId])
+  @@map("transactions")
+}
+
+model Transfer {
+  id                   String   @id @default(uuid())
+  userId               String   @map("user_id")
+  sourceAccountId      String   @map("source_account_id")
+  destinationAccountId String   @map("destination_account_id")
+  amount               Decimal  @db.Decimal(14, 2)
+  transferFee          Decimal  @default(0.00) @db.Decimal(14, 2) @map("transfer_fee")
+  date                 DateTime @db.Date
+  description          String?
+  reference            String?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceAccount      Account       @relation("SourceAccount", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  destinationAccount Account       @relation("DestinationAccount", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+  transactions       Transaction[]
+
+  @@index([userId, date])
+  @@map("transfers")
+}
+
+model Loan {
+  id                   String     @id @default(uuid())
+  userId               String     @map("user_id")
+  accountId            String     @map("account_id") // Disbursing account (for lent) or receiving account (for borrowed)
+  type                 LoanType   // LENT (Receivable) or BORROWED (Payable)
+  counterpartyName     String     @map("counterparty_name") // Person name (e.g. "Rafiq Ahmed")
+  counterpartyContact  String?    @map("counterparty_contact") // Phone number or email
+  principalAmount      Decimal    @db.Decimal(14, 2) @map("principal_amount")
+  outstandingPrincipal Decimal    @db.Decimal(14, 2) @map("outstanding_principal")
+  interestRate         Decimal    @default(0.00) @db.Decimal(5, 2) @map("interest_rate")
+  startDate            DateTime   @db.Date @map("start_date")
+  dueDate              DateTime?  @db.Date @map("due_date")
+  status               LoanStatus @default(ACTIVE)
+  notes                String?
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account         @relation("LoanAccount", fields: [accountId], references: [id], onDelete: Restrict)
+  repayments   LoanRepayment[]
+  transactions Transaction[]
+
+  @@index([userId, type, status])
+  @@map("loans")
+}
+
+model LoanRepayment {
+  id              String   @id @default(uuid())
+  loanId          String   @map("loan_id")
+  accountId       String   @map("account_id") // Account funds were paid to or paid from
+  amount          Decimal  @db.Decimal(14, 2) // Principal portion
+  interestAmount  Decimal  @default(0.00) @db.Decimal(14, 2) @map("interest_amount")
+  date            DateTime @db.Date
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  loan         Loan          @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
+
+  @@index([loanId, date])
+  @@map("loan_repayments")
+}
+
+model ExpenseBatch {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  date        DateTime @db.Date
+  accountId   String   @map("account_id")
+  totalAmount Decimal  @db.Decimal(14, 2) @map("total_amount")
+  itemCount   Int      @map("item_count")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ExpenseBatchItem[]
+
+  @@index([userId, date])
+  @@map("expense_batches")
+}
+
+model ExpenseBatchItem {
+  id          String   @id @default(uuid())
+  batchId     String   @map("batch_id")
+  categoryId  String   @map("category_id")
+  description String
+  amount      Decimal  @db.Decimal(14, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  batch       ExpenseBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  transaction Transaction?
+
+  @@map("expense_batch_items")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  entityType   String   @map("entity_type")
+  entityId     String   @map("entity_id")
+  action       String   // e.g. "CREATE", "UPDATE", "REVERSE", "ARCHIVE"
+  previousData Json?    @map("previous_data")
+  newData      Json?    @map("new_data")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entityType, entityId])
+  @@map("audit_logs")
+}

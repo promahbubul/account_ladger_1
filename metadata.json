@@ -1,0 +1,6 @@
+{
+  "name": "HisabFlow",
+  "description": "Personal Accounting & Money Manager Web Application for tracking income, expenses, accounts, transfers, and loans in BDT.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
