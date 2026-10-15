@@ -1,6 +1,6 @@
 {
-  "name": "HisabFlow",
-  "description": "Personal Accounting & Money Manager Web Application for tracking income, expenses, accounts, transfers, and loans in BDT.",
+  "name": "AccountLedger.com",
+  "description": "AccountLedger.com — Personal Accounting Ledger & Money Manager for tracking income, expenses, accounts, transfers, and loans in BDT.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

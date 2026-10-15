@@ -13,16 +13,18 @@ import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
+import { useToast } from '../../context/ToastContext';
 
 interface LoansViewProps {
   onOpenAddLoanModal: () => void;
   onOpenRepaymentModal: (loan: Loan) => void;
-  onSuccessNotification: (msg: string) => void;
+  onSuccessNotification?: (msg: string) => void;
 }
 
 export const LoansView: React.FC<LoansViewProps> = ({
   onSuccessNotification,
 }) => {
+  const toast = useToast();
   const { accounts, addLoan, recordRepayment, deleteLoan, authFetch } = useFinance();
 
   const [activeTab, setActiveTab] = useState<'LOANS' | 'REPAYMENTS'>('LOANS');
@@ -82,7 +84,11 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
       const params = new URLSearchParams();
       params.set('limit', String(loanPagination.pageSize));
-      if (loanPagination.cursor) params.set('cursor', loanPagination.cursor);
+      if (loanPagination.cursor) {
+        params.set('cursor', loanPagination.cursor);
+      } else if (loanPagination.currentPage > 1) {
+        params.set('page', String(loanPagination.currentPage));
+      }
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (typeFilter !== 'ALL') params.set('type', typeFilter);
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
@@ -107,7 +113,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
     } finally {
       setIsLoansLoading(false);
     }
-  }, [authFetch, loanPagination.pageSize, loanPagination.cursor, searchQuery, typeFilter, statusFilter, loanPagination.setPaginationMeta]);
+  }, [authFetch, loanPagination.pageSize, loanPagination.cursor, loanPagination.currentPage, searchQuery, typeFilter, statusFilter, loanPagination.setPaginationMeta]);
 
   // Fetch repayments
   const fetchRepayments = useCallback(async () => {
@@ -117,7 +123,11 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
       const params = new URLSearchParams();
       params.set('limit', String(repPagination.pageSize));
-      if (repPagination.cursor) params.set('cursor', repPagination.cursor);
+      if (repPagination.cursor) {
+        params.set('cursor', repPagination.cursor);
+      } else if (repPagination.currentPage > 1) {
+        params.set('page', String(repPagination.currentPage));
+      }
       if (repSearchQuery.trim()) params.set('search', repSearchQuery.trim());
 
       const res = await authFetch(`/api/loans/repayments?${params.toString()}`);
@@ -140,7 +150,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
     } finally {
       setIsRepsLoading(false);
     }
-  }, [authFetch, repPagination.pageSize, repPagination.cursor, repSearchQuery, repPagination.setPaginationMeta]);
+  }, [authFetch, repPagination.pageSize, repPagination.cursor, repPagination.currentPage, repSearchQuery, repPagination.setPaginationMeta]);
 
   useEffect(() => {
     if (activeTab === 'LOANS') {
@@ -188,11 +198,18 @@ export const LoansView: React.FC<LoansViewProps> = ({
       notes: notes.trim() || undefined,
     });
 
-    if (res.success) {
-      onSuccessNotification(
+    if (res.success && res.loan) {
+      const created = res.loan;
+      const matchesType = typeFilter === 'ALL' || typeFilter === created.type;
+      const matchesStatus = statusFilter === 'ALL' || statusFilter === 'ACTIVE';
+      if (matchesType && matchesStatus) {
+        setLoanItems((prev) => [created, ...prev]);
+      }
+      setLoanTotalCount((prev) => prev + 1);
+      toast.success(
         loanType === 'LENT'
-          ? `Lent ${formatBDT(amountNum)} to ${counterparty}. Recorded in ledger.`
-          : `Borrowed ${formatBDT(amountNum)} from ${counterparty}. Account credited.`
+          ? `Lent ${formatBDT(amountNum)} to ${counterparty}`
+          : `Borrowed ${formatBDT(amountNum)} from ${counterparty}`
       );
       setIsAddLoanOpen(false);
       setPrincipal('');
@@ -200,10 +217,9 @@ export const LoansView: React.FC<LoansViewProps> = ({
       setContact('');
       setDueDate('');
       setNotes('');
-      loanPagination.resetPagination();
-      fetchLoans();
     } else {
       setErrorMessage(res.error || 'Failed to save loan.');
+      toast.error(res.error || 'Failed to save loan');
     }
   };
 
@@ -222,26 +238,47 @@ export const LoansView: React.FC<LoansViewProps> = ({
       notes: repNotes.trim() || undefined,
     });
 
-    if (res.success) {
-      onSuccessNotification(
-        `Recorded ${formatBDT(amountNum)} installment for ${repaymentTargetLoan.counterpartyName}.`
+    if (res.success && res.repayment) {
+      const recorded = res.repayment;
+      setLoanItems((prev) =>
+        prev.map((l) => {
+          if (l.id === repaymentTargetLoan.id) {
+            const nextOutstanding = Math.max(0, l.outstandingPrincipal - amountNum);
+            return {
+              ...l,
+              outstandingPrincipal: nextOutstanding,
+              status: nextOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID',
+            };
+          }
+          return l;
+        })
+      );
+      setRepItems((prev) => [recorded, ...prev]);
+      setRepTotalCount((prev) => prev + 1);
+
+      toast.success(
+        `Recorded ${formatBDT(amountNum)} installment for ${repaymentTargetLoan.counterpartyName}`
       );
       setRepaymentTargetLoan(null);
       setRepAmount('');
       setRepNotes('');
-      fetchLoans();
-      if (activeTab === 'REPAYMENTS') {
-        fetchRepayments();
-      }
+    } else {
+      toast.error(res.error || 'Failed to record repayment');
     }
   };
 
   const confirmDeleteLoan = async () => {
     if (!loanToDelete) return;
-    await deleteLoan(loanToDelete.id);
-    onSuccessNotification(`Loan for "${loanToDelete.counterpartyName}" was removed.`);
+    const deletedId = loanToDelete.id;
+    const res = await deleteLoan(deletedId);
+    if (res.success) {
+      setLoanItems((prev) => prev.filter((l) => l.id !== deletedId));
+      setLoanTotalCount((prev) => Math.max(0, prev - 1));
+      toast.success('Record deleted successfully');
+    } else {
+      toast.error(res.error || 'Failed to delete loan');
+    }
     setLoanToDelete(null);
-    fetchLoans();
   };
 
   return (
@@ -450,21 +487,25 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Pinned Pagination Controls */}
-          <TablePagination
-            pageSize={loanPagination.pageSize}
-            onPageSizeChange={loanPagination.setPageSize}
-            hasNextPage={loanPagination.hasNextPage}
-            hasPreviousPage={loanPagination.hasPreviousPage}
-            onNextPage={() => loanPagination.goToNextPage(loanNextCursor)}
-            onPreviousPage={loanPagination.goToPreviousPage}
-            isLoading={isLoansLoading}
-            itemCount={loanItems.length}
-            totalCount={loanTotalCount}
-            pageIndex={loanPagination.pageIndex}
-          />
+            {/* Integrated Pagination Controls */}
+            <TablePagination
+              pageSize={loanPagination.pageSize}
+              onPageSizeChange={loanPagination.setPageSize}
+              hasNextPage={loanPagination.hasNextPage}
+              hasPreviousPage={loanPagination.hasPreviousPage}
+              onNextPage={() => loanPagination.goToNextPage(loanNextCursor)}
+              onPreviousPage={loanPagination.goToPreviousPage}
+              isLoading={isLoansLoading}
+              itemCount={loanItems.length}
+              totalCount={loanTotalCount}
+              pageIndex={loanPagination.pageIndex}
+              currentPage={loanPagination.currentPage}
+              maxIndexedPage={loanPagination.maxIndexedPage}
+              onGoToPage={loanPagination.goToPage}
+              onErrorToast={toast.error}
+            />
+          </div>
         </>
       ) : (
         /* Repayments History Table */
@@ -542,21 +583,25 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Pinned Pagination Controls for Repayments */}
-          <TablePagination
-            pageSize={repPagination.pageSize}
-            onPageSizeChange={repPagination.setPageSize}
-            hasNextPage={repPagination.hasNextPage}
-            hasPreviousPage={repPagination.hasPreviousPage}
-            onNextPage={() => repPagination.goToNextPage(repNextCursor)}
-            onPreviousPage={repPagination.goToPreviousPage}
-            isLoading={isRepsLoading}
-            itemCount={repItems.length}
-            totalCount={repTotalCount}
-            pageIndex={repPagination.pageIndex}
-          />
+            {/* Integrated Pagination Controls for Repayments */}
+            <TablePagination
+              pageSize={repPagination.pageSize}
+              onPageSizeChange={repPagination.setPageSize}
+              hasNextPage={repPagination.hasNextPage}
+              hasPreviousPage={repPagination.hasPreviousPage}
+              onNextPage={() => repPagination.goToNextPage(repNextCursor)}
+              onPreviousPage={repPagination.goToPreviousPage}
+              isLoading={isRepsLoading}
+              itemCount={repItems.length}
+              totalCount={repTotalCount}
+              pageIndex={repPagination.pageIndex}
+              currentPage={repPagination.currentPage}
+              maxIndexedPage={repPagination.maxIndexedPage}
+              onGoToPage={repPagination.goToPage}
+              onErrorToast={toast.error}
+            />
+          </div>
         </>
       )}
 

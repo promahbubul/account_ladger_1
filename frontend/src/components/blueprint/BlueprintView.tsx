@@ -28,7 +28,7 @@ export const BlueprintView: React.FC = () => {
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-100 flex items-center gap-2">
-                <span>HisabFlow Master System Blueprint & Architectural Specification</span>
+                <span>Account Ladger Master System Blueprint & Architectural Specification</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/60">
                   Phase 1 Complete
                 </span>

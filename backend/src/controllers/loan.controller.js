@@ -26,6 +26,7 @@ export async function getLoans(req, res) {
     const type = typeof req.query.type === 'string' ? req.query.type : undefined;
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : undefined;
 
     const result = await dbService.getPaginatedLoans(req.user.id, {
       limit,
@@ -34,6 +35,7 @@ export async function getLoans(req, res) {
       type,
       status,
       search,
+      page,
     });
 
     res.json({
@@ -78,6 +80,7 @@ export async function getRepayments(req, res) {
     const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
     const loanId = typeof req.query.loanId === 'string' ? req.query.loanId : undefined;
     const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : undefined;
 
     const result = await dbService.getPaginatedRepayments(req.user.id, {
       limit,
@@ -85,6 +88,7 @@ export async function getRepayments(req, res) {
       direction,
       loanId,
       search,
+      page,
     });
 
     res.json({

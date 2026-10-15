@@ -16,17 +16,19 @@ import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
+import { useToast } from '../../context/ToastContext';
 
 interface AccountsViewProps {
   onOpenTransferModal: (accountId?: string) => void;
   onNavigateTab: (tab: any) => void;
-  onSuccessNotification: (msg: string) => void;
+  onSuccessNotification?: (msg: string) => void;
 }
 
 export const AccountsView: React.FC<AccountsViewProps> = ({
   onOpenTransferModal,
   onSuccessNotification,
 }) => {
+  const toast = useToast();
   const { transactions, addAccount, editAccount, toggleArchiveAccount, deleteAccount, authFetch } = useFinance();
   
   // Filters
@@ -59,11 +61,14 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
     pageSize,
     cursor,
     pageIndex,
+    currentPage,
+    maxIndexedPage,
     hasNextPage,
     hasPreviousPage,
     setPageSize,
     goToNextPage,
     goToPreviousPage,
+    goToPage,
     resetPagination,
     setPaginationMeta,
   } = useCursorPagination({ initialPageSize: 50 });
@@ -76,7 +81,11 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       const params = new URLSearchParams();
       params.set('paginate', 'true');
       params.set('limit', String(pageSize));
-      if (cursor) params.set('cursor', cursor);
+      if (cursor) {
+        params.set('cursor', cursor);
+      } else if (currentPage > 1) {
+        params.set('page', String(currentPage));
+      }
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (filterType !== 'ALL') params.set('type', filterType);
       if (filterStatus !== 'ALL') params.set('status', filterStatus);
@@ -101,7 +110,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [authFetch, pageSize, cursor, searchQuery, filterType, filterStatus, setPaginationMeta]);
+  }, [authFetch, pageSize, cursor, currentPage, searchQuery, filterType, filterStatus, setPaginationMeta]);
 
   useEffect(() => {
     fetchAccounts();
@@ -127,7 +136,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
     if (!newName.trim()) return;
 
     const opBal = parseFloat(newOpeningBalance) || 0;
-    await addAccount({
+    const res = await addAccount({
       name: newName.trim(),
       type: newType,
       providerName: newProvider.trim() || (newType === 'BANK' ? 'Bank' : newType === 'MOBILE_BANKING' ? 'MFS' : 'Physical Cash'),
@@ -138,21 +147,30 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       status: 'ACTIVE',
     });
 
-    onSuccessNotification(`Account "${newName}" created.`);
-    setIsAddOpen(false);
-    setNewName('');
-    setNewProvider('');
-    setNewNumber('');
-    setNewOpeningBalance('0');
-    resetPagination();
-    fetchAccounts();
+    if (res.success && res.account) {
+      const created = res.account;
+      const matchesType = filterType === 'ALL' || filterType === created.type;
+      const matchesStatus = filterStatus === 'ALL' || filterStatus === 'ACTIVE';
+      if (matchesType && matchesStatus) {
+        setItems((prev) => [created, ...prev]);
+      }
+      setTotalCount((prev) => prev + 1);
+      toast.success(`Account "${newName}" created successfully`);
+      setIsAddOpen(false);
+      setNewName('');
+      setNewProvider('');
+      setNewNumber('');
+      setNewOpeningBalance('0');
+    } else {
+      toast.error(res.error || 'Failed to create account');
+    }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editAccountState) return;
 
-    await editAccount(editAccountState.id, {
+    const res = await editAccount(editAccountState.id, {
       name: editAccountState.name,
       type: editAccountState.type,
       providerName: editAccountState.providerName,
@@ -160,29 +178,47 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       status: editAccountState.status,
     });
 
-    onSuccessNotification(`Account "${editAccountState.name}" updated.`);
-    setEditAccountState(null);
-    fetchAccounts();
+    if (res.success && res.account) {
+      const updated = res.account;
+      setItems((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      toast.success(`Account "${updated.name}" updated successfully`);
+      setEditAccountState(null);
+    } else {
+      toast.error(res.error || 'Failed to update account');
+    }
   };
 
   const handleToggleArchive = async (id: string, currentStatus: string) => {
-    await toggleArchiveAccount(id);
-    onSuccessNotification(currentStatus === 'ACTIVE' ? 'Account archived.' : 'Account restored to active status.');
-    fetchAccounts();
+    const res = await toggleArchiveAccount(id);
+    if (res.success && res.account) {
+      const updated = res.account;
+      if (filterStatus !== 'ALL') {
+        setItems((prev) => prev.filter((a) => a.id !== id));
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setItems((prev) => prev.map((a) => (a.id === id ? updated : a)));
+      }
+      toast.success(updated.status === 'ACTIVE' ? 'Account restored to active status' : 'Account archived successfully');
+    } else {
+      toast.error(res.error || 'Failed to update account status');
+    }
   };
 
   const confirmDelete = async () => {
     if (!accountToDelete) return;
-    const res = await deleteAccount(accountToDelete.id);
+    const deletedId = accountToDelete.id;
+    const res = await deleteAccount(deletedId);
     if (!res.success) {
       setActionError(res.error || 'Failed to delete account.');
+      toast.error(res.error || 'Failed to delete account');
       return;
     }
 
-    onSuccessNotification(`Account "${accountToDelete.name}" deleted.`);
+    setItems((prev) => prev.filter((a) => a.id !== deletedId));
+    setTotalCount((prev) => Math.max(0, prev - 1));
+    toast.success(`Account "${accountToDelete.name}" deleted successfully`);
     setAccountToDelete(null);
     setActionError(null);
-    fetchAccounts();
   };
 
   const getTypeLabel = (type: string) => {
@@ -303,7 +339,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                   }
                   action={{
                     label: 'Create Account',
-                    onClick: () => setIsCreateOpen(true),
+                    onClick: () => setIsAddOpen(true),
                   }}
                 />
               ) : (
@@ -387,21 +423,25 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Pinned Pagination Controls */}
-      <TablePagination
-        pageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        hasNextPage={hasNextPage}
-        hasPreviousPage={hasPreviousPage}
-        onNextPage={() => goToNextPage(nextCursor)}
-        onPreviousPage={goToPreviousPage}
-        isLoading={isLoading}
-        itemCount={items.length}
-        totalCount={totalCount}
-        pageIndex={pageIndex}
-      />
+        {/* Integrated Pagination Controls */}
+        <TablePagination
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          hasNextPage={hasNextPage}
+          hasPreviousPage={hasPreviousPage}
+          onNextPage={() => goToNextPage(nextCursor)}
+          onPreviousPage={goToPreviousPage}
+          isLoading={isLoading}
+          itemCount={items.length}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          currentPage={currentPage}
+          maxIndexedPage={maxIndexedPage}
+          onGoToPage={goToPage}
+          onErrorToast={toast.error}
+        />
+      </div>
 
       {/* Add Account Modal */}
       <Modal

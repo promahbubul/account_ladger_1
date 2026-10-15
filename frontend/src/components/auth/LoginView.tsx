@@ -123,10 +123,12 @@ export const LoginView: React.FC = () => {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded bg-[#1a1d24] border border-[#262a33] mb-3 text-blue-500 font-bold text-base">
-            H
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-white">HisabFlow</h1>
+          <img
+            src="/logo.png"
+            alt="Account Ladger Logo"
+            className="w-12 h-12 object-contain mx-auto mb-3"
+          />
+          <h1 className="text-xl font-bold tracking-tight text-white">Account Ladger</h1>
         </div>
 
         {/* Card */}
@@ -275,36 +277,6 @@ export const LoginView: React.FC = () => {
                 {isLoading ? <span>Signing In...</span> : <span>Sign In</span>}
               </button>
 
-              {/* Quick Fill Credentials for Testing */}
-              <div className="pt-3 border-t border-[#22252c] mt-4">
-                <div className="text-[11px] text-gray-400 mb-2 font-medium">Quick Credentials:</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIdentifier('admin@example.com');
-                      setPassword('123456');
-                    }}
-                    className="p-2 rounded bg-[#181b22] hover:bg-[#20242e] border border-[#2b2f3a] text-left transition-colors group"
-                  >
-                    <div className="text-[11px] font-semibold text-gray-200 group-hover:text-blue-400">Admin</div>
-                    <div className="text-[10px] text-gray-400 truncate">admin@example.com</div>
-                    <div className="text-[10px] text-gray-400 font-mono">123456</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIdentifier('user@example.com');
-                      setPassword('123456');
-                    }}
-                    className="p-2 rounded bg-[#181b22] hover:bg-[#20242e] border border-[#2b2f3a] text-left transition-colors group"
-                  >
-                    <div className="text-[11px] font-semibold text-gray-200 group-hover:text-emerald-400">User</div>
-                    <div className="text-[10px] text-gray-400 truncate">user@example.com</div>
-                    <div className="text-[10px] text-gray-400 font-mono">123456</div>
-                  </button>
-                </div>
-              </div>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-3">

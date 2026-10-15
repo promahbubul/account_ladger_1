@@ -40,7 +40,7 @@ export function createApp() {
     const status = dbService.getStatus();
     res.json({
       status: 'healthy',
-      service: 'HisabFlow REST API',
+      service: 'Account Ladger REST API',
       database: status.mode,
       connectedToPostgres: status.connectedToPostgres,
       timestamp: new Date().toISOString(),

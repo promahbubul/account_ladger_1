@@ -35,10 +35,10 @@ interface FinanceContextType {
   refreshData: () => Promise<void>;
   
   // Actions
-  addAccount: (account: Omit<Account, 'id' | 'updatedAt'>) => void;
-  editAccount: (id: string, updates: Partial<Account>) => void;
-  toggleArchiveAccount: (id: string) => void;
-  deleteAccount: (id: string) => { success: boolean; error?: string };
+  addAccount: (account: Omit<Account, 'id' | 'updatedAt'>) => Promise<{ success: boolean; account?: Account; error?: string }>;
+  editAccount: (id: string, updates: Partial<Account>) => Promise<{ success: boolean; account?: Account; error?: string }>;
+  toggleArchiveAccount: (id: string) => Promise<{ success: boolean; account?: Account; error?: string }>;
+  deleteAccount: (id: string) => Promise<{ success: boolean; error?: string }>;
   addIncome: (income: {
     accountId: string;
     categoryId?: string;
@@ -48,7 +48,7 @@ interface FinanceContextType {
     date: string;
     description: string;
     reference?: string;
-  }) => void;
+  }) => Promise<{ success: boolean; transaction?: Transaction; error?: string }>;
   addExpense: (expense: {
     accountId: string;
     category: string;
@@ -57,14 +57,14 @@ interface FinanceContextType {
     date: string;
     description: string;
     reference?: string;
-  }) => { overBudgetAlert?: BudgetAlert };
+  }) => Promise<{ success: boolean; transaction?: Transaction; error?: string; overBudgetAlert?: BudgetAlert }>;
   addBulkExpenses: (bulk: {
     accountId: string;
     date: string;
     items: { category: string; desc: string; amount: number; subcategory?: string }[];
   }) => { overBudgetAlerts?: BudgetAlert[] };
-  deleteTransaction: (id: string) => void;
-  editTransaction: (id: string, updates: Partial<Transaction>) => void;
+  deleteTransaction: (id: string) => Promise<{ success: boolean; error?: string }>;
+  editTransaction: (id: string, updates: Partial<Transaction>) => Promise<{ success: boolean; transaction?: Transaction; error?: string }>;
   addTransfer: (transfer: {
     sourceAccountId: string;
     destinationAccountId: string;
@@ -73,7 +73,8 @@ interface FinanceContextType {
     description?: string;
     reference?: string;
     date?: string;
-  }) => { success: boolean; error?: string };
+  }) => Promise<{ success: boolean; transfer?: any; error?: string }>;
+  deleteTransfer: (id: string) => Promise<{ success: boolean; error?: string }>;
   addLoan: (loan: {
     type: 'LENT' | 'BORROWED';
     counterpartyName: string;
@@ -84,20 +85,20 @@ interface FinanceContextType {
     dueDate?: string;
     notes?: string;
     interestRate?: number;
-  }) => { success: boolean; error?: string };
-  deleteLoan: (id: string) => void;
+  }) => Promise<{ success: boolean; loan?: Loan; error?: string }>;
+  deleteLoan: (id: string) => Promise<{ success: boolean; error?: string }>;
   recordRepayment: (repayment: {
     loanId: string;
     accountId: string;
     amount: number;
     date: string;
     notes?: string;
-  }) => { success: boolean; error?: string };
-  addCategory: (category: Omit<Category, 'id'>) => void;
-  editCategory: (id: string, updates: Partial<Category>) => void;
-  addSubcategory: (categoryId: string, subcategoryName: string) => void;
-  toggleArchiveCategory: (id: string) => void;
-  deleteCategory: (id: string) => { success: boolean; error?: string };
+  }) => Promise<{ success: boolean; repayment?: LoanRepayment; error?: string }>;
+  addCategory: (category: Omit<Category, 'id'>) => Promise<{ success: boolean; category?: Category; error?: string }>;
+  editCategory: (id: string, updates: Partial<Category>) => Promise<{ success: boolean; category?: Category; error?: string }>;
+  addSubcategory: (categoryId: string, subcategoryName: string) => Promise<{ success: boolean; subcategories?: string[]; error?: string }>;
+  toggleArchiveCategory: (id: string) => Promise<{ success: boolean; category?: Category; error?: string }>;
+  deleteCategory: (id: string) => Promise<{ success: boolean; error?: string }>;
   setCategoryBudget: (categoryName: string, monthlyLimit: number) => void;
   deleteBudget: (categoryName: string) => void;
   resetToDefaults: () => void;
@@ -258,65 +259,81 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [refreshData]);
 
   // ACCOUNTS
-  const addAccount = (newAcc: Omit<Account, 'id' | 'updatedAt'>) => {
-    const tempId = `acc_${Date.now()}`;
-    const accObj: Account = {
-      ...newAcc,
-      id: tempId,
-      currentBalance: newAcc.openingBalance,
-      currency: newAcc.currency || user?.currency || 'BDT',
-      status: 'ACTIVE',
-      updatedAt: 'Just now',
-    };
-    setAccounts(prev => [accObj, ...prev]);
-
-    authFetch('/api/accounts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newAcc),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.account) {
-          setAccounts(prev => prev.map(a => (a.id === tempId ? data.account : a)));
-        }
-      })
-      .catch(err => console.error('Error adding account:', err));
+  const addAccount = async (newAcc: Omit<Account, 'id' | 'updatedAt'>): Promise<{ success: boolean; account?: Account; error?: string }> => {
+    try {
+      const res = await authFetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAcc),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to create account.' };
+      }
+      setAccounts((prev) => [data.account, ...prev]);
+      return { success: true, account: data.account };
+    } catch (err: any) {
+      console.error('Error adding account:', err);
+      return { success: false, error: err.message || 'Error creating account' };
+    }
   };
 
-  const editAccount = (id: string, updates: Partial<Account>) => {
-    setAccounts(prev => prev.map(a => (a.id === id ? { ...a, ...updates, updatedAt: 'Just now' } : a)));
-    authFetch(`/api/accounts/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    }).catch(err => console.error('Error updating account:', err));
+  const editAccount = async (id: string, updates: Partial<Account>): Promise<{ success: boolean; account?: Account; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/accounts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to update account.' };
+      }
+      setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...data.account } : a)));
+      return { success: true, account: data.account };
+    } catch (err: any) {
+      console.error('Error updating account:', err);
+      return { success: false, error: err.message || 'Error updating account' };
+    }
   };
 
-  const toggleArchiveAccount = (id: string) => {
-    setAccounts(prev =>
-      prev.map(a => (a.id === id ? { ...a, status: a.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE' } : a))
-    );
-    authFetch(`/api/accounts/${id}/archive`, { method: 'PATCH' }).catch(err =>
-      console.error('Error archiving account:', err)
-    );
+  const toggleArchiveAccount = async (id: string): Promise<{ success: boolean; account?: Account; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/accounts/${id}/archive`, { method: 'PATCH' });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to archive account.' };
+      }
+      setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...data.account } : a)));
+      return { success: true, account: data.account };
+    } catch (err: any) {
+      console.error('Error archiving account:', err);
+      return { success: false, error: err.message || 'Error archiving account' };
+    }
   };
 
-  const deleteAccount = (id: string): { success: boolean; error?: string } => {
-    const hasTx = transactions.some(t => t.accountId === id || t.destinationAccountId === id);
+  const deleteAccount = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    const hasTx = transactions.some((t) => t.accountId === id || t.destinationAccountId === id);
     if (hasTx) {
       return { success: false, error: 'Cannot delete account with existing transactions. Please archive it instead.' };
     }
 
-    setAccounts(prev => prev.filter(a => a.id !== id));
-    authFetch(`/api/accounts/${id}`, { method: 'DELETE' }).catch(err =>
-      console.error('Error deleting account:', err)
-    );
-    return { success: true };
+    try {
+      const res = await authFetch(`/api/accounts/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to delete account.' };
+      }
+      setAccounts((prev) => prev.filter((a) => a.id !== id));
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting account:', err);
+      return { success: false, error: err.message || 'Error deleting account' };
+    }
   };
 
   // INCOME
-  const addIncome = (income: {
+  const addIncome = async (income: {
     accountId: string;
     categoryId?: string;
     category?: string;
@@ -325,41 +342,33 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     date: string;
     description: string;
     reference?: string;
-  }) => {
-    const acc = accounts.find(a => a.id === income.accountId);
-    const txObj: Transaction = {
-      id: `tx_${Date.now()}`,
-      date: income.date,
-      type: 'INCOME',
-      category: income.category || 'Income',
-      subcategory: income.subcategory,
-      accountId: income.accountId,
-      accountName: acc?.name || 'Account',
-      amount: income.amount,
-      direction: 'INFLOW',
-      description: income.description,
-      reference: income.reference,
-      status: 'COMPLETED',
-    };
-
-    setTransactions(prev => [txObj, ...prev]);
-    setAccounts(prev =>
-      prev.map(a =>
-        a.id === income.accountId
-          ? { ...a, currentBalance: a.currentBalance + income.amount, updatedAt: 'Just now' }
-          : a
-      )
-    );
-
-    authFetch('/api/transactions/income', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(income),
-    }).catch(err => console.error('Error recording income:', err));
+  }): Promise<{ success: boolean; transaction?: Transaction; error?: string }> => {
+    try {
+      const res = await authFetch('/api/transactions/income', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(income),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to record income.' };
+      }
+      const createdTx: Transaction = data.transaction;
+      setTransactions((prev) => [createdTx, ...prev]);
+      setAccounts((prev) =>
+        prev.map((a) =>
+          a.id === income.accountId ? { ...a, currentBalance: a.currentBalance + income.amount, updatedAt: 'Just now' } : a
+        )
+      );
+      return { success: true, transaction: createdTx };
+    } catch (err: any) {
+      console.error('Error recording income:', err);
+      return { success: false, error: err.message || 'Error recording income' };
+    }
   };
 
   // EXPENSE
-  const addExpense = (expense: {
+  const addExpense = async (expense: {
     accountId: string;
     category: string;
     subcategory?: string;
@@ -367,64 +376,53 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     date: string;
     description: string;
     reference?: string;
-  }): { overBudgetAlert?: BudgetAlert } => {
-    const acc = accounts.find(a => a.id === expense.accountId);
-    const txObj: Transaction = {
-      id: `tx_${Date.now()}`,
-      date: expense.date,
-      type: 'EXPENSE',
-      category: expense.category,
-      subcategory: expense.subcategory,
-      accountId: expense.accountId,
-      accountName: acc?.name || 'Account',
-      amount: expense.amount,
-      direction: 'OUTFLOW',
-      description: expense.description,
-      reference: expense.reference,
-      status: 'COMPLETED',
-    };
+  }): Promise<{ success: boolean; transaction?: Transaction; error?: string; overBudgetAlert?: BudgetAlert }> => {
+    try {
+      const res = await authFetch('/api/transactions/expense', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to record expense.' };
+      }
+      const createdTx: Transaction = data.transaction;
+      const nextTxs = [createdTx, ...transactions];
+      setTransactions(nextTxs);
+      setAccounts((prev) =>
+        prev.map((a) =>
+          a.id === expense.accountId ? { ...a, currentBalance: a.currentBalance - expense.amount, updatedAt: 'Just now' } : a
+        )
+      );
+      recalculateBudgetAlerts(budgets, nextTxs);
 
-    const nextTxs = [txObj, ...transactions];
-    setTransactions(nextTxs);
-    setAccounts(prev =>
-      prev.map(a =>
-        a.id === expense.accountId
-          ? { ...a, currentBalance: a.currentBalance - expense.amount, updatedAt: 'Just now' }
-          : a
-      )
-    );
+      const targetBudget = budgets.find((b) => b.categoryName === expense.category);
+      let alert: BudgetAlert | undefined = undefined;
+      if (targetBudget) {
+        const now = new Date();
+        const currentMonth = now.toISOString().slice(0, 7);
+        const monthSpent = nextTxs
+          .filter((t) => t.type === 'EXPENSE' && t.category === expense.category && t.date.startsWith(currentMonth))
+          .reduce((sum, t) => sum + t.amount, 0);
 
-    recalculateBudgetAlerts(budgets, nextTxs);
-
-    authFetch('/api/transactions/expense', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(expense),
-    }).catch(err => console.error('Error recording expense:', err));
-
-    const targetBudget = budgets.find(b => b.categoryName === expense.category);
-    if (targetBudget) {
-      const now = new Date();
-      const currentMonth = now.toISOString().slice(0, 7);
-      const monthSpent = nextTxs
-        .filter(t => t.type === 'EXPENSE' && t.category === expense.category && t.date.startsWith(currentMonth))
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      if (monthSpent > targetBudget.monthlyLimit) {
-        return {
-          overBudgetAlert: {
+        if (monthSpent > targetBudget.monthlyLimit) {
+          alert = {
             categoryName: targetBudget.categoryName,
             spent: monthSpent,
             limit: targetBudget.monthlyLimit,
             exceededBy: monthSpent - targetBudget.monthlyLimit,
             percentage: (monthSpent / targetBudget.monthlyLimit) * 100,
             status: 'EXCEEDED',
-          },
-        };
+          };
+        }
       }
-    }
 
-    return {};
+      return { success: true, transaction: createdTx, overBudgetAlert: alert };
+    } catch (err: any) {
+      console.error('Error recording expense:', err);
+      return { success: false, error: err.message || 'Error recording expense' };
+    }
   };
 
   // BULK EXPENSES
@@ -471,36 +469,89 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // TRANSACTIONS
-  const deleteTransaction = (id: string) => {
-    const target = transactions.find(t => t.id === id);
-    if (target) {
-      const delta = target.direction === 'INFLOW' ? -target.amount : target.direction === 'OUTFLOW' ? target.amount : 0;
-      if (delta !== 0) {
-        setAccounts(prev =>
-          prev.map(a => (a.id === target.accountId ? { ...a, currentBalance: a.currentBalance + delta } : a))
-        );
+  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const target = transactions.find((t) => t.id === id);
+      const res = await authFetch(`/api/transactions/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to delete transaction.' };
       }
+      if (target) {
+        const delta = target.direction === 'INFLOW' ? -target.amount : target.direction === 'OUTFLOW' ? target.amount : 0;
+        if (delta !== 0) {
+          setAccounts((prev) =>
+            prev.map((a) => (a.id === target.accountId ? { ...a, currentBalance: a.currentBalance + delta } : a))
+          );
+        }
+      }
+      const next = transactions.filter((t) => t.id !== id);
+      setTransactions(next);
+      recalculateBudgetAlerts(budgets, next);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting transaction:', err);
+      return { success: false, error: err.message || 'Error deleting transaction' };
     }
-    const next = transactions.filter(t => t.id !== id);
-    setTransactions(next);
-    recalculateBudgetAlerts(budgets, next);
-
-    authFetch(`/api/transactions/${id}`, { method: 'DELETE' }).catch(err =>
-      console.error('Error deleting transaction:', err)
-    );
   };
 
-  const editTransaction = (id: string, updates: Partial<Transaction>) => {
-    setTransactions(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
-    authFetch(`/api/transactions/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    }).catch(err => console.error('Error editing transaction:', err));
+  const editTransaction = async (
+    id: string,
+    updates: Partial<Transaction>
+  ): Promise<{ success: boolean; transaction?: Transaction; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/transactions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to update transaction.' };
+      }
+
+      const updated: Transaction = data.transaction;
+      const old = transactions.find((t) => t.id === id);
+
+      // Targeted balance recalculation without full table refetch
+      if (old) {
+        const oldEffect = old.direction === 'INFLOW' ? old.amount : old.direction === 'OUTFLOW' ? -old.amount : 0;
+        const newEffect = updated.direction === 'INFLOW' ? updated.amount : updated.direction === 'OUTFLOW' ? -updated.amount : 0;
+
+        if (old.accountId === updated.accountId) {
+          const netDelta = newEffect - oldEffect;
+          if (netDelta !== 0) {
+            setAccounts((prev) =>
+              prev.map((a) =>
+                a.id === updated.accountId ? { ...a, currentBalance: a.currentBalance + netDelta, updatedAt: 'Just now' } : a
+              )
+            );
+          }
+        } else {
+          setAccounts((prev) =>
+            prev.map((a) => {
+              if (a.id === old.accountId) {
+                return { ...a, currentBalance: a.currentBalance - oldEffect, updatedAt: 'Just now' };
+              }
+              if (a.id === updated.accountId) {
+                return { ...a, currentBalance: a.currentBalance + newEffect, updatedAt: 'Just now' };
+              }
+              return a;
+            })
+          );
+        }
+      }
+
+      setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      return { success: true, transaction: updated };
+    } catch (err: any) {
+      console.error('Error editing transaction:', err);
+      return { success: false, error: err.message || 'Error updating transaction' };
+    }
   };
 
   // TRANSFERS
-  const addTransfer = (transfer: {
+  const addTransfer = async (transfer: {
     sourceAccountId: string;
     destinationAccountId: string;
     amount: number;
@@ -508,58 +559,82 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     description?: string;
     reference?: string;
     date?: string;
-  }): { success: boolean; error?: string } => {
+  }): Promise<{ success: boolean; transfer?: any; error?: string }> => {
     if (transfer.sourceAccountId === transfer.destinationAccountId) {
       return { success: false, error: 'Source and destination accounts must be different.' };
     }
 
-    const src = accounts.find(a => a.id === transfer.sourceAccountId);
-    const dst = accounts.find(a => a.id === transfer.destinationAccountId);
+    const src = accounts.find((a) => a.id === transfer.sourceAccountId);
+    const dst = accounts.find((a) => a.id === transfer.destinationAccountId);
     if (!src || !dst) {
       return { success: false, error: 'Invalid accounts selected.' };
     }
 
-    const fee = transfer.transferFee || 0;
-    setAccounts(prev =>
-      prev.map(a => {
-        if (a.id === transfer.sourceAccountId) {
-          return { ...a, currentBalance: a.currentBalance - (transfer.amount + fee), updatedAt: 'Just now' };
-        }
-        if (a.id === transfer.destinationAccountId) {
-          return { ...a, currentBalance: a.currentBalance + transfer.amount, updatedAt: 'Just now' };
-        }
-        return a;
-      })
-    );
+    try {
+      const res = await authFetch('/api/transfers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(transfer),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to record transfer.' };
+      }
 
-    const tx: Transaction = {
-      id: `tx_trf_${Date.now()}`,
-      date: transfer.date || new Date().toISOString().split('T')[0],
-      type: 'TRANSFER',
-      category: 'Internal Transfer',
-      accountId: transfer.sourceAccountId,
-      accountName: src.name,
-      destinationAccountId: transfer.destinationAccountId,
-      destinationAccountName: dst.name,
-      amount: transfer.amount,
-      direction: 'NEUTRAL',
-      description: transfer.description || `Transfer to ${dst.name}`,
-      reference: transfer.reference,
-      status: 'COMPLETED',
-    };
-    setTransactions(prev => [tx, ...prev]);
+      const fee = transfer.transferFee || 0;
+      setAccounts((prev) =>
+        prev.map((a) => {
+          if (a.id === transfer.sourceAccountId) {
+            return { ...a, currentBalance: a.currentBalance - (transfer.amount + fee), updatedAt: 'Just now' };
+          }
+          if (a.id === transfer.destinationAccountId) {
+            return { ...a, currentBalance: a.currentBalance + transfer.amount, updatedAt: 'Just now' };
+          }
+          return a;
+        })
+      );
 
-    authFetch('/api/transfers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(transfer),
-    }).catch(err => console.error('Error recording transfer:', err));
+      const tx: Transaction = {
+        id: data.transfer?.id || `tx_trf_${Date.now()}`,
+        date: transfer.date || new Date().toISOString().split('T')[0],
+        type: 'TRANSFER',
+        category: 'Internal Transfer',
+        accountId: transfer.sourceAccountId,
+        accountName: src.name,
+        destinationAccountId: transfer.destinationAccountId,
+        destinationAccountName: dst.name,
+        amount: transfer.amount,
+        direction: 'NEUTRAL',
+        description: transfer.description || `Transfer to ${dst.name}`,
+        reference: transfer.reference,
+        status: 'COMPLETED',
+      };
+      setTransactions((prev) => [tx, ...prev]);
 
-    return { success: true };
+      return { success: true, transfer: data.transfer || tx };
+    } catch (err: any) {
+      console.error('Error recording transfer:', err);
+      return { success: false, error: err.message || 'Error recording transfer' };
+    }
+  };
+
+  const deleteTransfer = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/transfers/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to delete transfer' };
+      }
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting transfer:', err);
+      return { success: false, error: err.message || 'Error deleting transfer' };
+    }
   };
 
   // LOANS
-  const addLoan = (loan: {
+  const addLoan = async (loan: {
     type: 'LENT' | 'BORROWED';
     counterpartyName: string;
     counterpartyContact?: string;
@@ -569,153 +644,212 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     dueDate?: string;
     notes?: string;
     interestRate?: number;
-  }): { success: boolean; error?: string } => {
-    const acc = accounts.find(a => a.id === loan.accountId);
+  }): Promise<{ success: boolean; loan?: Loan; error?: string }> => {
+    const acc = accounts.find((a) => a.id === loan.accountId);
     if (!acc) return { success: false, error: 'Account not found.' };
 
-    const newLoan: Loan = {
-      id: `loan_${Date.now()}`,
-      type: loan.type,
-      counterpartyName: loan.counterpartyName,
-      counterpartyContact: loan.counterpartyContact,
-      principalAmount: loan.principalAmount,
-      outstandingPrincipal: loan.principalAmount,
-      interestRate: loan.interestRate || 0,
-      startDate: loan.startDate,
-      dueDate: loan.dueDate,
-      status: 'ACTIVE',
-      accountId: loan.accountId,
-      accountName: acc.name,
-      notes: loan.notes,
-    };
+    try {
+      const res = await authFetch('/api/loans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loan),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to save loan' };
+      }
 
-    setLoans(prev => [newLoan, ...prev]);
+      const created: Loan = data.loan;
+      setLoans((prev) => [created, ...prev]);
 
-    const delta = loan.type === 'LENT' ? -loan.principalAmount : loan.principalAmount;
-    setAccounts(prev =>
-      prev.map(a => (a.id === loan.accountId ? { ...a, currentBalance: a.currentBalance + delta } : a))
-    );
+      const delta = loan.type === 'LENT' ? -loan.principalAmount : loan.principalAmount;
+      setAccounts((prev) =>
+        prev.map((a) => (a.id === loan.accountId ? { ...a, currentBalance: a.currentBalance + delta } : a))
+      );
 
-    authFetch('/api/loans', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(loan),
-    }).catch(err => console.error('Error creating loan:', err));
-
-    return { success: true };
+      return { success: true, loan: created };
+    } catch (err: any) {
+      console.error('Error creating loan:', err);
+      return { success: false, error: err.message || 'Error creating loan' };
+    }
   };
 
-  const deleteLoan = (id: string) => {
-    setLoans(prev => prev.filter(l => l.id !== id));
-    authFetch(`/api/loans/${id}`, { method: 'DELETE' }).catch(err =>
-      console.error('Error deleting loan:', err)
-    );
+  const deleteLoan = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const target = loans.find((l) => l.id === id);
+      const res = await authFetch(`/api/loans/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to delete loan' };
+      }
+
+      setLoans((prev) => prev.filter((l) => l.id !== id));
+      if (target) {
+        const reverse = target.type === 'LENT' ? target.principalAmount : -target.principalAmount;
+        setAccounts((prev) =>
+          prev.map((a) => (a.id === target.accountId ? { ...a, currentBalance: a.currentBalance + reverse } : a))
+        );
+      }
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting loan:', err);
+      return { success: false, error: err.message || 'Error deleting loan' };
+    }
   };
 
-  const recordRepayment = (repayment: {
+  const recordRepayment = async (repayment: {
     loanId: string;
     accountId: string;
     amount: number;
     date: string;
     notes?: string;
-  }): { success: boolean; error?: string } => {
-    const loan = loans.find(l => l.id === repayment.loanId);
-    const acc = accounts.find(a => a.id === repayment.accountId);
+  }): Promise<{ success: boolean; repayment?: LoanRepayment; error?: string }> => {
+    const loan = loans.find((l) => l.id === repayment.loanId);
+    const acc = accounts.find((a) => a.id === repayment.accountId);
     if (!loan || !acc) return { success: false, error: 'Loan or Account not found.' };
 
-    const repObj: LoanRepayment = {
-      id: `rep_${Date.now()}`,
-      loanId: loan.id,
-      counterpartyName: loan.counterpartyName,
-      loanType: loan.type,
-      amount: repayment.amount,
-      date: repayment.date,
-      accountName: acc.name,
-      notes: repayment.notes,
-    };
+    try {
+      const res = await authFetch(`/api/loans/${repayment.loanId}/repayments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(repayment),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to record repayment' };
+      }
 
-    setRepayments(prev => [repObj, ...prev]);
+      const repObj: LoanRepayment = data.repayment || {
+        id: `rep_${Date.now()}`,
+        loanId: loan.id,
+        counterpartyName: loan.counterpartyName,
+        loanType: loan.type,
+        amount: repayment.amount,
+        date: repayment.date,
+        accountName: acc.name,
+        notes: repayment.notes,
+      };
 
-    // Update loan balance
-    setLoans(prev =>
-      prev.map(l => {
-        if (l.id === repayment.loanId) {
-          const newOutstanding = Math.max(0, l.outstandingPrincipal - repayment.amount);
-          return {
-            ...l,
-            outstandingPrincipal: newOutstanding,
-            status: newOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID',
-          };
-        }
-        return l;
-      })
-    );
+      setRepayments((prev) => [repObj, ...prev]);
 
-    // Update account balance
-    const delta = loan.type === 'LENT' ? repayment.amount : -repayment.amount;
-    setAccounts(prev =>
-      prev.map(a => (a.id === repayment.accountId ? { ...a, currentBalance: a.currentBalance + delta } : a))
-    );
+      // Update loan balance
+      setLoans((prev) =>
+        prev.map((l) => {
+          if (l.id === repayment.loanId) {
+            const newOutstanding = Math.max(0, l.outstandingPrincipal - repayment.amount);
+            return {
+              ...l,
+              outstandingPrincipal: newOutstanding,
+              status: newOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID',
+            };
+          }
+          return l;
+        })
+      );
 
-    authFetch(`/api/loans/${repayment.loanId}/repayments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(repayment),
-    }).catch(err => console.error('Error recording repayment:', err));
+      // Update account balance
+      const delta = loan.type === 'LENT' ? repayment.amount : -repayment.amount;
+      setAccounts((prev) =>
+        prev.map((a) => (a.id === repayment.accountId ? { ...a, currentBalance: a.currentBalance + delta } : a))
+      );
 
-    return { success: true };
+      return { success: true, repayment: repObj };
+    } catch (err: any) {
+      console.error('Error recording repayment:', err);
+      return { success: false, error: err.message || 'Error recording repayment' };
+    }
   };
 
   // CATEGORIES
-  const addCategory = (cat: Omit<Category, 'id'>) => {
-    const tempId = `cat_${Date.now()}`;
-    const newCat: Category = { ...cat, id: tempId };
-    setCategories(prev => [...prev, newCat]);
-
-    authFetch('/api/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cat),
-    }).catch(err => console.error('Error creating category:', err));
+  const addCategory = async (cat: Omit<Category, 'id'>): Promise<{ success: boolean; category?: Category; error?: string }> => {
+    try {
+      const res = await authFetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cat),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to create category' };
+      }
+      setCategories((prev) => [...prev, data.category]);
+      return { success: true, category: data.category };
+    } catch (err: any) {
+      console.error('Error creating category:', err);
+      return { success: false, error: err.message || 'Error creating category' };
+    }
   };
 
-  const editCategory = (id: string, updates: Partial<Category>) => {
-    setCategories(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)));
-    authFetch(`/api/categories/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    }).catch(err => console.error('Error updating category:', err));
+  const editCategory = async (id: string, updates: Partial<Category>): Promise<{ success: boolean; category?: Category; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to update category' };
+      }
+      setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data.category } : c)));
+      return { success: true, category: data.category };
+    } catch (err: any) {
+      console.error('Error updating category:', err);
+      return { success: false, error: err.message || 'Error updating category' };
+    }
   };
 
-  const addSubcategory = (categoryId: string, subcategoryName: string) => {
-    setCategories(prev =>
-      prev.map(c =>
-        c.id === categoryId ? { ...c, subcategories: [...c.subcategories, subcategoryName] } : c
-      )
-    );
-    authFetch(`/api/categories/${categoryId}/subcategories`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: subcategoryName }),
-    }).catch(err => console.error('Error adding subcategory:', err));
+  const addSubcategory = async (categoryId: string, subcategoryName: string): Promise<{ success: boolean; subcategories?: string[]; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/categories/${categoryId}/subcategories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subcategory: subcategoryName }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to add subcategory' };
+      }
+      setCategories((prev) =>
+        prev.map((c) => (c.id === categoryId ? { ...c, subcategories: data.subcategories } : c))
+      );
+      return { success: true, subcategories: data.subcategories };
+    } catch (err: any) {
+      console.error('Error adding subcategory:', err);
+      return { success: false, error: err.message || 'Error adding subcategory' };
+    }
   };
 
-  const toggleArchiveCategory = (id: string) => {
-    setCategories(prev =>
-      prev.map(c => (c.id === id ? { ...c, isArchived: !c.isArchived } : c))
-    );
-    authFetch(`/api/categories/${id}/archive`, { method: 'PATCH' }).catch(err =>
-      console.error('Error archiving category:', err)
-    );
+  const toggleArchiveCategory = async (id: string): Promise<{ success: boolean; category?: Category; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/categories/${id}/archive`, { method: 'PATCH' });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to archive category' };
+      }
+      setCategories((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...data.category } : c))
+      );
+      return { success: true, category: data.category };
+    } catch (err: any) {
+      console.error('Error archiving category:', err);
+      return { success: false, error: err.message || 'Error archiving category' };
+    }
   };
 
-  const deleteCategory = (id: string): { success: boolean; error?: string } => {
-    setCategories(prev => prev.filter(c => c.id !== id));
-    authFetch(`/api/categories/${id}`, { method: 'DELETE' }).catch(err =>
-      console.error('Error deleting category:', err)
-    );
-    return { success: true };
+  const deleteCategory = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to delete category' };
+      }
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting category:', err);
+      return { success: false, error: err.message || 'Error deleting category' };
+    }
   };
 
   // BUDGETS
@@ -757,7 +891,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const exportData = (): string => {
     return JSON.stringify(
       {
-        app: 'HisabFlow',
+        app: 'Account Ladger',
         user: { email: user?.email, username: user?.username },
         exportedAt: new Date().toISOString(),
         data: { accounts, transactions, loans, repayments, categories, budgets },
@@ -800,6 +934,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteTransaction,
         editTransaction,
         addTransfer,
+        deleteTransfer,
         addLoan,
         deleteLoan,
         recordRepayment,

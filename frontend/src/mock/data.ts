@@ -21,6 +21,7 @@ export interface Category {
   icon: string;
   color: string;
   subcategories: string[];
+  parentId?: string | null;
   isArchived?: boolean;
 }
 

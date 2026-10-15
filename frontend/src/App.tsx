@@ -19,8 +19,9 @@ import { Loan } from './mock/data';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { DateFilterProvider } from './context/DateFilterContext';
+import { ToastProvider, useToast } from './context/ToastContext';
 import { RouterProvider, useRouter, usePathname } from './lib/router';
-import { CheckCircle2, X, Wallet } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 
 function AppContent() {
   const router = useRouter();
@@ -34,8 +35,7 @@ function AppContent() {
   const [activeModal, setActiveModal] = useState<'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk' | 'repayment' | null>(null);
   const [selectedLoanForRepayment, setSelectedLoanForRepayment] = useState<Loan | null>(null);
 
-  // Notification toast state
-  const [notification, setNotification] = useState<string | null>(null);
+  const toast = useToast();
 
   const { budgetAlerts } = useFinance();
   const overBudgetCount = budgetAlerts.filter((b) => b.status === 'EXCEEDED').length;
@@ -113,19 +113,18 @@ function AppContent() {
   }, [user, isAdmin, isAuthLoading, pathname, router]);
 
   const showNotification = (msg: string) => {
-    setNotification(msg);
-    setTimeout(() => {
-      setNotification((curr) => (curr === msg ? null : curr));
-    }, 4500);
+    toast.success(msg);
   };
 
   if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-[#0d0f12] text-gray-400 flex flex-col items-center justify-center">
-        <div className="w-10 h-10 rounded bg-[#1a1d24] border border-[#2a2d36] flex items-center justify-center text-blue-400 mb-3 animate-pulse">
-          <Wallet className="w-5 h-5 text-blue-400" />
-        </div>
-        <p className="text-xs">Loading HisabFlow...</p>
+        <img
+          src="/logo.png"
+          alt="Account Ladger Logo"
+          className="w-12 h-12 object-contain mb-3 animate-pulse"
+        />
+        <p className="text-xs text-gray-400">Loading Account Ladger...</p>
       </div>
     );
   }
@@ -167,7 +166,7 @@ function AppContent() {
       case 'settings':
         return 'Settings';
       default:
-        return 'HisabFlow';
+        return 'Account Ladger';
     }
   };
 
@@ -187,19 +186,7 @@ function AppContent() {
 
   return (
     <div className="h-screen max-h-screen bg-[#121417] text-gray-100 flex flex-col antialiased overflow-hidden">
-      {/* Toast Notification */}
-      {notification && (
-        <div className="fixed top-4 right-4 z-50 max-w-md bg-[#1a1d24] border border-[#2b2e37] text-gray-100 rounded p-3 shadow-xl flex items-start gap-2.5">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-gray-200 leading-snug flex-1">{notification}</p>
-          <button
-            onClick={() => setNotification(null)}
-            className="text-gray-400 hover:text-white p-0.5"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
+
 
       {/* Main Sidebar */}
       <Sidebar
@@ -344,11 +331,13 @@ export default function App() {
   return (
     <AuthProvider>
       <RouterProvider>
-        <FinanceProvider>
-          <DateFilterProvider>
-            <AppContent />
-          </DateFilterProvider>
-        </FinanceProvider>
+        <ToastProvider>
+          <FinanceProvider>
+            <DateFilterProvider>
+              <AppContent />
+            </DateFilterProvider>
+          </FinanceProvider>
+        </ToastProvider>
       </RouterProvider>
     </AuthProvider>
   );

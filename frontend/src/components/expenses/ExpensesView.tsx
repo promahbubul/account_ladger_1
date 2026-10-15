@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus,
   FileSpreadsheet,
   Trash2,
   Search,
   Eye,
+  Pencil,
   AlertTriangle,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
@@ -15,17 +18,28 @@ import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { useDateFilter } from '../../context/DateFilterContext';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
+import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
+import { useToast } from '../../context/ToastContext';
 
 interface ExpensesViewProps {
-  onOpenSingleExpenseModal: () => void;
+  onOpenSingleExpenseModal?: () => void;
   onSuccessNotification: (msg: string) => void;
 }
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
   onSuccessNotification,
 }) => {
-  const { accounts, categories, addExpense, addBulkExpenses, deleteTransaction, authFetch } = useFinance();
+  const {
+    accounts,
+    categories,
+    addExpense,
+    editTransaction,
+    addBulkExpenses,
+    deleteTransaction,
+    authFetch,
+  } = useFinance();
   const { filter: dateFilter } = useDateFilter();
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<'RECORDS' | 'BULK_ENTRY'>('RECORDS');
 
@@ -36,26 +50,43 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
   // Modals
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
-  const [formValidationMsg, setFormValidationMsg] = useState<string | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
-  // Single Expense Form
-  const [singleDate, setSingleDate] = useState('14 Oct 2026');
+  // Error feedback
+  const [formValidationMsg, setFormValidationMsg] = useState<string | null>(null);
+  const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isSavingAdd, setIsSavingAdd] = useState(false);
+
+  // Add Single Expense Form State
+  const [singleDate, setSingleDate] = useState<string>(getDhakaTodayISO());
   const [singleCat, setSingleCat] = useState('');
+  const [singleSubcat, setSingleSubcat] = useState('');
   const [singleAccount, setSingleAccount] = useState(accounts[0]?.id || '');
   const [singleAmount, setSingleAmount] = useState('');
   const [singleDesc, setSingleDesc] = useState('');
   const [singleRef, setSingleRef] = useState('');
 
+  // Edit Expense Form State
+  const [editDate, setEditDate] = useState<string>(getDhakaTodayISO());
+  const [editCat, setEditCat] = useState('');
+  const [editSubcat, setEditSubcat] = useState('');
+  const [editAccount, setEditAccount] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editRef, setEditRef] = useState('');
+
   // Daily Bulk Entry State
-  const [bulkDate, setBulkDate] = useState('14 Oct 2026');
+  const [bulkDate, setBulkDate] = useState<string>(getDhakaTodayISO());
   const [bulkAccount, setBulkAccount] = useState(accounts[0]?.id || '');
   const [bulkRows, setBulkRows] = useState([
     { id: '1', category: 'Food & Dining', desc: 'Lunch', amount: 180 },
-    { id: '2', category: 'Transport', desc: 'Commute', amount: 60 },
+    { id: '2', category: 'Transportation', desc: 'Commute', amount: 60 },
     { id: '3', category: 'Food & Dining', desc: 'Groceries', amount: 450 },
-    { id: '4', category: 'Mobile & Communication', desc: 'Mobile recharge', amount: 100 },
+    { id: '4', category: 'Housing & Utilities', desc: 'Mobile recharge', amount: 100 },
   ]);
 
   // Paginated state
@@ -69,16 +100,75 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     pageSize,
     cursor,
     pageIndex,
+    currentPage,
+    maxIndexedPage,
     hasNextPage,
     hasPreviousPage,
     setPageSize,
     goToNextPage,
     goToPreviousPage,
+    goToPage,
     resetPagination,
     setPaginationMeta,
   } = useCursorPagination({ initialPageSize: 50 });
 
-  const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
+  // Filter all expense categories
+  const allExpenseCategories = useMemo(
+    () => categories.filter((c) => c.type === 'EXPENSE'),
+    [categories]
+  );
+
+  // Main (parent) expense categories
+  const mainExpenseCategories = useMemo(
+    () => allExpenseCategories.filter((c) => !c.parentId),
+    [allExpenseCategories]
+  );
+
+  // Helper to extract subcategories for a given main category name
+  const getSubcategoriesForCategory = useCallback(
+    (mainCatName: string): string[] => {
+      const parent = allExpenseCategories.find((c) => c.name === mainCatName && !c.parentId);
+      if (!parent) return [];
+
+      const childCategories = allExpenseCategories
+        .filter((c) => c.parentId === parent.id)
+        .map((c) => c.name);
+
+      const arraySubs = parent.subcategories || [];
+      const combined = Array.from(new Set([...childCategories, ...arraySubs]));
+      return combined;
+    },
+    [allExpenseCategories]
+  );
+
+  // Set default category when categories load
+  useEffect(() => {
+    if (!singleCat && mainExpenseCategories.length > 0) {
+      setSingleCat(mainExpenseCategories[0].name);
+    }
+  }, [mainExpenseCategories, singleCat]);
+
+  // Set default account when accounts load
+  useEffect(() => {
+    if (!singleAccount && accounts.length > 0) {
+      setSingleAccount(accounts[0].id);
+    }
+    if (!bulkAccount && accounts.length > 0) {
+      setBulkAccount(accounts[0].id);
+    }
+  }, [accounts, singleAccount, bulkAccount]);
+
+  // Available subcategories for Add Single Expense Form
+  const singleSubcategories = useMemo(
+    () => getSubcategoriesForCategory(singleCat),
+    [getSubcategoriesForCategory, singleCat]
+  );
+
+  // Available subcategories for Edit Expense Form
+  const editSubcategories = useMemo(
+    () => getSubcategoriesForCategory(editCat),
+    [getSubcategoriesForCategory, editCat]
+  );
 
   // Reset pagination when date filter changes
   useEffect(() => {
@@ -93,7 +183,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       const params = new URLSearchParams();
       params.set('type', 'EXPENSE');
       params.set('limit', String(pageSize));
-      if (cursor) params.set('cursor', cursor);
+      if (cursor) {
+        params.set('cursor', cursor);
+      } else if (currentPage > 1) {
+        params.set('page', String(currentPage));
+      }
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (categoryFilter !== 'ALL') params.set('category', categoryFilter);
       if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
@@ -113,6 +207,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       setPaginationMeta({
         hasNextPage: Boolean(data.hasNextPage),
         hasPreviousPage: Boolean(data.hasPreviousPage),
+        nextCursor: data.nextCursor || null,
       });
     } catch (err: any) {
       console.error('Fetch expenses error:', err);
@@ -124,6 +219,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     authFetch,
     pageSize,
     cursor,
+    currentPage,
     searchQuery,
     categoryFilter,
     accountFilter,
@@ -151,12 +247,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     resetPagination();
   };
 
+  // Bulk Entry Handlers
   const bulkGrandTotal = bulkRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   const handleAddBulkRow = () => {
     setBulkRows([
       ...bulkRows,
-      { id: Date.now().toString(), category: expenseCategories[0]?.name || 'Food & Dining', desc: '', amount: 0 },
+      { id: Date.now().toString(), category: mainExpenseCategories[0]?.name || 'Food & Dining', desc: '', amount: 0 },
     ]);
   };
 
@@ -203,36 +300,146 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     fetchExpenses();
   };
 
+  // Add Single Expense Handler
   const handleSaveSingleExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormValidationMsg(null);
     const amountNum = parseFloat(singleAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setFormValidationMsg('Please enter a valid amount greater than 0.');
+      return;
+    }
+    if (!singleDesc.trim()) {
+      setFormValidationMsg('Please enter a description for the expense.');
+      return;
+    }
 
-    await addExpense({
-      accountId: singleAccount || accounts[0]?.id || '',
-      category: singleCat || expenseCategories[0]?.name || 'Other Expense',
-      amount: amountNum,
-      date: singleDate,
-      description: singleDesc.trim() || 'Expense item',
-      reference: singleRef.trim() || undefined,
-    });
+    try {
+      setIsSavingAdd(true);
+      const res = await addExpense({
+        accountId: singleAccount || accounts[0]?.id || '',
+        category: singleCat || mainExpenseCategories[0]?.name || 'Miscellaneous',
+        subcategory: singleSubcat || undefined,
+        amount: amountNum,
+        date: singleDate,
+        description: singleDesc.trim(),
+        reference: singleRef.trim() || undefined,
+      });
 
-    const accName = accounts.find((a) => a.id === singleAccount)?.name || 'Account';
-    onSuccessNotification(`Logged expense ${formatBDT(amountNum)} from ${accName}.`);
-    setIsAddExpenseOpen(false);
-    setSingleAmount('');
-    setSingleDesc('');
-    setSingleRef('');
-    resetPagination();
-    fetchExpenses();
+      if (!res.success || !res.transaction) {
+        setFormValidationMsg(res.error || 'Failed to record expense.');
+        toast.error(res.error || 'Failed to record expense.');
+        return;
+      }
+
+      const newTx = res.transaction;
+      // Targeted DOM update
+      const matchesCat = categoryFilter === 'ALL' || newTx.category === categoryFilter;
+      const matchesAcc = accountFilter === 'ALL' || newTx.accountId === accountFilter;
+      const matchesDate = (!dateFilter.startDate || newTx.date >= dateFilter.startDate) &&
+                          (!dateFilter.endDate || newTx.date <= dateFilter.endDate);
+      const matchesSearch = !searchQuery.trim() ||
+        newTx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (newTx.reference && newTx.reference.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      if (matchesCat && matchesAcc && matchesDate && matchesSearch) {
+        setItems((prev) => [newTx, ...prev]);
+      }
+      setTotalCount((prev) => prev + 1);
+
+      toast.success('Expense added successfully');
+      setIsAddExpenseOpen(false);
+      setSingleAmount('');
+      setSingleDesc('');
+      setSingleRef('');
+      setSingleSubcat('');
+    } catch (err: any) {
+      setFormValidationMsg(err.message || 'Failed to record expense.');
+      toast.error(err.message || 'Failed to record expense.');
+    } finally {
+      setIsSavingAdd(false);
+    }
+  };
+
+  // Open Edit Modal with prefilled values
+  const handleOpenEdit = (tx: Transaction) => {
+    setEditingTx(tx);
+    setEditDate(normalizeToISODate(tx.date));
+    setEditAmount(String(tx.amount));
+    setEditAccount(tx.accountId);
+    setEditCat(tx.category || mainExpenseCategories[0]?.name || 'Miscellaneous');
+    setEditSubcat(tx.subcategory || '');
+    setEditDesc(tx.description);
+    setEditRef(tx.reference || '');
+    setEditErrorMsg(null);
+    setIsEditModalOpen(true);
+  };
+
+  // Save Edit Handler with targeted DOM update
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+    setEditErrorMsg(null);
+
+    const amountNum = parseFloat(editAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setEditErrorMsg('Please enter a valid positive amount.');
+      return;
+    }
+    if (!editDesc.trim()) {
+      setEditErrorMsg('Description cannot be empty.');
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      const res = await editTransaction(editingTx.id, {
+        accountId: editAccount,
+        amount: amountNum,
+        date: editDate,
+        category: editCat,
+        subcategory: editSubcat || undefined,
+        description: editDesc.trim(),
+        reference: editRef.trim() || undefined,
+      });
+
+      if (!res.success || !res.transaction) {
+        setEditErrorMsg(res.error || 'Failed to update expense.');
+        toast.error(res.error || 'Failed to save changes');
+        return;
+      }
+
+      const updated = res.transaction;
+      // Targeted DOM update: replace the affected record in place
+      setItems((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+      if (selectedTx && selectedTx.id === updated.id) {
+        setSelectedTx(updated);
+      }
+
+      toast.success('Expense updated successfully');
+      setIsEditModalOpen(false);
+      setEditingTx(null);
+    } catch (err: any) {
+      setEditErrorMsg(err.message || 'Failed to save changes.');
+      toast.error(err.message || 'Failed to save changes');
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const confirmDeleteExpense = async () => {
     if (!txToDelete) return;
-    await deleteTransaction(txToDelete.id);
-    onSuccessNotification(`Expense "${txToDelete.description}" removed. Balance restored.`);
+    const targetId = txToDelete.id;
+    const res = await deleteTransaction(targetId);
+    if (res && res.success === false) {
+      toast.error(res.error || 'Failed to delete record');
+      return;
+    }
+    // Targeted DOM update: remove row immediately from state
+    setItems((prev) => prev.filter((t) => t.id !== targetId));
+    setTotalCount((prev) => Math.max(0, prev - 1));
+    toast.success('Record deleted successfully');
     setTxToDelete(null);
-    fetchExpenses();
   };
 
   return (
@@ -241,7 +448,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
         <div>
           <h2 className="text-base font-semibold text-gray-100">Expenses</h2>
-          <p className="text-xs text-gray-400">Track and categorize expenditures</p>
+          <p className="text-xs text-gray-400">Track and categorize expenditures with hierarchical categorization</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -252,7 +459,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             <span>{activeTab === 'RECORDS' ? 'Daily Bulk Entry' : 'View Records'}</span>
           </button>
           <button
-            onClick={() => setIsAddExpenseOpen(true)}
+            onClick={() => {
+              setIsAddExpenseOpen(true);
+              setFormValidationMsg(null);
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -308,8 +518,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Categories</option>
-                {expenseCategories.map((c) => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
+                {allExpenseCategories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.parentId ? `↳ ${c.name}` : c.name}
+                  </option>
                 ))}
               </select>
 
@@ -326,7 +538,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             </div>
           </div>
 
-          {/* Viewport-based Scrollable Table */}
+          {/* Seamless Table Section with Integrated Pinned Footer */}
           <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -334,7 +546,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Date</th>
                     <th className="py-2.5 px-3">Description</th>
-                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3">Category & Subcategory</th>
                     <th className="py-2.5 px-3">Account</th>
                     <th className="py-2.5 px-3">Reference</th>
                     <th className="py-2.5 px-3 text-right">Amount</th>
@@ -378,9 +590,16 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           {tx.description}
                         </td>
                         <td className="py-2.5 px-3 text-gray-400">
-                          <span className="px-1.5 py-0.5 rounded bg-[#111317] border border-[#242730] text-[11px]">
-                            {tx.category || 'General Expense'}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="px-1.5 py-0.5 rounded bg-[#111317] border border-[#242730] text-[11px] text-gray-300 w-max">
+                              {tx.category || 'General Expense'}
+                            </span>
+                            {tx.subcategory && (
+                              <span className="text-[10px] text-blue-400 font-mono">
+                                ↳ {tx.subcategory}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2.5 px-3 text-gray-300">
                           {tx.accountName}
@@ -393,6 +612,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         </td>
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEdit(tx)}
+                              title="Edit Expense"
+                              className="p-1 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => setSelectedTx(tx)}
                               title="View Details"
@@ -415,21 +641,24 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Pinned Pagination Controls */}
-          <TablePagination
-            pageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            hasNextPage={hasNextPage}
-            hasPreviousPage={hasPreviousPage}
-            onNextPage={() => goToNextPage(nextCursor)}
-            onPreviousPage={goToPreviousPage}
-            isLoading={isLoading}
-            itemCount={items.length}
-            totalCount={totalCount}
-            pageIndex={pageIndex}
-          />
+            {/* Pinned Pagination Controls Attached to Table Body */}
+            <TablePagination
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              hasNextPage={hasNextPage}
+              hasPreviousPage={hasPreviousPage}
+              onNextPage={() => goToNextPage(nextCursor)}
+              onPreviousPage={goToPreviousPage}
+              onGoToPage={goToPage}
+              currentPage={currentPage}
+              maxIndexedPage={maxIndexedPage}
+              isLoading={isLoading}
+              itemCount={items.length}
+              totalCount={totalCount}
+              onErrorToast={toast.error}
+            />
+          </div>
         </>
       ) : (
         /* Daily Bulk Entry Grid */
@@ -447,13 +676,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 <label className="block text-xs text-gray-300 font-medium mb-1">
                   Transaction Date *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={bulkDate}
-                  onChange={(e) => setBulkDate(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-                />
+                <DatePicker value={bulkDate} onChange={setBulkDate} />
               </div>
 
               <div>
@@ -465,7 +688,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   onChange={(e) => setBulkAccount(e.target.value)}
                   className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
-                  {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
+                  {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
                       {acc.name} ({formatBDT(acc.currentBalance)})
                     </option>
@@ -474,27 +697,27 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
+            <div className="border border-[#22252c] rounded bg-[#16181d] overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase text-[10px]">
-                    <th className="py-2.5 px-3 w-1/4">Category</th>
-                    <th className="py-2.5 px-3 w-1/2">Description</th>
-                    <th className="py-2.5 px-3 w-1/4 text-right">Amount (৳ BDT)</th>
-                    <th className="py-2.5 px-3 w-12 text-center"></th>
+                  <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium text-[10px] uppercase">
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3">Description / Item</th>
+                    <th className="py-2.5 px-3 text-right">Amount (৳)</th>
+                    <th className="py-2.5 px-3 text-center w-12">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
                   {bulkRows.map((row) => (
                     <tr key={row.id}>
-                      <td className="py-2 px-3">
+                      <td className="py-2 px-3 w-48">
                         <select
                           value={row.category}
                           onChange={(e) => handleBulkRowChange(row.id, 'category', e.target.value)}
-                          className="w-full bg-[#111317] border border-[#262932] rounded px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#111317] border border-[#262932] rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                         >
-                          {expenseCategories.map((c) => (
-                            <option key={c.id} value={c.name}>{c.name}</option>
+                          {mainExpenseCategories.map((cat) => (
+                            <option key={cat.id} value={cat.name}>{cat.name}</option>
                           ))}
                         </select>
                       </td>
@@ -573,19 +796,19 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         title="Add Expense"
       >
         <form onSubmit={handleSaveSingleExpense} className="space-y-3">
+          {formValidationMsg && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800 text-red-200 text-xs rounded flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span>{formValidationMsg}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">
                 Date *
               </label>
-              <input
-                type="text"
-                required
-                value={singleDate}
-                onChange={(e) => setSingleDate(e.target.value)}
-                placeholder="14 Oct 2026"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
+              <DatePicker value={singleDate} onChange={setSingleDate} />
             </div>
 
             <div>
@@ -622,19 +845,41 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">
-                Category *
+                Main Category *
               </label>
               <select
                 value={singleCat}
-                onChange={(e) => setSingleCat(e.target.value)}
+                onChange={(e) => {
+                  setSingleCat(e.target.value);
+                  setSingleSubcat('');
+                }}
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
-                {expenseCategories.map((cat) => (
+                {mainExpenseCategories.map((cat) => (
                   <option key={cat.id} value={cat.name}>{cat.name}</option>
                 ))}
               </select>
             </div>
           </div>
+
+          {/* Subcategory Dropdown (if selected main category has subcategories) */}
+          {singleSubcategories.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Subcategory (Optional)
+              </label>
+              <select
+                value={singleSubcat}
+                onChange={(e) => setSingleSubcat(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">No subcategory</option>
+                {singleSubcategories.map((sub, idx) => (
+                  <option key={idx} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs text-gray-300 font-medium mb-1">
@@ -658,8 +903,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               type="text"
               value={singleRef}
               onChange={(e) => setSingleRef(e.target.value)}
-              placeholder="e.g. INV-1092"
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              placeholder="e.g. Receipt #1234 or Transaction ID"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -673,15 +918,164 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSavingAdd}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Save Expense
+              {isSavingAdd && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Expense</span>
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Transaction Details Modal */}
+      {/* Edit Expense Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingTx(null);
+        }}
+        title="Edit Expense"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-3">
+          {editErrorMsg && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800 text-red-200 text-xs rounded flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span>{editErrorMsg}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Date *
+              </label>
+              <DatePicker value={editDate} onChange={setEditDate} />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Amount (৳ BDT) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Payment Account *
+              </label>
+              <select
+                value={editAccount}
+                onChange={(e) => setEditAccount(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({formatBDT(acc.currentBalance)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Main Category *
+              </label>
+              <select
+                value={editCat}
+                onChange={(e) => {
+                  setEditCat(e.target.value);
+                  setEditSubcat('');
+                }}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                {mainExpenseCategories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Subcategory Dropdown for Edit */}
+          {editSubcategories.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Subcategory (Optional)
+              </label>
+              <select
+                value={editSubcat}
+                onChange={(e) => setEditSubcat(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">No subcategory</option>
+                {editSubcategories.map((sub, idx) => (
+                  <option key={idx} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs text-gray-300 font-medium mb-1">
+              Description *
+            </label>
+            <input
+              type="text"
+              required
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              placeholder="e.g. Groceries at supermarket"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-300 font-medium mb-1">
+              Reference Number (Optional)
+            </label>
+            <input
+              type="text"
+              value={editRef}
+              onChange={(e) => setEditRef(e.target.value)}
+              placeholder="e.g. Receipt #1234"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingTx(null);
+              }}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingEdit}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              {isSavingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Details Modal */}
       <Modal
         isOpen={Boolean(selectedTx)}
         onClose={() => setSelectedTx(null)}
@@ -691,38 +1085,42 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           <div className="space-y-3 text-xs">
             <div className="grid grid-cols-2 gap-2 bg-[#111317] border border-[#22252c] p-3 rounded">
               <div>
-                <span className="text-gray-400">Date</span>
-                <p className="font-mono text-gray-200">{selectedTx.date}</p>
+                <span className="text-gray-500 text-[10px] uppercase font-mono block">Date</span>
+                <span className="font-semibold text-gray-200">{selectedTx.date}</span>
               </div>
               <div>
-                <span className="text-gray-400">Amount</span>
-                <p className="font-mono text-gray-100 font-semibold">-{formatBDT(selectedTx.amount)}</p>
+                <span className="text-gray-500 text-[10px] uppercase font-mono block">Amount</span>
+                <span className="font-semibold text-rose-400 font-mono text-sm">-{formatBDT(selectedTx.amount)}</span>
               </div>
               <div>
-                <span className="text-gray-400">Category</span>
-                <p className="text-gray-200">{selectedTx.category || 'Expense'}</p>
+                <span className="text-gray-500 text-[10px] uppercase font-mono block">Category</span>
+                <span className="text-gray-200">{selectedTx.category}</span>
+                {selectedTx.subcategory && (
+                  <span className="text-blue-400 font-mono text-[10px] block">↳ {selectedTx.subcategory}</span>
+                )}
               </div>
               <div>
-                <span className="text-gray-400">Account</span>
-                <p className="text-gray-200">{selectedTx.accountName}</p>
+                <span className="text-gray-500 text-[10px] uppercase font-mono block">Account</span>
+                <span className="text-gray-200">{selectedTx.accountName}</span>
               </div>
-              <div className="col-span-2">
-                <span className="text-gray-400">Description</span>
-                <p className="text-gray-200">{selectedTx.description}</p>
-              </div>
-              {selectedTx.reference && (
-                <div className="col-span-2">
-                  <span className="text-gray-400">Reference</span>
-                  <p className="font-mono text-gray-300">{selectedTx.reference}</p>
-                </div>
-              )}
             </div>
+
+            <div>
+              <span className="text-gray-500 text-[10px] uppercase font-mono block mb-1">Description</span>
+              <p className="p-2.5 bg-[#111317] border border-[#22252c] rounded text-gray-300">{selectedTx.description}</p>
+            </div>
+
+            {selectedTx.reference && (
+              <div>
+                <span className="text-gray-500 text-[10px] uppercase font-mono block mb-1">Reference</span>
+                <p className="p-2 bg-[#111317] border border-[#22252c] rounded font-mono text-gray-400">{selectedTx.reference}</p>
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <button
-                type="button"
                 onClick={() => setSelectedTx(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded transition-colors"
               >
                 Close
               </button>
@@ -737,7 +1135,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         onClose={() => setTxToDelete(null)}
         onConfirm={confirmDeleteExpense}
         title="Delete Expense Record"
-        message={txToDelete ? `Delete expense "${txToDelete.description}" (${formatBDT(txToDelete.amount)})? This will restore ${formatBDT(txToDelete.amount)} back to ${txToDelete.accountName}.` : ''}
+        message={txToDelete ? `Are you sure you want to delete the expense "${txToDelete.description}" of ${formatBDT(txToDelete.amount)}? The amount will be refunded back to ${txToDelete.accountName}.` : ''}
         confirmLabel="Delete"
         isDestructive={true}
       />

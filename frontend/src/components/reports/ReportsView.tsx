@@ -118,7 +118,7 @@ export const ReportsView: React.FC = () => {
   });
 
   const handleExportCSVReport = () => {
-    let csv = '=== HISABFLOW FINANCIAL REPORT ===\n';
+    let csv = '=== ACCOUNT LADGER FINANCIAL REPORT ===\n';
     csv += `Period: ${selectedPeriod}\nGenerated: ${new Date().toLocaleDateString()}\n\n`;
 
     csv += '--- CASH FLOW SUMMARY ---\n';
@@ -138,7 +138,7 @@ export const ReportsView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `hisabflow_financial_report_${Date.now()}.csv`;
+    link.download = `accountladger_financial_report_${Date.now()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

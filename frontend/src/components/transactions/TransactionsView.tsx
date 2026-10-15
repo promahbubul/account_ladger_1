@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Search,
   Eye,
   Trash2,
+  Pencil,
   Download,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
@@ -13,16 +16,32 @@ import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { useDateFilter } from '../../context/DateFilterContext';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
+import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
+import { useToast } from '../../context/ToastContext';
 
 export const TransactionsView: React.FC = () => {
-  const { accounts, deleteTransaction, authFetch } = useFinance();
-  const { dateFilter } = useDateFilter();
+  const { accounts, categories, deleteTransaction, editTransaction, authFetch } = useFinance();
+  const { filter: dateFilter } = useDateFilter();
+  const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [accountFilter, setAccountFilter] = useState('ALL');
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
+
+  // Edit State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editDate, setEditDate] = useState<string>(getDhakaTodayISO());
+  const [editAmount, setEditAmount] = useState('');
+  const [editAccount, setEditAccount] = useState('');
+  const [editCat, setEditCat] = useState('');
+  const [editSubcat, setEditSubcat] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editRef, setEditRef] = useState('');
+  const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Paginated state
   const [items, setItems] = useState<Transaction[]>([]);
@@ -35,11 +54,14 @@ export const TransactionsView: React.FC = () => {
     pageSize,
     cursor,
     pageIndex,
+    currentPage,
+    maxIndexedPage,
     hasNextPage,
     hasPreviousPage,
     setPageSize,
     goToNextPage,
     goToPreviousPage,
+    goToPage,
     resetPagination,
     setPaginationMeta,
   } = useCursorPagination({ initialPageSize: 50 });
@@ -65,6 +87,21 @@ export const TransactionsView: React.FC = () => {
     resetPagination();
   };
 
+  // Filter categories for the currently editing transaction type
+  const editingAvailableCategories = useMemo(() => {
+    if (!editingTx) return [];
+    return categories.filter((c) => c.type === editingTx.type && !c.parentId);
+  }, [categories, editingTx]);
+
+  const editingSubcategories = useMemo(() => {
+    if (!editingTx || !editCat) return [];
+    const parent = categories.find((c) => c.type === editingTx.type && c.name === editCat && !c.parentId);
+    if (!parent) return [];
+    const childCats = categories.filter((c) => c.parentId === parent.id).map((c) => c.name);
+    const arraySubs = parent.subcategories || [];
+    return Array.from(new Set([...childCats, ...arraySubs]));
+  }, [categories, editingTx, editCat]);
+
   const fetchTransactions = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -72,7 +109,11 @@ export const TransactionsView: React.FC = () => {
 
       const params = new URLSearchParams();
       params.set('limit', String(pageSize));
-      if (cursor) params.set('cursor', cursor);
+      if (cursor) {
+        params.set('cursor', cursor);
+      } else if (currentPage > 1) {
+        params.set('page', String(currentPage));
+      }
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (typeFilter !== 'ALL') params.set('type', typeFilter);
       if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
@@ -99,7 +140,7 @@ export const TransactionsView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [authFetch, pageSize, cursor, searchQuery, typeFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, setPaginationMeta]);
+  }, [authFetch, pageSize, cursor, currentPage, searchQuery, typeFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, setPaginationMeta]);
 
   useEffect(() => {
     fetchTransactions();
@@ -107,9 +148,73 @@ export const TransactionsView: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!txToDelete) return;
-    await deleteTransaction(txToDelete.id);
+    const deletedId = txToDelete.id;
+    const res = await deleteTransaction(deletedId);
+    if (res.success) {
+      setItems((prev) => prev.filter((t) => t.id !== deletedId));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+      toast.success('Record deleted successfully');
+    } else {
+      toast.error(res.error || 'Failed to delete transaction');
+    }
     setTxToDelete(null);
-    fetchTransactions();
+  };
+
+  const handleOpenEdit = (tx: Transaction) => {
+    setEditingTx(tx);
+    setEditDate(normalizeToISODate(tx.date));
+    setEditAmount(String(tx.amount));
+    setEditAccount(tx.accountId);
+    setEditCat(tx.category || '');
+    setEditSubcat(tx.subcategory || '');
+    setEditDesc(tx.description);
+    setEditRef(tx.reference || '');
+    setEditErrorMsg(null);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+    setEditErrorMsg(null);
+
+    const amountNum = parseFloat(editAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setEditErrorMsg('Please enter a valid positive amount.');
+      return;
+    }
+    if (!editDesc.trim()) {
+      setEditErrorMsg('Description cannot be empty.');
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      const res = await editTransaction(editingTx.id, {
+        accountId: editAccount,
+        amount: amountNum,
+        date: editDate,
+        category: editCat || undefined,
+        subcategory: editSubcat || undefined,
+        description: editDesc.trim(),
+        reference: editRef.trim() || undefined,
+      });
+
+      if (!res.success || !res.transaction) {
+        setEditErrorMsg(res.error || 'Failed to update transaction.');
+        return;
+      }
+
+      const updated = res.transaction;
+      setItems((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+      toast.success('Transaction updated successfully');
+      setIsEditModalOpen(false);
+      setEditingTx(null);
+    } catch (err: any) {
+      setEditErrorMsg(err.message || 'Failed to save changes.');
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const handleExportCSV = async () => {
@@ -123,117 +228,81 @@ export const TransactionsView: React.FC = () => {
       if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
 
       const res = await authFetch(`/api/transactions?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to export transactions');
       const data = await res.json();
-      const exportList: Transaction[] = data.items || data.transactions || items;
+      const exportList: Transaction[] = data.transactions || [];
 
-      const headers = ['Date', 'Type', 'Account', 'Destination Account', 'Category', 'Description', 'Reference', 'Amount', 'Direction', 'Status'];
-      const rows = exportList.map((t) => [
-        `"${t.date}"`,
-        `"${t.type}"`,
-        `"${t.accountName}"`,
-        `"${t.destinationAccountName || ''}"`,
-        `"${t.category || t.counterparty || ''}"`,
-        `"${t.description.replace(/"/g, '""')}"`,
-        `"${t.reference || ''}"`,
+      const headers = ['Date', 'Type', 'Description', 'Category', 'Account', 'Destination Account', 'Amount', 'Direction', 'Reference'];
+      const rows = exportList.map(t => [
+        t.date,
+        t.type,
+        `"${(t.description || '').replace(/"/g, '""')}"`,
+        `"${(t.category || '').replace(/"/g, '""')}"`,
+        `"${(t.accountName || '').replace(/"/g, '""')}"`,
+        `"${(t.destinationAccountName || '').replace(/"/g, '""')}"`,
         t.amount,
-        `"${t.direction}"`,
-        `"${t.status}"`,
+        t.direction,
+        `"${(t.reference || '').replace(/"/g, '""')}"`,
       ]);
 
-      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
       const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `hisabflow_transactions_${Date.now()}.csv`);
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `AccountLadger_Transactions_${new Date().toISOString().slice(0, 10)}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error('Export CSV error:', err);
-    }
-  };
-
-  const handleExportJSON = async () => {
-    try {
-      const params = new URLSearchParams();
-      params.set('all', 'true');
-      if (searchQuery.trim()) params.set('search', searchQuery.trim());
-      if (typeFilter !== 'ALL') params.set('type', typeFilter);
-      if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
-
-      const res = await authFetch(`/api/transactions?${params.toString()}`);
-      const data = await res.json();
-      const exportList: Transaction[] = data.transactions || items;
-
-      const jsonContent = JSON.stringify(exportList, null, 2);
-      const blob = new Blob([jsonContent], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `hisabflow_transactions_${Date.now()}.json`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error('Export JSON error:', err);
+      console.error('CSV export failed:', err);
     }
   };
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'INCOME':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-medium">INCOME</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-950 text-emerald-300 border border-emerald-800">Income</span>;
       case 'EXPENSE':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-300 border border-gray-700 font-medium">EXPENSE</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-950 text-rose-300 border border-rose-800">Expense</span>;
       case 'TRANSFER':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-950/70 text-blue-300 border border-blue-800/60 font-medium">TRANSFER</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-950 text-blue-300 border border-blue-800">Transfer</span>;
       case 'LOAN_LENT':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-950/70 text-amber-300 border border-amber-800/60 font-medium">LOAN GIVEN</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950 text-purple-300 border border-purple-800">Loan Lent</span>;
       case 'LOAN_BORROWED':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-950/70 text-purple-300 border border-purple-800/60 font-medium">BORROWED</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-950 text-amber-300 border border-amber-800">Borrowed</span>;
       case 'LOAN_REPAYMENT':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-teal-950/70 text-teal-300 border border-teal-800/60 font-medium">REPAYMENT</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-teal-950 text-teal-300 border border-teal-800">Repayment</span>;
       default:
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-400 font-medium">{type}</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-800 text-gray-300">{type}</span>;
     }
   };
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
         <div>
-          <h2 className="text-base font-semibold text-gray-100">Transactions Ledger</h2>
-          <p className="text-xs text-gray-400">Deterministic cursor pagination & full-height view</p>
+          <h2 className="text-base font-semibold text-gray-100">Transaction History</h2>
+          <p className="text-xs text-gray-400">Comprehensive ledger of all inflows, outflows, transfers, and loans</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1e222a] hover:bg-[#262b35] text-gray-200 rounded text-xs font-medium border border-[#2e323d] transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            onClick={handleExportJSON}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1e222a] hover:bg-[#262b35] text-gray-200 rounded text-xs font-medium border border-[#2e323d] transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export JSON</span>
-          </button>
-        </div>
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 border border-[#2a2e39] rounded text-xs transition-colors self-start sm:self-auto"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>Export CSV</span>
+        </button>
       </div>
 
-      {/* Search & Filter Toolbar */}
+      {/* Search & Filter Bar */}
       <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
-        <div className="relative w-full md:w-80">
+        <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search description, category, reference..."
+            placeholder="Search transactions..."
             className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
@@ -266,7 +335,7 @@ export const TransactionsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Viewport-based Scrollable Table Container */}
+      {/* Viewport-based Scrollable Table Container with Integrated Pagination Footer */}
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -318,7 +387,19 @@ export const TransactionsView: React.FC = () => {
                       {tx.description}
                     </td>
                     <td className="py-2.5 px-3 text-gray-400">
-                      {tx.category || tx.counterparty || '-'}
+                      {tx.category ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#111317] border border-[#242730] text-[11px]">
+                          <span>{tx.category}</span>
+                          {tx.subcategory && (
+                            <>
+                              <span className="text-gray-500 font-normal">›</span>
+                              <span className="text-blue-300 font-normal">{tx.subcategory}</span>
+                            </>
+                          )}
+                        </span>
+                      ) : (
+                        tx.counterparty || '-'
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-gray-300">
                       {tx.accountName}
@@ -340,6 +421,15 @@ export const TransactionsView: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {(tx.type === 'INCOME' || tx.type === 'EXPENSE') && (
+                          <button
+                            onClick={() => handleOpenEdit(tx)}
+                            title="Edit Record"
+                            className="p-1 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setSelectedTx(tx)}
                           title="View Details"
@@ -362,21 +452,179 @@ export const TransactionsView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Integrated Pagination Footer directly attached below the table body */}
+        <TablePagination
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          hasNextPage={hasNextPage}
+          hasPreviousPage={hasPreviousPage}
+          onNextPage={() => goToNextPage(nextCursor)}
+          onPreviousPage={goToPreviousPage}
+          isLoading={isLoading}
+          itemCount={items.length}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          currentPage={currentPage}
+          maxIndexedPage={maxIndexedPage}
+          onGoToPage={goToPage}
+          onErrorToast={toast.error}
+        />
       </div>
 
-      {/* Pinned Pagination Controls */}
-      <TablePagination
-        pageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        hasNextPage={hasNextPage}
-        hasPreviousPage={hasPreviousPage}
-        onNextPage={() => goToNextPage(nextCursor)}
-        onPreviousPage={goToPreviousPage}
-        isLoading={isLoading}
-        itemCount={items.length}
-        totalCount={totalCount}
-        pageIndex={pageIndex}
-      />
+      {/* Edit Modal for Income / Expense */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          if (!isSavingEdit) {
+            setIsEditModalOpen(false);
+            setEditingTx(null);
+          }
+        }}
+        title={`Edit ${editingTx?.type === 'INCOME' ? 'Income' : 'Expense'} Transaction`}
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-3">
+          {editErrorMsg && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded flex items-center gap-2 text-xs text-red-300">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+              <span>{editErrorMsg}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <DatePicker
+                value={editDate}
+                onChange={setEditDate}
+                label="Date *"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Amount (৳ BDT) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Account *
+              </label>
+              <select
+                value={editAccount}
+                onChange={(e) => setEditAccount(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({formatBDT(acc.currentBalance)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {editingAvailableCategories.length > 0 && (
+              <div>
+                <label className="block text-xs text-gray-300 font-medium mb-1">
+                  Category
+                </label>
+                <select
+                  value={editCat}
+                  onChange={(e) => {
+                    setEditCat(e.target.value);
+                    setEditSubcat('');
+                  }}
+                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Select Category</option>
+                  {editingAvailableCategories.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {editingSubcategories.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Subcategory (Optional)
+              </label>
+              <select
+                value={editSubcat}
+                onChange={(e) => setEditSubcat(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">No Subcategory</option>
+                {editingSubcategories.map((sub) => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs text-gray-300 font-medium mb-1">
+              Description *
+            </label>
+            <input
+              type="text"
+              required
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              placeholder="Description"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-300 font-medium mb-1">
+              Reference / Note
+            </label>
+            <input
+              type="text"
+              value={editRef}
+              onChange={(e) => setEditRef(e.target.value)}
+              placeholder="e.g. Inv #9021"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              disabled={isSavingEdit}
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingTx(null);
+              }}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingEdit}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              {isSavingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSavingEdit ? 'Saving Changes...' : 'Save Changes'}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Details Modal */}
       <Modal
@@ -405,6 +653,15 @@ export const TransactionsView: React.FC = () => {
                 <span className="text-gray-400">Account</span>
                 <p className="text-gray-200">{selectedTx.accountName}</p>
               </div>
+              {selectedTx.category && (
+                <div className="col-span-2">
+                  <span className="text-gray-400">Category</span>
+                  <p className="text-gray-200">
+                    {selectedTx.category}
+                    {selectedTx.subcategory && ` › ${selectedTx.subcategory}`}
+                  </p>
+                </div>
+              )}
               {selectedTx.destinationAccountName && (
                 <div className="col-span-2">
                   <span className="text-gray-400">Destination Account</span>

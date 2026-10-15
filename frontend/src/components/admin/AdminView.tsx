@@ -92,7 +92,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [settings, setSettings] = useState<SystemSettings>({
-    appName: 'HisabFlow',
+    appName: 'Account Ladger',
     maintenanceMode: false,
     allowUserRegistration: true,
     defaultCurrency: 'BDT',
@@ -741,21 +741,24 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Pinned User Pagination */}
-          <TablePagination
-            pageSize={userPagination.pageSize}
-            onPageSizeChange={userPagination.setPageSize}
-            hasNextPage={userPagination.hasNextPage}
-            hasPreviousPage={userPagination.hasPreviousPage}
-            onNextPage={() => userPagination.goToNextPage(userNextCursor)}
-            onPreviousPage={userPagination.goToPreviousPage}
-            isLoading={isUsersLoading}
-            itemCount={userItems.length}
-            totalCount={userTotalCount}
-            pageIndex={userPagination.pageIndex}
-          />
+            {/* Integrated User Pagination */}
+            <TablePagination
+              pageSize={userPagination.pageSize}
+              onPageSizeChange={userPagination.setPageSize}
+              hasNextPage={userPagination.hasNextPage}
+              hasPreviousPage={userPagination.hasPreviousPage}
+              onNextPage={() => userPagination.goToNextPage(userNextCursor)}
+              onPreviousPage={userPagination.goToPreviousPage}
+              isLoading={isUsersLoading}
+              itemCount={userItems.length}
+              totalCount={userTotalCount}
+              pageIndex={userPagination.pageIndex}
+              currentPage={userPagination.currentPage}
+              maxIndexedPage={userPagination.maxIndexedPage}
+              onGoToPage={userPagination.goToPage}
+            />
+          </div>
         </div>
       )}
 
@@ -848,21 +851,24 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Pinned Log Pagination */}
-          <TablePagination
-            pageSize={logPagination.pageSize}
-            onPageSizeChange={logPagination.setPageSize}
-            hasNextPage={logPagination.hasNextPage}
-            hasPreviousPage={logPagination.hasPreviousPage}
-            onNextPage={() => logPagination.goToNextPage(logNextCursor)}
-            onPreviousPage={logPagination.goToPreviousPage}
-            isLoading={isLogsLoading}
-            itemCount={logItems.length}
-            totalCount={logTotalCount}
-            pageIndex={logPagination.pageIndex}
-          />
+            {/* Integrated Log Pagination */}
+            <TablePagination
+              pageSize={logPagination.pageSize}
+              onPageSizeChange={logPagination.setPageSize}
+              hasNextPage={logPagination.hasNextPage}
+              hasPreviousPage={logPagination.hasPreviousPage}
+              onNextPage={() => logPagination.goToNextPage(logNextCursor)}
+              onPreviousPage={logPagination.goToPreviousPage}
+              isLoading={isLogsLoading}
+              itemCount={logItems.length}
+              totalCount={logTotalCount}
+              pageIndex={logPagination.pageIndex}
+              currentPage={logPagination.currentPage}
+              maxIndexedPage={logPagination.maxIndexedPage}
+              onGoToPage={logPagination.goToPage}
+            />
+          </div>
         </div>
       )}
 

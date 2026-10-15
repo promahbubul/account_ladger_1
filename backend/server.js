@@ -6,7 +6,7 @@ import { logger } from './src/utils/logger.js';
 async function start() {
   try {
     // 1. Initialize Database connection & seed state
-    logger.info('Initializing HisabFlow Database...');
+    logger.info('Initializing AccountLedger.com Database...');
     await dbService.initialize();
 
     // 2. Create Express application

@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus,
   Search,
   Eye,
   Trash2,
+  Pencil,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
@@ -13,17 +16,20 @@ import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { useDateFilter } from '../../context/DateFilterContext';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
+import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
+import { useToast } from '../../context/ToastContext';
 
 interface IncomeViewProps {
-  onOpenAddIncomeModal: () => void;
+  onOpenAddIncomeModal?: () => void;
   onSuccessNotification: (msg: string) => void;
 }
 
 export const IncomeView: React.FC<IncomeViewProps> = ({
   onSuccessNotification,
 }) => {
-  const { categories, accounts, deleteTransaction, addIncome, authFetch } = useFinance();
-  const { dateFilter } = useDateFilter();
+  const { categories, accounts, deleteTransaction, addIncome, editTransaction, authFetch } = useFinance();
+  const { filter: dateFilter } = useDateFilter();
+  const toast = useToast();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,16 +38,32 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 
   // Modals
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
-  // Form state
-  const [formDate, setFormDate] = useState('14 Oct 2026');
-  const [formCatId, setFormCatId] = useState('');
+  // Form state (Add Income)
+  const [formDate, setFormDate] = useState<string>(getDhakaTodayISO());
+  const [formCat, setFormCat] = useState('');
+  const [formSubcat, setFormSubcat] = useState('');
   const [formAccId, setFormAccId] = useState(accounts[0]?.id || '');
   const [formAmount, setFormAmount] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formRef, setFormRef] = useState('');
+  const [formValidationMsg, setFormValidationMsg] = useState<string | null>(null);
+  const [isSavingAdd, setIsSavingAdd] = useState(false);
+
+  // Form state (Edit Income)
+  const [editDate, setEditDate] = useState<string>(getDhakaTodayISO());
+  const [editCat, setEditCat] = useState('');
+  const [editSubcat, setEditSubcat] = useState('');
+  const [editAccount, setEditAccount] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editRef, setEditRef] = useState('');
+  const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Pagination state
   const [items, setItems] = useState<Transaction[]>([]);
@@ -54,16 +76,71 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
     pageSize,
     cursor,
     pageIndex,
+    currentPage,
+    maxIndexedPage,
     hasNextPage,
     hasPreviousPage,
     setPageSize,
     goToNextPage,
     goToPreviousPage,
+    goToPage,
     resetPagination,
     setPaginationMeta,
   } = useCursorPagination({ initialPageSize: 50 });
 
-  const incomeCategories = categories.filter((c) => c.type === 'INCOME');
+  // Filter all income categories
+  const allIncomeCategories = useMemo(
+    () => categories.filter((c) => c.type === 'INCOME'),
+    [categories]
+  );
+
+  // Main (parent) income categories
+  const mainIncomeCategories = useMemo(
+    () => allIncomeCategories.filter((c) => !c.parentId),
+    [allIncomeCategories]
+  );
+
+  // Helper to extract subcategories for a given main category name
+  const getSubcategoriesForCategory = useCallback(
+    (mainCatName: string): string[] => {
+      const parent = allIncomeCategories.find((c) => c.name === mainCatName && !c.parentId);
+      if (!parent) return [];
+
+      const childCategories = allIncomeCategories
+        .filter((c) => c.parentId === parent.id)
+        .map((c) => c.name);
+
+      const arraySubs = parent.subcategories || [];
+      return Array.from(new Set([...childCategories, ...arraySubs]));
+    },
+    [allIncomeCategories]
+  );
+
+  // Set default category when categories load
+  useEffect(() => {
+    if (!formCat && mainIncomeCategories.length > 0) {
+      setFormCat(mainIncomeCategories[0].name);
+    }
+  }, [mainIncomeCategories, formCat]);
+
+  // Set default account when accounts load
+  useEffect(() => {
+    if (!formAccId && accounts.length > 0) {
+      setFormAccId(accounts[0].id);
+    }
+  }, [accounts, formAccId]);
+
+  // Available subcategories for Add Income Form
+  const formSubcategories = useMemo(
+    () => getSubcategoriesForCategory(formCat),
+    [getSubcategoriesForCategory, formCat]
+  );
+
+  // Available subcategories for Edit Income Form
+  const editSubcategories = useMemo(
+    () => getSubcategoriesForCategory(editCat),
+    [getSubcategoriesForCategory, editCat]
+  );
 
   // Reset pagination when date filter changes
   useEffect(() => {
@@ -78,7 +155,11 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       const params = new URLSearchParams();
       params.set('type', 'INCOME');
       params.set('limit', String(pageSize));
-      if (cursor) params.set('cursor', cursor);
+      if (cursor) {
+        params.set('cursor', cursor);
+      } else if (currentPage > 1) {
+        params.set('page', String(currentPage));
+      }
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (categoryFilter !== 'ALL') params.set('category', categoryFilter);
       if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
@@ -98,6 +179,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       setPaginationMeta({
         hasNextPage: Boolean(data.hasNextPage),
         hasPreviousPage: Boolean(data.hasPreviousPage),
+        nextCursor: data.nextCursor || null,
       });
     } catch (err: any) {
       console.error('Fetch income error:', err);
@@ -105,7 +187,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [authFetch, pageSize, cursor, searchQuery, categoryFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, setPaginationMeta]);
+  }, [authFetch, pageSize, cursor, currentPage, searchQuery, categoryFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, setPaginationMeta]);
 
   useEffect(() => {
     fetchIncome();
@@ -128,37 +210,144 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 
   const confirmDelete = async () => {
     if (!txToDelete) return;
-    await deleteTransaction(txToDelete.id);
-    onSuccessNotification(`Income transaction deleted and ${formatBDT(txToDelete.amount)} deducted from ${txToDelete.accountName}.`);
+    const targetId = txToDelete.id;
+    const res = await deleteTransaction(targetId);
+    if (res && res.success === false) {
+      toast.error(res.error || 'Failed to delete record');
+      return;
+    }
+    // Targeted DOM update
+    setItems((prev) => prev.filter((t) => t.id !== targetId));
+    setTotalCount((prev) => Math.max(0, prev - 1));
+    toast.success('Record deleted successfully');
     setTxToDelete(null);
-    fetchIncome();
   };
 
   const handleSaveIncome = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormValidationMsg(null);
     const amountNum = parseFloat(formAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setFormValidationMsg('Please enter a valid amount greater than 0.');
+      return;
+    }
+    if (!formDesc.trim()) {
+      setFormValidationMsg('Please enter a description for the income.');
+      return;
+    }
 
-    await addIncome({
-      accountId: formAccId || accounts[0]?.id || '',
-      categoryId: formCatId || incomeCategories[0]?.id,
-      amount: amountNum,
-      date: formDate,
-      description: formDesc.trim() || 'Income deposit',
-      reference: formRef.trim() || undefined,
-    });
+    try {
+      setIsSavingAdd(true);
+      const res = await addIncome({
+        accountId: formAccId || accounts[0]?.id || '',
+        category: formCat || mainIncomeCategories[0]?.name || 'General Income',
+        subcategory: formSubcat || undefined,
+        amount: amountNum,
+        date: formDate,
+        description: formDesc.trim(),
+        reference: formRef.trim() || undefined,
+      });
 
-    const accName = accounts.find((a) => a.id === formAccId)?.name || 'Account';
-    onSuccessNotification(`Credited ${formatBDT(amountNum)} to ${accName}.`);
-    setIsRecordModalOpen(false);
-    setFormAmount('');
-    setFormDesc('');
-    setFormRef('');
-    resetPagination();
-    fetchIncome();
+      if (!res.success || !res.transaction) {
+        setFormValidationMsg(res.error || 'Failed to record income.');
+        toast.error(res.error || 'Failed to record income.');
+        return;
+      }
+
+      const newTx = res.transaction;
+      // Targeted DOM update
+      const matchesCat = categoryFilter === 'ALL' || newTx.category === categoryFilter;
+      const matchesAcc = accountFilter === 'ALL' || newTx.accountId === accountFilter;
+      const matchesDate = (!dateFilter.startDate || newTx.date >= dateFilter.startDate) &&
+                          (!dateFilter.endDate || newTx.date <= dateFilter.endDate);
+      const matchesSearch = !searchQuery.trim() ||
+        newTx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (newTx.reference && newTx.reference.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      if (matchesCat && matchesAcc && matchesDate && matchesSearch) {
+        setItems((prev) => [newTx, ...prev]);
+      }
+      setTotalCount((prev) => prev + 1);
+
+      toast.success('Income added successfully');
+      setIsRecordModalOpen(false);
+      setFormAmount('');
+      setFormDesc('');
+      setFormRef('');
+      setFormSubcat('');
+    } catch (err: any) {
+      setFormValidationMsg(err.message || 'Failed to record income.');
+      toast.error(err.message || 'Failed to record income.');
+    } finally {
+      setIsSavingAdd(false);
+    }
   };
 
-  const pageIncomeTotal = items.reduce((sum, t) => sum + t.amount, 0);
+  // Open Edit Modal with prefilled values
+  const handleOpenEdit = (tx: Transaction) => {
+    setEditingTx(tx);
+    setEditDate(normalizeToISODate(tx.date));
+    setEditAmount(String(tx.amount));
+    setEditAccount(tx.accountId);
+    setEditCat(tx.category || mainIncomeCategories[0]?.name || 'General Income');
+    setEditSubcat(tx.subcategory || '');
+    setEditDesc(tx.description);
+    setEditRef(tx.reference || '');
+    setEditErrorMsg(null);
+    setIsEditModalOpen(true);
+  };
+
+  // Save Edit Handler with targeted DOM update
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+    setEditErrorMsg(null);
+
+    const amountNum = parseFloat(editAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setEditErrorMsg('Please enter a valid positive amount.');
+      return;
+    }
+    if (!editDesc.trim()) {
+      setEditErrorMsg('Description cannot be empty.');
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      const res = await editTransaction(editingTx.id, {
+        accountId: editAccount,
+        amount: amountNum,
+        date: editDate,
+        category: editCat,
+        subcategory: editSubcat || undefined,
+        description: editDesc.trim(),
+        reference: editRef.trim() || undefined,
+      });
+
+      if (!res.success || !res.transaction) {
+        setEditErrorMsg(res.error || 'Failed to update income record.');
+        toast.error(res.error || 'Failed to save changes');
+        return;
+      }
+
+      const updated = res.transaction;
+      // Targeted DOM update: update affected row in place
+      setItems((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+      if (selectedTx && selectedTx.id === updated.id) {
+        setSelectedTx(updated);
+      }
+
+      toast.success('Income updated successfully');
+      setIsEditModalOpen(false);
+      setEditingTx(null);
+    } catch (err: any) {
+      setEditErrorMsg(err.message || 'Failed to save changes.');
+      toast.error(err.message || 'Failed to save changes');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
@@ -166,10 +355,14 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
         <div>
           <h2 className="text-base font-semibold text-gray-100">Income Records</h2>
-          <p className="text-xs text-gray-400">Track incoming revenue and credits</p>
+          <p className="text-xs text-gray-400">Track incoming revenue and credits with category hierarchy</p>
         </div>
         <button
-          onClick={() => setIsRecordModalOpen(true)}
+          onClick={() => {
+            setFormDate(getDhakaTodayISO());
+            setFormValidationMsg(null);
+            setIsRecordModalOpen(true);
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -197,7 +390,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Categories</option>
-            {incomeCategories.map((c) => (
+            {incomeCategoriesList(allIncomeCategories).map((c) => (
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
           </select>
@@ -215,7 +408,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         </div>
       </div>
 
-      {/* Main Income Table */}
+      {/* Main Income Table with Integrated Pagination Footer */}
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -254,7 +447,11 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                   }
                   action={{
                     label: 'Record Income',
-                    onClick: () => setIsRecordModalOpen(true),
+                    onClick: () => {
+                      setFormDate(getDhakaTodayISO());
+                      setFormValidationMsg(null);
+                      setIsRecordModalOpen(true);
+                    },
                   }}
                 />
               ) : (
@@ -267,8 +464,14 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                       {tx.description}
                     </td>
                     <td className="py-2.5 px-3 text-gray-400">
-                      <span className="px-1.5 py-0.5 rounded bg-[#111317] border border-[#242730] text-[11px]">
-                        {tx.category || 'General Income'}
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#111317] border border-[#242730] text-[11px]">
+                        <span>{tx.category || 'General Income'}</span>
+                        {tx.subcategory && (
+                          <>
+                            <span className="text-gray-500 font-normal">›</span>
+                            <span className="text-blue-300 font-normal">{tx.subcategory}</span>
+                          </>
+                        )}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-gray-300">
@@ -282,6 +485,13 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleOpenEdit(tx)}
+                          title="Edit Income"
+                          className="p-1 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => setSelectedTx(tx)}
                           title="View Details"
@@ -304,21 +514,25 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Pinned Pagination Controls */}
-      <TablePagination
-        pageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        hasNextPage={hasNextPage}
-        hasPreviousPage={hasPreviousPage}
-        onNextPage={() => goToNextPage(nextCursor)}
-        onPreviousPage={goToPreviousPage}
-        isLoading={isLoading}
-        itemCount={items.length}
-        totalCount={totalCount}
-        pageIndex={pageIndex}
-      />
+        {/* Integrated Pagination Footer attached directly beneath the table */}
+        <TablePagination
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          hasNextPage={hasNextPage}
+          hasPreviousPage={hasPreviousPage}
+          onNextPage={() => goToNextPage(nextCursor)}
+          onPreviousPage={goToPreviousPage}
+          isLoading={isLoading}
+          itemCount={items.length}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          currentPage={currentPage}
+          maxIndexedPage={maxIndexedPage}
+          onGoToPage={goToPage}
+          onErrorToast={toast.error}
+        />
+      </div>
 
       {/* Record Income Modal */}
       <Modal
@@ -327,18 +541,20 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         title="Record Income"
       >
         <form onSubmit={handleSaveIncome} className="space-y-3">
+          {formValidationMsg && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded flex items-center gap-2 text-xs text-red-300">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+              <span>{formValidationMsg}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Date *
-              </label>
-              <input
-                type="text"
-                required
+              <DatePicker
                 value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
-                placeholder="14 Oct 2026"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                onChange={setFormDate}
+                label="Date *"
+                required
               />
             </div>
 
@@ -376,19 +592,41 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">
-                Category
+                Main Category *
               </label>
               <select
-                value={formCatId}
-                onChange={(e) => setFormCatId(e.target.value)}
+                value={formCat}
+                onChange={(e) => {
+                  setFormCat(e.target.value);
+                  setFormSubcat('');
+                }}
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
-                {incomeCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                {mainIncomeCategories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
                 ))}
               </select>
             </div>
           </div>
+
+          {/* Subcategory (Only shown if main category has subcategories) */}
+          {formSubcategories.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Subcategory (Optional)
+              </label>
+              <select
+                value={formSubcat}
+                onChange={(e) => setFormSubcat(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">No Subcategory</option>
+                {formSubcategories.map((sub) => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs text-gray-300 font-medium mb-1">
@@ -420,6 +658,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
+              disabled={isSavingAdd}
               onClick={() => setIsRecordModalOpen(false)}
               className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
             >
@@ -427,9 +666,163 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
             </button>
             <button
               type="submit"
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSavingAdd}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Save Income
+              {isSavingAdd && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSavingAdd ? 'Saving...' : 'Save Income'}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Income Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          if (!isSavingEdit) {
+            setIsEditModalOpen(false);
+            setEditingTx(null);
+          }
+        }}
+        title="Edit Income Record"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-3">
+          {editErrorMsg && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded flex items-center gap-2 text-xs text-red-300">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+              <span>{editErrorMsg}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <DatePicker
+                value={editDate}
+                onChange={setEditDate}
+                label="Date *"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Amount (৳ BDT) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Receiving Account *
+              </label>
+              <select
+                value={editAccount}
+                onChange={(e) => setEditAccount(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({formatBDT(acc.currentBalance)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Main Category *
+              </label>
+              <select
+                value={editCat}
+                onChange={(e) => {
+                  setEditCat(e.target.value);
+                  setEditSubcat('');
+                }}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                {mainIncomeCategories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Subcategory (Only shown if main category has subcategories) */}
+          {editSubcategories.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Subcategory (Optional)
+              </label>
+              <select
+                value={editSubcat}
+                onChange={(e) => setEditSubcat(e.target.value)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">No Subcategory</option>
+                {editSubcategories.map((sub) => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs text-gray-300 font-medium mb-1">
+              Description *
+            </label>
+            <input
+              type="text"
+              required
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              placeholder="e.g. October Client Retainer"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-300 font-medium mb-1">
+              Reference / Note
+            </label>
+            <input
+              type="text"
+              value={editRef}
+              onChange={(e) => setEditRef(e.target.value)}
+              placeholder="e.g. Inv #9021"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              disabled={isSavingEdit}
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingTx(null);
+              }}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingEdit}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              {isSavingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSavingEdit ? 'Saving Changes...' : 'Save Changes'}</span>
             </button>
           </div>
         </form>
@@ -460,7 +853,10 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               </div>
               <div>
                 <span className="text-gray-400">Category</span>
-                <p className="text-gray-200">{selectedTx.category || 'General Income'}</p>
+                <p className="text-gray-200">
+                  {selectedTx.category || 'General Income'}
+                  {selectedTx.subcategory && ` › ${selectedTx.subcategory}`}
+                </p>
               </div>
               <div className="col-span-2">
                 <span className="text-gray-400">Description</span>
@@ -500,3 +896,9 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
     </div>
   );
 };
+
+// Helper to list categories with subcategories indented
+function incomeCategoriesList(allCats: any[]) {
+  const main = allCats.filter(c => !c.parentId);
+  return main;
+}

@@ -25,6 +25,7 @@ export async function getTransactions(req, res) {
 
     const limit = validateLimit(req.query.limit);
     const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const page = req.query.page ? parseInt(req.query.page, 10) : undefined;
     const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
     const type = typeof req.query.type === 'string' ? req.query.type : undefined;
     const accountId = typeof req.query.accountId === 'string' ? req.query.accountId : undefined;
@@ -36,6 +37,7 @@ export async function getTransactions(req, res) {
     const result = await dbService.getPaginatedTransactions(req.user.id, {
       limit,
       cursor,
+      page: (page && page > 0) ? page : undefined,
       direction,
       type,
       accountId,
@@ -207,23 +209,51 @@ export async function createBulkExpense(req, res) {
 export async function updateTransaction(req, res) {
   try {
     const { id } = req.params;
-    const { accountId, amount, date, description, category, subcategory, reference } = req.body;
+    const { accountId, amount, date, description, category, subcategory, reference, counterparty } = req.body;
 
     const updates = {};
     if (accountId !== undefined) {
       const accounts = await dbService.getAccounts(req.user.id);
       const acc = accounts.find((a) => a.id === accountId);
-      if (acc) {
-        updates.accountId = accountId;
-        updates.accountName = acc.name;
+      if (!acc) {
+        res.status(404).json({ error: 'Account not found.' });
+        return;
       }
+      updates.accountId = accountId;
+      updates.accountName = acc.name;
     }
-    if (amount !== undefined) updates.amount = Number(amount);
-    if (date !== undefined) updates.date = String(date).slice(0, 10);
-    if (description !== undefined) updates.description = String(description).trim();
+
+    if (amount !== undefined) {
+      const cleanAmount = Number(amount);
+      if (isNaN(cleanAmount) || cleanAmount <= 0) {
+        res.status(400).json({ error: 'Amount must be a positive number.' });
+        return;
+      }
+      updates.amount = cleanAmount;
+    }
+
+    if (date !== undefined) {
+      const dateStr = String(date).trim().slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD.' });
+        return;
+      }
+      updates.date = dateStr;
+    }
+
+    if (description !== undefined) {
+      const cleanDesc = String(description).trim();
+      if (!cleanDesc) {
+        res.status(400).json({ error: 'Description cannot be empty.' });
+        return;
+      }
+      updates.description = cleanDesc;
+    }
+
     if (category !== undefined) updates.category = category;
-    if (subcategory !== undefined) updates.subcategory = subcategory;
-    if (reference !== undefined) updates.reference = reference;
+    if (subcategory !== undefined) updates.subcategory = subcategory || null;
+    if (reference !== undefined) updates.reference = reference ? String(reference).trim() : null;
+    if (counterparty !== undefined) updates.counterparty = counterparty ? String(counterparty).trim() : null;
 
     const updated = await dbService.updateTransaction(id, req.user.id, updates);
     if (!updated) {

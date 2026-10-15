@@ -30,6 +30,7 @@ export async function getTransfers(req, res) {
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
     const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : undefined;
 
     const result = await dbService.getPaginatedTransfers(req.user.id, {
       limit,
@@ -40,6 +41,7 @@ export async function getTransfers(req, res) {
       startDate,
       endDate,
       search,
+      page,
     });
 
     res.json({

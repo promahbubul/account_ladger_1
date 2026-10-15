@@ -2,8 +2,47 @@ import { dbService } from '../services/db.service.js';
 
 export async function getAccounts(req, res) {
   try {
-    const accounts = await dbService.getAccounts(req.user.id);
-    res.json({ success: true, accounts });
+    let accounts = await dbService.getAccounts(req.user.id);
+
+    if (req.query.type && req.query.type !== 'ALL') {
+      accounts = accounts.filter((a) => a.type === req.query.type);
+    }
+    if (req.query.status && req.query.status !== 'ALL') {
+      accounts = accounts.filter((a) => a.status === req.query.status);
+    }
+    if (req.query.search && req.query.search.trim()) {
+      const term = req.query.search.trim().toLowerCase();
+      accounts = accounts.filter(
+        (a) =>
+          a.name.toLowerCase().includes(term) ||
+          (a.providerName && a.providerName.toLowerCase().includes(term)) ||
+          (a.accountNumber && a.accountNumber.toLowerCase().includes(term))
+      );
+    }
+
+    const totalCount = accounts.length;
+    const isPaginate = req.query.paginate === 'true';
+
+    if (isPaginate) {
+      const limit = Number(req.query.limit) || 50;
+      const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : 1;
+      const startIndex = (page - 1) * limit;
+      const items = accounts.slice(startIndex, startIndex + limit);
+      const hasNextPage = startIndex + limit < totalCount;
+      const hasPreviousPage = startIndex > 0;
+
+      res.json({
+        success: true,
+        accounts,
+        items,
+        totalCount,
+        hasNextPage,
+        hasPreviousPage,
+      });
+      return;
+    }
+
+    res.json({ success: true, accounts, items: accounts, totalCount });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch accounts.' });
   }

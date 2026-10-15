@@ -25,16 +25,18 @@ import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
+import { useToast } from '../../context/ToastContext';
 
 interface TransfersViewProps {
   onOpenTransferModal: () => void;
-  onSuccessNotification: (msg: string) => void;
+  onSuccessNotification?: (msg: string) => void;
 }
 
 export const TransfersView: React.FC<TransfersViewProps> = ({
   onSuccessNotification,
 }) => {
-  const { accounts, addTransfer, deleteTransaction, authFetch } = useFinance();
+  const toast = useToast();
+  const { accounts, addTransfer, deleteTransfer, authFetch } = useFinance();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('ALL');
@@ -64,11 +66,14 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
     pageSize,
     cursor,
     pageIndex,
+    currentPage,
+    maxIndexedPage,
     hasNextPage,
     hasPreviousPage,
     setPageSize,
     goToNextPage,
     goToPreviousPage,
+    goToPage,
     resetPagination,
     setPaginationMeta,
   } = useCursorPagination({ initialPageSize: 50 });
@@ -80,7 +85,11 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
       const params = new URLSearchParams();
       params.set('limit', String(pageSize));
-      if (cursor) params.set('cursor', cursor);
+      if (cursor) {
+        params.set('cursor', cursor);
+      } else if (currentPage > 1) {
+        params.set('page', String(currentPage));
+      }
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (sourceFilter !== 'ALL') params.set('sourceAccountId', sourceFilter);
       if (destFilter !== 'ALL') params.set('destAccountId', destFilter);
@@ -105,7 +114,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [authFetch, pageSize, cursor, searchQuery, sourceFilter, destFilter, setPaginationMeta]);
+  }, [authFetch, pageSize, cursor, currentPage, searchQuery, sourceFilter, destFilter, setPaginationMeta]);
 
   useEffect(() => {
     fetchTransfers();
@@ -141,31 +150,55 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
       sourceAccountId: fromAccId,
       destinationAccountId: toAccId,
       amount: amountNum,
+      date: new Date().toISOString().slice(0, 10),
       description: desc.trim() || undefined,
       reference: refNum.trim() || undefined,
     });
 
-    if (res.success) {
-      const fromName = accounts.find((a) => a.id === fromAccId)?.name;
-      const toName = accounts.find((a) => a.id === toAccId)?.name;
-      onSuccessNotification(`Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}.`);
+    if (res.success && res.transfer) {
+      const fromName = accounts.find((a) => a.id === fromAccId)?.name || 'Source';
+      const toName = accounts.find((a) => a.id === toAccId)?.name || 'Destination';
+      const newTransfer: TransferItem = {
+        id: res.transfer.id,
+        sourceAccountId: fromAccId,
+        sourceAccountName: fromName,
+        destinationAccountId: toAccId,
+        destinationAccountName: toName,
+        amount: amountNum,
+        date: res.transfer.date || new Date().toISOString().slice(0, 10),
+        description: desc.trim() || undefined,
+        reference: refNum.trim() || undefined,
+      };
+
+      const matchesSource = sourceFilter === 'ALL' || sourceFilter === fromAccId;
+      const matchesDest = destFilter === 'ALL' || destFilter === toAccId;
+      if (matchesSource && matchesDest) {
+        setItems((prev) => [newTransfer, ...prev]);
+      }
+      setTotalCount((prev) => prev + 1);
+      toast.success(`Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}`);
       setIsModalOpen(false);
       setAmount('');
       setDesc('');
       setRefNum('');
-      resetPagination();
-      fetchTransfers();
     } else {
       setErrorMessage(res.error || 'Failed to complete transfer.');
+      toast.error(res.error || 'Failed to complete transfer');
     }
   };
 
   const confirmReverseTransfer = async () => {
     if (!txToReverse) return;
-    await deleteTransaction(txToReverse.id);
-    onSuccessNotification(`Transfer reversed successfully.`);
+    const deletedId = txToReverse.id;
+    const res = await deleteTransfer(deletedId);
+    if (res.success) {
+      setItems((prev) => prev.filter((t) => t.id !== deletedId));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+      toast.success('Record deleted successfully');
+    } else {
+      toast.error(res.error || 'Failed to reverse transfer');
+    }
     setTxToReverse(null);
-    fetchTransfers();
   };
 
   return (
@@ -324,21 +357,25 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Pinned Pagination Controls */}
-      <TablePagination
-        pageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        hasNextPage={hasNextPage}
-        hasPreviousPage={hasPreviousPage}
-        onNextPage={() => goToNextPage(nextCursor)}
-        onPreviousPage={goToPreviousPage}
-        isLoading={isLoading}
-        itemCount={items.length}
-        totalCount={totalCount}
-        pageIndex={pageIndex}
-      />
+        {/* Integrated Pagination Controls */}
+        <TablePagination
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          hasNextPage={hasNextPage}
+          hasPreviousPage={hasPreviousPage}
+          onNextPage={() => goToNextPage(nextCursor)}
+          onPreviousPage={goToPreviousPage}
+          isLoading={isLoading}
+          itemCount={items.length}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          currentPage={currentPage}
+          maxIndexedPage={maxIndexedPage}
+          onGoToPage={goToPage}
+          onErrorToast={toast.error}
+        />
+      </div>
 
       {/* Transfer Modal */}
       <Modal

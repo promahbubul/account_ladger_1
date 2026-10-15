@@ -4,12 +4,13 @@ import { useFinance } from '../../context/FinanceContext';
 import { Loan } from '../../mock/data';
 import { formatBDT } from '../../lib/formatters';
 import { Trash2 } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 interface ActionModalsProps {
   activeModal: 'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk' | 'repayment' | null;
   onClose: () => void;
   selectedLoanForRepayment?: Loan | null;
-  onSuccessNotification: (msg: string) => void;
+  onSuccessNotification?: (msg: string) => void;
 }
 
 export const ActionModals: React.FC<ActionModalsProps> = ({
@@ -18,6 +19,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   selectedLoanForRepayment,
   onSuccessNotification,
 }) => {
+  const toast = useToast();
   const {
     accounts,
     categories,
@@ -106,12 +108,12 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   };
 
   // Submit Income
-  const handleIncomeSubmit = (e: React.FormEvent) => {
+  const handleIncomeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(incomeAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    addIncome({
+    const res = await addIncome({
       accountId: incomeAccount || accounts[0]?.id || '',
       categoryId: incomeCategory || incomeCategories[0]?.id,
       amount: amountNum,
@@ -120,21 +122,24 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
       reference: incomeRef.trim() || undefined,
     });
 
-    const accName = accounts.find((a) => a.id === incomeAccount)?.name || 'Account';
-    onSuccessNotification(`Credited ${formatBDT(amountNum)} to ${accName}.`);
-    onClose();
+    if (res.success) {
+      toast.success('Income added successfully');
+      onClose();
+    } else {
+      setModalError(res.error || 'Failed to add income');
+      toast.error(res.error || 'Failed to add income');
+    }
   };
 
   // Submit Expense
-  const handleExpenseSubmit = (e: React.FormEvent) => {
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(expenseAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    const acc = accounts.find((a) => a.id === expenseAccount);
     const chosenCat = expenseCategory || expenseCategories[0]?.name || 'Food & Dining';
 
-    const { overBudgetAlert } = addExpense({
+    const res = await addExpense({
       accountId: expenseAccount || accounts[0]?.id || '',
       category: chosenCat,
       amount: amountNum,
@@ -143,21 +148,17 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
       reference: expenseRef.trim() || undefined,
     });
 
-    const accName = acc?.name || 'Account';
-
-    if (overBudgetAlert) {
-      onSuccessNotification(
-        `Recorded ${formatBDT(amountNum)} from ${accName}. Budget alert: "${chosenCat}" exceeded limit by ${formatBDT(overBudgetAlert.exceededBy)}.`
-      );
+    if (res.success) {
+      toast.success('Expense added successfully');
+      onClose();
     } else {
-      onSuccessNotification(`Recorded expense of ${formatBDT(amountNum)} from ${accName}.`);
+      setModalError(res.error || 'Failed to add expense');
+      toast.error(res.error || 'Failed to add expense');
     }
-
-    onClose();
   };
 
   // Submit Transfer
-  const handleTransferSubmit = (e: React.FormEvent) => {
+  const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
     const amountNum = parseFloat(transferAmount);
@@ -168,7 +169,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
       return;
     }
 
-    const res = addTransfer({
+    const res = await addTransfer({
       sourceAccountId: sourceAccId,
       destinationAccountId: destAccId,
       amount: amountNum,
@@ -178,24 +179,25 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
 
     if (!res.success) {
       setModalError(res.error || 'Transfer failed.');
+      toast.error(res.error || 'Transfer failed');
       return;
     }
 
     const fromName = accounts.find((a) => a.id === sourceAccId)?.name;
     const toName = accounts.find((a) => a.id === destAccId)?.name;
-    onSuccessNotification(`Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}.`);
+    toast.success(`Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}`);
     onClose();
   };
 
   // Submit Loan
-  const handleLoanSubmit = (e: React.FormEvent) => {
+  const handleLoanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
     const amountNum = parseFloat(loanAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
     if (!counterparty.trim()) return;
 
-    const res = addLoan({
+    const res = await addLoan({
       type: loanType,
       counterpartyName: counterparty.trim(),
       counterpartyContact: loanContact.trim() || undefined,
@@ -208,24 +210,25 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
 
     if (!res.success) {
       setModalError(res.error || 'Could not record loan.');
+      toast.error(res.error || 'Could not record loan');
       return;
     }
 
-    onSuccessNotification(
-      `Recorded ${loanType === 'LENT' ? 'Loan Given to' : 'Loan Borrowed from'} ${counterparty} of ${formatBDT(amountNum)}.`
+    toast.success(
+      `Recorded ${loanType === 'LENT' ? 'Loan Given to' : 'Loan Borrowed from'} ${counterparty}`
     );
     onClose();
   };
 
   // Submit Repayment
-  const handleRepaymentSubmit = (e: React.FormEvent) => {
+  const handleRepaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLoanForRepayment) return;
     setModalError(null);
     const amountNum = parseFloat(repaymentAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    const res = recordRepayment({
+    const res = await recordRepayment({
       loanId: selectedLoanForRepayment.id,
       accountId: repaymentAccount || accounts[0]?.id || '',
       amount: amountNum,
@@ -235,11 +238,12 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
 
     if (!res.success) {
       setModalError(res.error || 'Repayment failed.');
+      toast.error(res.error || 'Repayment failed');
       return;
     }
 
-    onSuccessNotification(
-      `Repayment of ${formatBDT(amountNum)} recorded for ${selectedLoanForRepayment.counterpartyName}.`
+    toast.success(
+      `Repayment of ${formatBDT(amountNum)} recorded for ${selectedLoanForRepayment.counterpartyName}`
     );
     onClose();
   };

@@ -49,7 +49,7 @@ export async function exportData(req, res) {
     const budgets = await dbService.getBudgets(userId);
 
     const payload = {
-      app: 'HisabFlow',
+      app: 'Account Ladger',
       version: '2.0.0-production',
       user: {
         username: req.user.username,

@@ -118,15 +118,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {/* Brand Header */}
-        <div className="h-14 flex items-center justify-between px-5 border-b border-[#22252c]">
+        <div className="h-14 flex items-center justify-between px-4 border-b border-[#22252c]">
           <div className="flex items-center gap-2.5">
-            <div className={`w-7 h-7 rounded flex items-center justify-center font-bold text-white text-sm ${
-              isAdmin ? 'bg-purple-600' : 'bg-blue-600'
-            }`}>
-              H
-            </div>
+            <img
+              src="/logo.png"
+              alt="Account Ladger Logo"
+              className="w-7 h-7 object-contain"
+            />
             <div>
-              <span className="font-semibold text-base tracking-tight text-gray-100">HisabFlow</span>
+              <span className="font-semibold text-sm tracking-tight text-gray-100">Account Ladger</span>
             </div>
           </div>
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#181a20] text-gray-300 border border-[#2b2e37]">

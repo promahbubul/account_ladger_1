@@ -48,7 +48,7 @@ class DatabaseService {
       budgets: [],
       auditLogs: [],
       systemSettings: {
-        appName: 'HisabFlow',
+        appName: 'AccountLedger.com',
         maintenanceMode: false,
         allowUserRegistration: true,
         defaultCurrency: 'BDT',
@@ -98,7 +98,7 @@ class DatabaseService {
           budgets: (parsed.budgets || []).filter((b) => b.userId !== 'user_admin_mahbub'),
           auditLogs: parsed.auditLogs || [],
           systemSettings: parsed.systemSettings || {
-            appName: 'HisabFlow',
+            appName: 'AccountLedger.com',
             maintenanceMode: false,
             allowUserRegistration: true,
             defaultCurrency: 'BDT',
@@ -301,7 +301,7 @@ class DatabaseService {
 
         CREATE TABLE IF NOT EXISTS system_settings (
           id INT PRIMARY KEY DEFAULT 1,
-          app_name VARCHAR(128) DEFAULT 'HisabFlow',
+          app_name VARCHAR(128) DEFAULT 'AccountLedger.com',
           maintenance_mode BOOLEAN DEFAULT FALSE,
           allow_user_registration BOOLEAN DEFAULT TRUE,
           default_currency VARCHAR(10) DEFAULT 'BDT',
@@ -309,6 +309,10 @@ class DatabaseService {
           audit_logging_enabled BOOLEAN DEFAULT TRUE,
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
+
+        -- Ensure parent_id exists on categories for hierarchical subcategories
+        ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories(parent_id);
       `);
       logger.info('PostgreSQL schema verification and table creation complete.');
     } catch (err) {
@@ -898,7 +902,7 @@ class DatabaseService {
   async getCategories(userId) {
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, user_id as "userId", name, type, icon, color, subcategories, is_archived as "isArchived", is_system as "isSystem", created_at as "createdAt", updated_at as "updatedAt" FROM categories WHERE user_id = $1 ORDER BY name ASC',
+        'SELECT id, user_id as "userId", parent_id as "parentId", name, type, icon, color, subcategories, is_archived as "isArchived", is_system as "isSystem", created_at as "createdAt", updated_at as "updatedAt" FROM categories WHERE user_id = $1 ORDER BY name ASC',
         [userId]
       );
       return res.rows;
@@ -909,11 +913,12 @@ class DatabaseService {
   async createCategory(category) {
     if (this.isPostgresConnected && this.pool) {
       await this.pool.query(
-        `INSERT INTO categories (id, user_id, name, type, icon, color, subcategories, is_archived, is_system)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `INSERT INTO categories (id, user_id, parent_id, name, type, icon, color, subcategories, is_archived, is_system)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           category.id,
           category.userId,
+          category.parentId || null,
           category.name,
           category.type,
           category.icon || null,
@@ -955,6 +960,10 @@ class DatabaseService {
       if (updates.isArchived !== undefined) {
         fields.push(`is_archived = $${i++}`);
         values.push(updates.isArchived);
+      }
+      if (updates.parentId !== undefined) {
+        fields.push(`parent_id = $${i++}`);
+        values.push(updates.parentId || null);
       }
 
       fields.push(`updated_at = NOW()`);
@@ -1107,7 +1116,13 @@ class DatabaseService {
     let hasNextPage = false;
     let hasPreviousPage = false;
 
-    if (direction === 'forward') {
+    if (options.page !== undefined && options.page > 0) {
+      const pageNum = options.page;
+      const startIndex = (pageNum - 1) * limit;
+      items = txs.slice(startIndex, startIndex + limit);
+      hasNextPage = startIndex + limit < txs.length;
+      hasPreviousPage = startIndex > 0;
+    } else if (direction === 'forward') {
       const startIndex = cursorIdx === -1 ? 0 : cursorIdx + 1;
       items = txs.slice(startIndex, startIndex + limit);
       hasNextPage = startIndex + limit < txs.length;
@@ -1187,69 +1202,106 @@ class DatabaseService {
     const existing = txs.find((t) => t.id === id);
     if (!existing) return null;
 
-    // Handle balance delta if amount or account changed
-    const newAmount = updates.amount !== undefined ? updates.amount : existing.amount;
+    const newAmount = updates.amount !== undefined ? Number(updates.amount) : existing.amount;
     const newAccountId = updates.accountId || existing.accountId;
+    const accountChanged = newAccountId !== existing.accountId;
+    const amountChanged = newAmount !== existing.amount;
 
-    if (newAccountId !== existing.accountId) {
-      // Revert from old account
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // 1. Rebalance accounts if account or amount changed
+        if (accountChanged) {
+          // Revert old transaction effect on old account
+          const oldRevert = existing.direction === 'INFLOW' ? -existing.amount : existing.amount;
+          await client.query(
+            'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+            [oldRevert, existing.accountId]
+          );
+          // Apply new transaction effect on new account
+          const newApply = existing.direction === 'INFLOW' ? newAmount : -newAmount;
+          await client.query(
+            'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+            [newApply, newAccountId]
+          );
+        } else if (amountChanged) {
+          const diff = newAmount - existing.amount;
+          const delta = existing.direction === 'INFLOW' ? diff : -diff;
+          await client.query(
+            'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+            [delta, existing.accountId]
+          );
+        }
+
+        // 2. Build update query
+        const fields = [];
+        const values = [];
+        let i = 1;
+
+        if (updates.accountId !== undefined) {
+          fields.push(`account_id = $${i++}`);
+          values.push(updates.accountId);
+        }
+        if (updates.accountName !== undefined) {
+          fields.push(`account_name = $${i++}`);
+          values.push(updates.accountName);
+        }
+        if (updates.amount !== undefined) {
+          fields.push(`amount = $${i++}`);
+          values.push(newAmount);
+        }
+        if (updates.category !== undefined) {
+          fields.push(`category = $${i++}`);
+          values.push(updates.category);
+        }
+        if (updates.subcategory !== undefined) {
+          fields.push(`subcategory = $${i++}`);
+          values.push(updates.subcategory);
+        }
+        if (updates.date !== undefined) {
+          fields.push(`date = $${i++}`);
+          values.push(updates.date);
+        }
+        if (updates.description !== undefined) {
+          fields.push(`description = $${i++}`);
+          values.push(updates.description);
+        }
+        if (updates.reference !== undefined) {
+          fields.push(`reference = $${i++}`);
+          values.push(updates.reference);
+        }
+
+        values.push(id, userId);
+
+        await client.query(
+          `UPDATE transactions SET ${fields.join(', ')} WHERE id = $${i++} AND user_id = $${i}`,
+          values
+        );
+
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      const updatedList = await this.getTransactions(userId);
+      return updatedList.find((t) => t.id === id) || null;
+    }
+
+    // In-memory fallback
+    if (accountChanged) {
       const oldRevert = existing.direction === 'INFLOW' ? -existing.amount : existing.amount;
       await this.updateAccountBalance(existing.accountId, oldRevert);
-      // Apply to new account
       const newDelta = existing.direction === 'INFLOW' ? newAmount : -newAmount;
       await this.updateAccountBalance(newAccountId, newDelta);
-    } else if (newAmount !== existing.amount) {
+    } else if (amountChanged) {
       const diff = newAmount - existing.amount;
       const delta = existing.direction === 'INFLOW' ? diff : -diff;
       await this.updateAccountBalance(existing.accountId, delta);
-    }
-
-    if (this.isPostgresConnected && this.pool) {
-      const fields = [];
-      const values = [];
-      let i = 1;
-
-      if (updates.accountId !== undefined) {
-        fields.push(`account_id = $${i++}`);
-        values.push(updates.accountId);
-      }
-      if (updates.accountName !== undefined) {
-        fields.push(`account_name = $${i++}`);
-        values.push(updates.accountName);
-      }
-      if (updates.amount !== undefined) {
-        fields.push(`amount = $${i++}`);
-        values.push(updates.amount);
-      }
-      if (updates.category !== undefined) {
-        fields.push(`category = $${i++}`);
-        values.push(updates.category);
-      }
-      if (updates.subcategory !== undefined) {
-        fields.push(`subcategory = $${i++}`);
-        values.push(updates.subcategory);
-      }
-      if (updates.date !== undefined) {
-        fields.push(`date = $${i++}`);
-        values.push(updates.date);
-      }
-      if (updates.description !== undefined) {
-        fields.push(`description = $${i++}`);
-        values.push(updates.description);
-      }
-      if (updates.reference !== undefined) {
-        fields.push(`reference = $${i++}`);
-        values.push(updates.reference);
-      }
-
-      values.push(id, userId);
-
-      await this.pool.query(
-        `UPDATE transactions SET ${fields.join(', ')} WHERE id = $${i++} AND user_id = $${i}`,
-        values
-      );
-      const updatedList = await this.getTransactions(userId);
-      return updatedList.find((t) => t.id === id) || null;
     }
 
     const idx = this.inMemoryData.transactions.findIndex((t) => t.id === id && t.userId === userId);
@@ -1269,20 +1321,34 @@ class DatabaseService {
     const existing = txs.find((t) => t.id === id);
     if (!existing) return false;
 
-    // Reverse balance effect
     let reverseDelta = 0;
     if (existing.direction === 'INFLOW') reverseDelta = -existing.amount;
     else if (existing.direction === 'OUTFLOW') reverseDelta = existing.amount;
 
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        if (reverseDelta !== 0) {
+          await client.query(
+            'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+            [reverseDelta, existing.accountId]
+          );
+        }
+        await client.query('DELETE FROM transactions WHERE id = $1 AND user_id = $2', [id, userId]);
+        await client.query('COMMIT');
+        return true;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
     if (reverseDelta !== 0) {
       await this.updateAccountBalance(existing.accountId, reverseDelta);
     }
-
-    if (this.isPostgresConnected && this.pool) {
-      await this.pool.query('DELETE FROM transactions WHERE id = $1 AND user_id = $2', [id, userId]);
-      return true;
-    }
-
     const idx = this.inMemoryData.transactions.findIndex((t) => t.id === id && t.userId === userId);
     if (idx !== -1) {
       this.inMemoryData.transactions.splice(idx, 1);
@@ -1363,7 +1429,13 @@ class DatabaseService {
     let hasNextPage = false;
     let hasPreviousPage = false;
 
-    if (direction === 'forward') {
+    if (options.page !== undefined && options.page > 0) {
+      const pageNum = options.page;
+      const startIndex = (pageNum - 1) * limit;
+      items = transfers.slice(startIndex, startIndex + limit);
+      hasNextPage = startIndex + limit < transfers.length;
+      hasPreviousPage = startIndex > 0;
+    } else if (direction === 'forward') {
       const startIndex = cursorIdx === -1 ? 0 : cursorIdx + 1;
       items = transfers.slice(startIndex, startIndex + limit);
       hasNextPage = startIndex + limit < transfers.length;
@@ -1518,7 +1590,13 @@ class DatabaseService {
     let hasNextPage = false;
     let hasPreviousPage = false;
 
-    if (direction === 'forward') {
+    if (options.page !== undefined && options.page > 0) {
+      const pageNum = options.page;
+      const startIndex = (pageNum - 1) * limit;
+      items = loans.slice(startIndex, startIndex + limit);
+      hasNextPage = startIndex + limit < loans.length;
+      hasPreviousPage = startIndex > 0;
+    } else if (direction === 'forward') {
       const startIndex = cursorIdx === -1 ? 0 : cursorIdx + 1;
       items = loans.slice(startIndex, startIndex + limit);
       hasNextPage = startIndex + limit < loans.length;
@@ -1663,7 +1741,13 @@ class DatabaseService {
     let hasNextPage = false;
     let hasPreviousPage = false;
 
-    if (direction === 'forward') {
+    if (options.page !== undefined && options.page > 0) {
+      const pageNum = options.page;
+      const startIndex = (pageNum - 1) * limit;
+      items = reps.slice(startIndex, startIndex + limit);
+      hasNextPage = startIndex + limit < reps.length;
+      hasPreviousPage = startIndex > 0;
+    } else if (direction === 'forward') {
       const startIndex = cursorIdx === -1 ? 0 : cursorIdx + 1;
       items = reps.slice(startIndex, startIndex + limit);
       hasNextPage = startIndex + limit < reps.length;
@@ -1919,7 +2003,7 @@ class DatabaseService {
   getSystemSettings() {
     return (
       this.inMemoryData.systemSettings || {
-        appName: 'HisabFlow',
+        appName: 'AccountLedger.com',
         maintenanceMode: false,
         allowUserRegistration: true,
         defaultCurrency: 'BDT',

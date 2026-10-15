@@ -1,8 +1,8 @@
 {
-  "name": "hisabflow",
+  "name": "accountledger",
   "version": "2.0.0",
   "private": true,
-  "description": "HisabFlow — Personal Accounting Ledger & Money Manager",
+  "description": "AccountLedger.com — Personal Accounting Ledger & Money Manager",
   "scripts": {
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
