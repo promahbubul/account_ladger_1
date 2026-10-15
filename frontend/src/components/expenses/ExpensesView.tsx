@@ -13,6 +13,8 @@ import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { useDateFilter } from '../../context/DateFilterContext';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 interface ExpensesViewProps {
   onOpenSingleExpenseModal: () => void;
@@ -23,6 +25,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   onSuccessNotification,
 }) => {
   const { accounts, categories, addExpense, addBulkExpenses, deleteTransaction, authFetch } = useFinance();
+  const { filter: dateFilter } = useDateFilter();
 
   const [activeTab, setActiveTab] = useState<'RECORDS' | 'BULK_ENTRY'>('RECORDS');
 
@@ -77,6 +80,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
   const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
 
+  // Reset pagination when date filter changes
+  useEffect(() => {
+    resetPagination();
+  }, [dateFilter.startDate, dateFilter.endDate, dateFilter.preset, resetPagination]);
+
   const fetchExpenses = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -89,6 +97,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (categoryFilter !== 'ALL') params.set('category', categoryFilter);
       if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
+      if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
+      if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
 
       const res = await authFetch(`/api/transactions?${params.toString()}`);
       if (!res.ok) {
@@ -110,7 +120,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [authFetch, pageSize, cursor, searchQuery, categoryFilter, accountFilter, setPaginationMeta]);
+  }, [
+    authFetch,
+    pageSize,
+    cursor,
+    searchQuery,
+    categoryFilter,
+    accountFilter,
+    dateFilter.startDate,
+    dateFilter.endDate,
+    setPaginationMeta,
+  ]);
 
   useEffect(() => {
     fetchExpenses();
@@ -306,12 +326,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             </div>
           </div>
 
-          {errorMsg && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-              {errorMsg}
-            </div>
-          )}
-
           {/* Viewport-based Scrollable Table */}
           <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
@@ -328,12 +342,32 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {items.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-gray-500">
-                        {isLoading ? 'Loading expenses...' : 'No expense records found.'}
-                      </td>
-                    </tr>
+                  {errorMsg ? (
+                    <TableErrorRow
+                      colSpan={7}
+                      title="Failed to load expenses"
+                      description={errorMsg}
+                      onRetry={fetchExpenses}
+                    />
+                  ) : isLoading ? (
+                    <TableLoadingRow
+                      colSpan={7}
+                      message="Loading expenses..."
+                    />
+                  ) : items.length === 0 ? (
+                    <TableEmptyRow
+                      colSpan={7}
+                      title="No expenses found"
+                      description={
+                        searchQuery || categoryFilter !== 'ALL' || accountFilter !== 'ALL' || dateFilter.startDate
+                          ? 'No expense transactions match your filters or selected date range.'
+                          : 'No expenses recorded yet. Click "Add Expense" to log your first expenditure.'
+                      }
+                      action={{
+                        label: 'Add Expense',
+                        onClick: () => setIsAddExpenseOpen(true),
+                      }}
+                    />
                   ) : (
                     items.map((tx) => (
                       <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">

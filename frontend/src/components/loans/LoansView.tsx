@@ -12,6 +12,7 @@ import { Loan, LoanRepayment } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 interface LoansViewProps {
   onOpenAddLoanModal: () => void;
@@ -323,12 +324,6 @@ export const LoansView: React.FC<LoansViewProps> = ({
             </div>
           </div>
 
-          {loanError && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-              {loanError}
-            </div>
-          )}
-
           {/* Viewport-based Scrollable Table */}
           <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
@@ -347,12 +342,32 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {loanItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-12 text-center text-gray-500">
-                        {isLoansLoading ? 'Loading loans...' : 'No loan records found.'}
-                      </td>
-                    </tr>
+                  {loanError ? (
+                    <TableErrorRow
+                      colSpan={9}
+                      title="Failed to load loans"
+                      description={loanError}
+                      onRetry={fetchLoans}
+                    />
+                  ) : isLoansLoading ? (
+                    <TableLoadingRow
+                      colSpan={9}
+                      message="Loading loans..."
+                    />
+                  ) : loanItems.length === 0 ? (
+                    <TableEmptyRow
+                      colSpan={9}
+                      title="No loan records found"
+                      description={
+                        searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL'
+                          ? 'No loans match the current filters.'
+                          : 'No loans given or borrowed yet. Use "New Loan" to record receivables or payables.'
+                      }
+                      action={{
+                        label: 'New Loan',
+                        onClick: () => setIsAddLoanOpen(true),
+                      }}
+                    />
                   ) : (
                     loanItems.map((loan) => (
                       <tr key={loan.id} className="hover:bg-[#1a1d24] transition-colors">
@@ -468,12 +483,6 @@ export const LoansView: React.FC<LoansViewProps> = ({
             </div>
           </div>
 
-          {repError && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-              {repError}
-            </div>
-          )}
-
           <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -487,12 +496,28 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {repItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center text-gray-500">
-                        {isRepsLoading ? 'Loading repayments...' : 'No repayments recorded yet.'}
-                      </td>
-                    </tr>
+                  {repError ? (
+                    <TableErrorRow
+                      colSpan={5}
+                      title="Failed to load repayments"
+                      description={repError}
+                      onRetry={fetchRepayments}
+                    />
+                  ) : isRepsLoading ? (
+                    <TableLoadingRow
+                      colSpan={5}
+                      message="Loading repayments..."
+                    />
+                  ) : repItems.length === 0 ? (
+                    <TableEmptyRow
+                      colSpan={5}
+                      title="No repayments recorded"
+                      description={
+                        repSearchQuery
+                          ? 'No repayments match your search query.'
+                          : 'No repayment installments recorded yet.'
+                      }
+                    />
                   ) : (
                     repItems.map((rep) => (
                       <tr key={rep.id} className="hover:bg-[#1a1d24]">

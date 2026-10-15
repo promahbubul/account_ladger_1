@@ -8,6 +8,7 @@ import {
 import { useFinance } from '../../context/FinanceContext';
 import { formatBDT } from '../../lib/formatters';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TableEmptyRow } from '../common/StateViews';
 
 interface BudgetsViewProps {
   onSuccessNotification: (msg: string) => void;
@@ -160,11 +161,15 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
             </thead>
             <tbody className="divide-y divide-[#20232a]">
               {budgetDetails.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">
-                    No category budgets defined yet.
-                  </td>
-                </tr>
+                <TableEmptyRow
+                  colSpan={7}
+                  title="No category budgets defined"
+                  description="Set monthly spending limits for expense categories to receive threshold alerts."
+                  action={{
+                    label: 'Set Budget',
+                    onClick: handleOpenNew,
+                  }}
+                />
               ) : (
                 budgetDetails.map((b) => (
                   <tr key={b.categoryName} className="hover:bg-[#1a1d24] transition-colors">

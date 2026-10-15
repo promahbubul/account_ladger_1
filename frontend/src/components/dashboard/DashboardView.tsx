@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
+import { useDateFilter } from '../../context/DateFilterContext';
+import { TableEmptyRow } from '../common/StateViews';
 
 interface DashboardViewProps {
   onOpenQuickAction: (actionType: 'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk') => void;
@@ -22,10 +24,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   selectedPeriod,
 }) => {
   const { accounts, transactions, loans, budgetAlerts } = useFinance();
+  const { dateFilter } = useDateFilter();
+
+  const filteredTransactions = React.useMemo(() => {
+    return transactions.filter(t => {
+      if (dateFilter.startDate && t.date < dateFilter.startDate) return false;
+      if (dateFilter.endDate && t.date > dateFilter.endDate) return false;
+      return true;
+    });
+  }, [transactions, dateFilter.startDate, dateFilter.endDate]);
 
   const totalBalance = accounts.filter(a => a.status === 'ACTIVE').reduce((sum, a) => sum + a.currentBalance, 0);
-  const totalIncome = transactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = transactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
   const netCashFlow = totalIncome - totalExpense;
 
   const totalReceivables = loans
@@ -197,11 +208,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </thead>
               <tbody className="divide-y divide-[#20232a]">
                 {accounts.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-gray-500">
-                      No accounts recorded yet.
-                    </td>
-                  </tr>
+                  <TableEmptyRow
+                    colSpan={4}
+                    title="No accounts found"
+                    description="No liquid accounts configured in the ledger."
+                    minHeightClass="min-h-[160px]"
+                  />
                 ) : (
                   accounts.slice(0, 6).map((acc) => (
                     <tr key={acc.id} className="hover:bg-[#1a1d24]">
@@ -251,14 +263,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#20232a]">
-                {transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-gray-500">
-                      No transactions recorded yet.
-                    </td>
-                  </tr>
+                {filteredTransactions.length === 0 ? (
+                  <TableEmptyRow
+                    colSpan={4}
+                    title="No transactions recorded"
+                    description="No ledger activity found for the selected period."
+                    minHeightClass="min-h-[160px]"
+                  />
                 ) : (
-                  transactions.slice(0, 6).map((tx) => (
+                  filteredTransactions.slice(0, 6).map((tx) => (
                     <tr key={tx.id} className="hover:bg-[#1a1d24]">
                       <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                         {tx.date}

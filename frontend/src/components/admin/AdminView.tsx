@@ -23,6 +23,7 @@ import {
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 interface ManagedUser {
   id: string;
@@ -601,12 +602,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </div>
           </div>
 
-          {userError && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-              {userError}
-            </div>
-          )}
-
           {/* Viewport-based Users Table */}
           <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
@@ -623,12 +618,42 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {userItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-12 text-gray-500">
-                        {isUsersLoading ? 'Loading users...' : 'No users matching criteria.'}
-                      </td>
-                    </tr>
+                  {userError ? (
+                    <TableErrorRow
+                      colSpan={7}
+                      title="Failed to load users"
+                      description={userError}
+                      onRetry={fetchUsers}
+                    />
+                  ) : isUsersLoading ? (
+                    <TableLoadingRow
+                      colSpan={7}
+                      message="Loading system users..."
+                    />
+                  ) : userItems.length === 0 ? (
+                    <TableEmptyRow
+                      colSpan={7}
+                      title="No users found"
+                      description={
+                        userSearchQuery
+                          ? 'No users match your search query.'
+                          : 'No user accounts found in the system.'
+                      }
+                      action={{
+                        label: 'Create User',
+                        onClick: () => {
+                          setCreateForm({
+                            username: '',
+                            email: '',
+                            fullName: '',
+                            password: '',
+                            role: 'USER',
+                            currency: 'BDT',
+                          });
+                          setIsCreateModalOpen(true);
+                        },
+                      }}
+                    />
                   ) : (
                     userItems.map((u) => {
                       const isCurrent = u.id === currentUser?.id;
@@ -751,12 +776,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </div>
           </div>
 
-          {logError && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-              {logError}
-            </div>
-          )}
-
           {/* Viewport-based Audit Logs Table */}
           <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
@@ -772,12 +791,28 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {logItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-12 text-gray-500">
-                        {isLogsLoading ? 'Loading audit logs...' : 'No security audit logs recorded yet.'}
-                      </td>
-                    </tr>
+                  {logError ? (
+                    <TableErrorRow
+                      colSpan={6}
+                      title="Failed to load audit logs"
+                      description={logError}
+                      onRetry={fetchLogs}
+                    />
+                  ) : isLogsLoading ? (
+                    <TableLoadingRow
+                      colSpan={6}
+                      message="Loading security audit trail..."
+                    />
+                  ) : logItems.length === 0 ? (
+                    <TableEmptyRow
+                      colSpan={6}
+                      title="No audit logs recorded"
+                      description={
+                        logSearchQuery
+                          ? 'No security logs match your search filters.'
+                          : 'No audit logs recorded in the system yet.'
+                      }
+                    />
                   ) : (
                     logItems.map((log) => (
                       <tr key={log.id} className="hover:bg-[#1a1d24] transition-colors">

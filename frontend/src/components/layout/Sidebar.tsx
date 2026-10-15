@@ -1,4 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Wallet,
@@ -10,10 +12,9 @@ import {
   ReceiptText,
   BarChart3,
   Settings,
-  Shield,
-  Users,
   ShieldAlert,
   Sliders,
+  Users,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -38,8 +39,8 @@ export type NavTab =
   | 'admin-settings';
 
 interface SidebarProps {
-  currentTab: NavTab;
-  onSelectTab: (tab: NavTab) => void;
+  currentTab?: NavTab;
+  onSelectTab?: (tab: NavTab) => void;
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
   overBudgetCount?: number;
@@ -54,37 +55,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const pathname = usePathname();
 
   // Strict separation: System Admin only sees administrative navigation items
   const adminNavItems = [
-    { id: 'admin-dashboard' as NavTab, label: 'System Dashboard', icon: LayoutDashboard },
-    { id: 'admin-users' as NavTab, label: 'User Management', icon: Users },
-    { id: 'admin-logs' as NavTab, label: 'Audit Logs', icon: ShieldAlert },
-    { id: 'admin-settings' as NavTab, label: 'System Settings', icon: Sliders },
+    { id: 'admin-dashboard' as NavTab, href: '/admin', label: 'System Dashboard', icon: LayoutDashboard },
+    { id: 'admin-users' as NavTab, href: '/admin/users', label: 'User Management', icon: Users },
+    { id: 'admin-logs' as NavTab, href: '/admin/logs', label: 'Audit Logs', icon: ShieldAlert },
+    { id: 'admin-settings' as NavTab, href: '/admin/settings', label: 'System Settings', icon: Sliders },
   ];
 
   // Normal Users only see personal financial modules
   const userNavItems = [
-    { id: 'dashboard' as NavTab, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'accounts' as NavTab, label: 'Accounts', icon: Wallet },
-    { id: 'income' as NavTab, label: 'Income', icon: ArrowDownLeft },
-    { id: 'expenses' as NavTab, label: 'Expenses', icon: ArrowUpRight },
+    { id: 'dashboard' as NavTab, href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'accounts' as NavTab, href: '/accounts', label: 'Accounts', icon: Wallet },
+    { id: 'income' as NavTab, href: '/income', label: 'Income', icon: ArrowDownLeft },
+    { id: 'expenses' as NavTab, href: '/expenses', label: 'Expenses', icon: ArrowUpRight },
     {
       id: 'budgets' as NavTab,
+      href: '/budgets',
       label: 'Budgets',
       icon: BarChart3,
       alertBadge: overBudgetCount > 0 ? `${overBudgetCount}` : undefined,
     },
-    { id: 'transfers' as NavTab, label: 'Transfers', icon: ArrowLeftRight },
-    { id: 'loans' as NavTab, label: 'Loans', icon: HandCoins },
-    { id: 'categories' as NavTab, label: 'Categories', icon: Tags },
-    { id: 'transactions' as NavTab, label: 'Transactions', icon: ReceiptText },
-    { id: 'reports' as NavTab, label: 'Reports', icon: BarChart3 },
-    { id: 'settings' as NavTab, label: 'Settings', icon: Settings },
+    { id: 'transfers' as NavTab, href: '/transfers', label: 'Transfers', icon: ArrowLeftRight },
+    { id: 'loans' as NavTab, href: '/loans', label: 'Loans', icon: HandCoins },
+    { id: 'categories' as NavTab, href: '/categories', label: 'Categories', icon: Tags },
+    { id: 'transactions' as NavTab, href: '/transactions', label: 'Transactions', icon: ReceiptText },
+    { id: 'reports' as NavTab, href: '/reports', label: 'Reports', icon: BarChart3 },
+    { id: 'settings' as NavTab, href: '/settings', label: 'Settings', icon: Settings },
   ];
 
   const handleNavClick = (tab: NavTab) => {
-    onSelectTab(tab);
+    if (onSelectTab) onSelectTab(tab);
     setIsMobileOpen(false);
   };
 
@@ -140,10 +143,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {adminNavItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentTab === item.id;
+                const isActive =
+                  pathname === item.href ||
+                  (item.href === '/admin' && (pathname === '/admin' || pathname === '/admin/dashboard'));
                 return (
-                  <button
+                  <Link
                     key={item.id}
+                    href={item.href}
                     onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded text-sm transition-colors ${
                       isActive
@@ -155,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-purple-400' : 'text-gray-400'}`} />
                       <span className="truncate">{item.label}</span>
                     </div>
-                  </button>
+                  </Link>
                 );
               })}
             </div>
@@ -166,11 +172,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {userNavItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentTab === item.id;
+                const isActive =
+                  pathname === item.href ||
+                  (item.href === '/dashboard' && (pathname === '/' || pathname === '/dashboard'));
 
                 return (
-                  <button
+                  <Link
                     key={item.id}
+                    href={item.href}
                     onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded text-sm transition-colors ${
                       isActive
@@ -192,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {item.alertBadge}
                       </span>
                     )}
-                  </button>
+                  </Link>
                 );
               })}
             </div>

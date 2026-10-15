@@ -3,8 +3,9 @@ import { dbService } from '../services/db.service.js';
 export async function getSummary(req, res) {
   try {
     const userId = req.user.id;
+    const { startDate, endDate } = req.query;
     const accounts = await dbService.getAccounts(userId);
-    const transactions = await dbService.getTransactions(userId);
+    const transactions = await dbService.getTransactions(userId, { startDate, endDate });
     const loans = await dbService.getLoans(userId);
 
     const totalCash = accounts.filter((a) => a.type === 'CASH').reduce((sum, a) => sum + a.currentBalance, 0);

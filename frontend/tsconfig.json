@@ -14,7 +14,9 @@
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "next/link": ["./src/lib/router.tsx"],
+      "next/navigation": ["./src/lib/router.tsx"]
     },
     "noEmit": true
   },

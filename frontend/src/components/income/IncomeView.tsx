@@ -11,6 +11,8 @@ import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { useDateFilter } from '../../context/DateFilterContext';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 interface IncomeViewProps {
   onOpenAddIncomeModal: () => void;
@@ -21,6 +23,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
   onSuccessNotification,
 }) => {
   const { categories, accounts, deleteTransaction, addIncome, authFetch } = useFinance();
+  const { dateFilter } = useDateFilter();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,6 +65,11 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 
   const incomeCategories = categories.filter((c) => c.type === 'INCOME');
 
+  // Reset pagination when date filter changes
+  useEffect(() => {
+    resetPagination();
+  }, [dateFilter.startDate, dateFilter.endDate, dateFilter.preset, resetPagination]);
+
   const fetchIncome = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -74,6 +82,8 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (categoryFilter !== 'ALL') params.set('category', categoryFilter);
       if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
+      if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
+      if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
 
       const res = await authFetch(`/api/transactions?${params.toString()}`);
       if (!res.ok) {
@@ -95,7 +105,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [authFetch, pageSize, cursor, searchQuery, categoryFilter, accountFilter, setPaginationMeta]);
+  }, [authFetch, pageSize, cursor, searchQuery, categoryFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, setPaginationMeta]);
 
   useEffect(() => {
     fetchIncome();
@@ -205,12 +215,6 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         </div>
       </div>
 
-      {errorMsg && (
-        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-          {errorMsg}
-        </div>
-      )}
-
       {/* Main Income Table */}
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
@@ -227,12 +231,32 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-500">
-                    {isLoading ? 'Loading income records...' : 'No income records found.'}
-                  </td>
-                </tr>
+              {errorMsg ? (
+                <TableErrorRow
+                  colSpan={7}
+                  title="Failed to load income records"
+                  description={errorMsg}
+                  onRetry={fetchIncome}
+                />
+              ) : isLoading ? (
+                <TableLoadingRow
+                  colSpan={7}
+                  message="Loading income records..."
+                />
+              ) : items.length === 0 ? (
+                <TableEmptyRow
+                  colSpan={7}
+                  title="No income records found"
+                  description={
+                    searchQuery || categoryFilter !== 'ALL' || accountFilter !== 'ALL' || dateFilter.startDate
+                      ? 'No income transactions match your filters or selected date range.'
+                      : 'No income logged yet. Click "Record Income" to deposit funds.'
+                  }
+                  action={{
+                    label: 'Record Income',
+                    onClick: () => setIsRecordModalOpen(true),
+                  }}
+                />
               ) : (
                 items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">

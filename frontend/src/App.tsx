@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -18,16 +18,17 @@ import { LoginView } from './components/auth/LoginView';
 import { Loan } from './mock/data';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
+import { DateFilterProvider } from './context/DateFilterContext';
+import { RouterProvider, useRouter, usePathname } from './lib/router';
 import { CheckCircle2, X, Wallet } from 'lucide-react';
 
 function AppContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { user, isLoading: isAuthLoading } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
-  // Initialize role-appropriate default tab
-  const [currentTab, setCurrentTab] = useState<NavTab>(() => (isAdmin ? 'admin-dashboard' : 'dashboard'));
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('month');
 
   // Modal flow state (normal users only)
   const [activeModal, setActiveModal] = useState<'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk' | 'repayment' | null>(null);
@@ -37,20 +38,79 @@ function AppContent() {
   const [notification, setNotification] = useState<string | null>(null);
 
   const { budgetAlerts } = useFinance();
-  const overBudgetCount = budgetAlerts.filter(b => b.status === 'EXCEEDED').length;
+  const overBudgetCount = budgetAlerts.filter((b) => b.status === 'EXCEEDED').length;
 
-  // Strict route/tab guard when user or role changes
-  useEffect(() => {
-    if (isAdmin) {
-      if (!currentTab.startsWith('admin-')) {
-        setCurrentTab('admin-dashboard');
+  // Derive current logical tab from actual URL pathname
+  const getTabFromPath = useCallback(
+    (path: string): NavTab => {
+      const clean = path.replace(/\/+$/, '') || '/';
+      if (isAdmin) {
+        if (clean === '/admin/users') return 'admin-users';
+        if (clean === '/admin/logs') return 'admin-logs';
+        if (clean === '/admin/settings') return 'admin-settings';
+        return 'admin-dashboard';
+      } else {
+        if (clean === '/accounts') return 'accounts';
+        if (clean === '/income') return 'income';
+        if (clean === '/expenses') return 'expenses';
+        if (clean === '/budgets') return 'budgets';
+        if (clean === '/transfers') return 'transfers';
+        if (clean === '/loans') return 'loans';
+        if (clean === '/categories') return 'categories';
+        if (clean === '/transactions') return 'transactions';
+        if (clean === '/reports') return 'reports';
+        if (clean === '/settings') return 'settings';
+        return 'dashboard';
       }
-    } else if (user) {
-      if (currentTab.startsWith('admin-')) {
-        setCurrentTab('dashboard');
+    },
+    [isAdmin]
+  );
+
+  const currentTab = useMemo(() => getTabFromPath(pathname), [getTabFromPath, pathname]);
+
+  // Programmatic tab navigation mapped directly to real URL changes
+  const handleNavigateTab = useCallback(
+    (tab: NavTab | string) => {
+      const tabToPathMap: Record<string, string> = {
+        dashboard: '/dashboard',
+        accounts: '/accounts',
+        income: '/income',
+        expenses: '/expenses',
+        budgets: '/budgets',
+        transfers: '/transfers',
+        loans: '/loans',
+        categories: '/categories',
+        transactions: '/transactions',
+        reports: '/reports',
+        settings: '/settings',
+        'admin-dashboard': '/admin',
+        'admin-users': '/admin/users',
+        'admin-logs': '/admin/logs',
+        'admin-settings': '/admin/settings',
+      };
+      const target = tabToPathMap[tab] || (tab.startsWith('/') ? tab : `/${tab}`);
+      router.push(target);
+    },
+    [router]
+  );
+
+  // Strict route security guard: enforce role separation & path canonicalization
+  useEffect(() => {
+    if (!user || isAuthLoading) return;
+    const clean = pathname.replace(/\/+$/, '') || '/';
+
+    if (isAdmin) {
+      if (!clean.startsWith('/admin')) {
+        router.replace('/admin');
+      }
+    } else {
+      if (clean.startsWith('/admin')) {
+        router.replace('/dashboard');
+      } else if (clean === '/') {
+        router.replace('/dashboard');
       }
     }
-  }, [isAdmin, user, currentTab]);
+  }, [user, isAdmin, isAuthLoading, pathname, router]);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -144,7 +204,7 @@ function AppContent() {
       {/* Main Sidebar */}
       <Sidebar
         currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        onSelectTab={handleNavigateTab}
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
         overBudgetCount={overBudgetCount}
@@ -155,8 +215,6 @@ function AppContent() {
         <Header
           title={title}
           onOpenMobileSidebar={() => setIsMobileOpen(true)}
-          selectedPeriod={selectedPeriod}
-          setSelectedPeriod={setSelectedPeriod}
           onOpenQuickAction={(action) => setActiveModal(action)}
         />
 
@@ -168,28 +226,28 @@ function AppContent() {
                 <AdminView
                   initialSection="dashboard"
                   onSuccessNotification={showNotification}
-                  onNavigateTab={setCurrentTab}
+                  onNavigateTab={handleNavigateTab}
                 />
               )}
               {currentTab === 'admin-users' && (
                 <AdminView
                   initialSection="users"
                   onSuccessNotification={showNotification}
-                  onNavigateTab={setCurrentTab}
+                  onNavigateTab={handleNavigateTab}
                 />
               )}
               {currentTab === 'admin-logs' && (
                 <AdminView
                   initialSection="logs"
                   onSuccessNotification={showNotification}
-                  onNavigateTab={setCurrentTab}
+                  onNavigateTab={handleNavigateTab}
                 />
               )}
               {currentTab === 'admin-settings' && (
                 <AdminView
                   initialSection="settings"
                   onSuccessNotification={showNotification}
-                  onNavigateTab={setCurrentTab}
+                  onNavigateTab={handleNavigateTab}
                 />
               )}
             </>
@@ -201,15 +259,14 @@ function AppContent() {
               {currentTab === 'dashboard' && (
                 <DashboardView
                   onOpenQuickAction={(action) => setActiveModal(action)}
-                  onNavigateTab={(tab) => setCurrentTab(tab)}
-                  selectedPeriod={selectedPeriod}
+                  onNavigateTab={handleNavigateTab}
                 />
               )}
 
               {currentTab === 'accounts' && (
                 <AccountsView
                   onOpenTransferModal={() => setActiveModal('transfer')}
-                  onNavigateTab={(tab) => setCurrentTab(tab)}
+                  onNavigateTab={handleNavigateTab}
                   onSuccessNotification={showNotification}
                 />
               )}
@@ -231,7 +288,7 @@ function AppContent() {
               {currentTab === 'budgets' && (
                 <BudgetsView
                   onSuccessNotification={showNotification}
-                  onNavigateTab={(tab) => setCurrentTab(tab)}
+                  onNavigateTab={handleNavigateTab}
                 />
               )}
 
@@ -286,9 +343,13 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <FinanceProvider>
-        <AppContent />
-      </FinanceProvider>
+      <RouterProvider>
+        <FinanceProvider>
+          <DateFilterProvider>
+            <AppContent />
+          </DateFilterProvider>
+        </FinanceProvider>
+      </RouterProvider>
     </AuthProvider>
   );
 }

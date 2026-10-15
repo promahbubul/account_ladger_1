@@ -11,9 +11,12 @@ import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { useDateFilter } from '../../context/DateFilterContext';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 export const TransactionsView: React.FC = () => {
   const { accounts, deleteTransaction, authFetch } = useFinance();
+  const { dateFilter } = useDateFilter();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -40,6 +43,11 @@ export const TransactionsView: React.FC = () => {
     resetPagination,
     setPaginationMeta,
   } = useCursorPagination({ initialPageSize: 50 });
+
+  // Reset pagination when date filter changes
+  useEffect(() => {
+    resetPagination();
+  }, [dateFilter.startDate, dateFilter.endDate, dateFilter.preset, resetPagination]);
 
   // Reset pagination whenever filters or search query change
   const handleSearchChange = (val: string) => {
@@ -68,6 +76,8 @@ export const TransactionsView: React.FC = () => {
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (typeFilter !== 'ALL') params.set('type', typeFilter);
       if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
+      if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
+      if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
 
       const res = await authFetch(`/api/transactions?${params.toString()}`);
       if (!res.ok) {
@@ -89,7 +99,7 @@ export const TransactionsView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [authFetch, pageSize, cursor, searchQuery, typeFilter, accountFilter, setPaginationMeta]);
+  }, [authFetch, pageSize, cursor, searchQuery, typeFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, setPaginationMeta]);
 
   useEffect(() => {
     fetchTransactions();
@@ -109,10 +119,12 @@ export const TransactionsView: React.FC = () => {
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (typeFilter !== 'ALL') params.set('type', typeFilter);
       if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
+      if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
+      if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
 
       const res = await authFetch(`/api/transactions?${params.toString()}`);
       const data = await res.json();
-      const exportList: Transaction[] = data.transactions || items;
+      const exportList: Transaction[] = data.items || data.transactions || items;
 
       const headers = ['Date', 'Type', 'Account', 'Destination Account', 'Category', 'Description', 'Reference', 'Amount', 'Direction', 'Status'];
       const rows = exportList.map((t) => [
@@ -254,12 +266,6 @@ export const TransactionsView: React.FC = () => {
         </div>
       </div>
 
-      {errorMsg && (
-        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-          {errorMsg}
-        </div>
-      )}
-
       {/* Viewport-based Scrollable Table Container */}
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
@@ -277,12 +283,28 @@ export const TransactionsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-500">
-                    {isLoading ? 'Loading transactions...' : 'No transactions match criteria.'}
-                  </td>
-                </tr>
+              {errorMsg ? (
+                <TableErrorRow
+                  colSpan={8}
+                  title="Failed to load transactions"
+                  description={errorMsg}
+                  onRetry={fetchTransactions}
+                />
+              ) : isLoading ? (
+                <TableLoadingRow
+                  colSpan={8}
+                  message="Loading transactions ledger..."
+                />
+              ) : items.length === 0 ? (
+                <TableEmptyRow
+                  colSpan={8}
+                  title="No transactions found"
+                  description={
+                    searchQuery || typeFilter !== 'ALL' || accountFilter !== 'ALL' || dateFilter.startDate
+                      ? 'No transactions match the selected filters or date range.'
+                      : 'No financial activity logged in the ledger yet.'
+                  }
+                />
               ) : (
                 items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">

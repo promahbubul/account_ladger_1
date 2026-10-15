@@ -24,6 +24,7 @@ export interface TransferItem {
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 interface TransfersViewProps {
   onOpenTransferModal: () => void;
@@ -228,12 +229,6 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
         </div>
       )}
 
-      {errorMsg && (
-        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-          {errorMsg}
-        </div>
-      )}
-
       {/* Transfers Table */}
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
@@ -250,12 +245,32 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-500">
-                    {isLoading ? 'Loading transfers...' : 'No transfers found.'}
-                  </td>
-                </tr>
+              {errorMsg ? (
+                <TableErrorRow
+                  colSpan={7}
+                  title="Failed to load transfers"
+                  description={errorMsg}
+                  onRetry={fetchTransfers}
+                />
+              ) : isLoading ? (
+                <TableLoadingRow
+                  colSpan={7}
+                  message="Loading transfers..."
+                />
+              ) : items.length === 0 ? (
+                <TableEmptyRow
+                  colSpan={7}
+                  title="No transfers found"
+                  description={
+                    searchQuery || sourceFilter !== 'ALL' || destFilter !== 'ALL'
+                      ? 'No transfers match the selected filters.'
+                      : 'No inter-account transfers performed yet.'
+                  }
+                  action={{
+                    label: 'New Transfer',
+                    onClick: () => setIsModalOpen(true),
+                  }}
+                />
               ) : (
                 items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">

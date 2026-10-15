@@ -1000,47 +1000,93 @@ class DatabaseService {
   // --------------------------------------------------------------------------
 
   async getTransactions(userId, filters = {}) {
-    let txs = this.inMemoryData.transactions.filter((t) => t.userId === userId);
+    let txs = [];
 
     if (this.isPostgresConnected && this.pool) {
-      const res = await this.pool.query(
-        'SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", type, category, subcategory, amount, direction, date, description, reference, counterparty, status, transfer_id as "transferId", loan_id as "loanId", destination_account_id as "destinationAccountId", destination_account_name as "destinationAccountName", created_at as "createdAt" FROM transactions WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
-        [userId]
-      );
+      const conditions = ['user_id = $1'];
+      const values = [userId];
+      let pIdx = 2;
+
+      if (filters.type && filters.type !== 'ALL') {
+        conditions.push(`type = $${pIdx++}`);
+        values.push(filters.type);
+      }
+      if (filters.accountId && filters.accountId !== 'ALL') {
+        conditions.push(`account_id = $${pIdx++}`);
+        values.push(filters.accountId);
+      }
+      if (filters.category && filters.category !== 'ALL') {
+        conditions.push(`category = $${pIdx++}`);
+        values.push(filters.category);
+      }
+      if (filters.startDate) {
+        conditions.push(`date >= $${pIdx++}`);
+        values.push(filters.startDate);
+      }
+      if (filters.endDate) {
+        conditions.push(`date <= $${pIdx++}`);
+        values.push(filters.endDate);
+      }
+      if (filters.search && filters.search.trim()) {
+        const term = `%${filters.search.trim().toLowerCase()}%`;
+        conditions.push(`(LOWER(description) LIKE $${pIdx} OR LOWER(reference) LIKE $${pIdx} OR LOWER(counterparty) LIKE $${pIdx} OR LOWER(category) LIKE $${pIdx})`);
+        values.push(term);
+        pIdx++;
+      }
+
+      const sql = `
+        SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", 
+               type, category, subcategory, amount, direction, date, description, reference, 
+               counterparty, status, transfer_id as "transferId", loan_id as "loanId", 
+               destination_account_id as "destinationAccountId", destination_account_name as "destinationAccountName", 
+               created_at as "createdAt" 
+        FROM transactions 
+        WHERE ${conditions.join(' AND ')} 
+        ORDER BY date DESC, created_at DESC
+      `;
+      const res = await this.pool.query(sql, values);
       txs = res.rows.map((r) => ({
         ...r,
         amount: Number(r.amount),
         date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
       }));
+    } else {
+      txs = this.inMemoryData.transactions.filter((t) => t.userId === userId);
+      if (filters.type && filters.type !== 'ALL') {
+        txs = txs.filter((t) => t.type === filters.type);
+      }
+      if (filters.accountId && filters.accountId !== 'ALL') {
+        txs = txs.filter((t) => t.accountId === filters.accountId);
+      }
+      if (filters.category && filters.category !== 'ALL') {
+        txs = txs.filter((t) => t.category === filters.category);
+      }
+      if (filters.startDate) {
+        txs = txs.filter((t) => t.date >= filters.startDate);
+      }
+      if (filters.endDate) {
+        txs = txs.filter((t) => t.date <= filters.endDate);
+      }
+      if (filters.search && filters.search.trim()) {
+        const term = filters.search.trim().toLowerCase();
+        txs = txs.filter(
+          (t) =>
+            t.description.toLowerCase().includes(term) ||
+            (t.reference && t.reference.toLowerCase().includes(term)) ||
+            (t.counterparty && t.counterparty.toLowerCase().includes(term)) ||
+            (t.category && t.category.toLowerCase().includes(term))
+        );
+      }
     }
 
-    if (filters.type && filters.type !== 'ALL') {
-      txs = txs.filter((t) => t.type === filters.type);
-    }
-    if (filters.accountId && filters.accountId !== 'ALL') {
-      txs = txs.filter((t) => t.accountId === filters.accountId);
-    }
-    if (filters.category && filters.category !== 'ALL') {
-      txs = txs.filter((t) => t.category === filters.category);
-    }
-    if (filters.startDate) {
-      txs = txs.filter((t) => t.date >= filters.startDate);
-    }
-    if (filters.endDate) {
-      txs = txs.filter((t) => t.date <= filters.endDate);
-    }
-    if (filters.search && filters.search.trim()) {
-      const term = filters.search.trim().toLowerCase();
-      txs = txs.filter(
-        (t) =>
-          t.description.toLowerCase().includes(term) ||
-          (t.reference && t.reference.toLowerCase().includes(term)) ||
-          (t.counterparty && t.counterparty.toLowerCase().includes(term)) ||
-          (t.category && t.category.toLowerCase().includes(term))
-      );
-    }
-
-    return txs.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+    return txs.sort((a, b) => {
+      const dateCmp = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateCmp !== 0) return dateCmp;
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
   }
 
   async getPaginatedTransactions(userId, options) {
@@ -1263,6 +1309,7 @@ class DatabaseService {
         amount: Number(r.amount),
         transferFee: Number(r.transferFee || 0),
         date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
       }));
     }
 
@@ -1289,7 +1336,13 @@ class DatabaseService {
       );
     }
 
-    return transfers.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+    return transfers.sort((a, b) => {
+      const dateCmp = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateCmp !== 0) return dateCmp;
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
   }
 
   async getPaginatedTransfers(userId, options) {
@@ -1418,6 +1471,7 @@ class DatabaseService {
         interestRate: Number(r.interestRate || 0),
         startDate: typeof r.startDate === 'string' ? r.startDate.slice(0, 10) : new Date(r.startDate).toISOString().slice(0, 10),
         dueDate: r.dueDate ? (typeof r.dueDate === 'string' ? r.dueDate.slice(0, 10) : new Date(r.dueDate).toISOString().slice(0, 10)) : undefined,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
       }));
     }
 
@@ -1437,7 +1491,13 @@ class DatabaseService {
       );
     }
 
-    return loans.sort((a, b) => b.startDate.localeCompare(a.startDate) || b.createdAt.localeCompare(a.createdAt));
+    return loans.sort((a, b) => {
+      const dateCmp = new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+      if (dateCmp !== 0) return dateCmp;
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
   }
 
   async getPaginatedLoans(userId, options) {
@@ -1560,6 +1620,7 @@ class DatabaseService {
         ...r,
         amount: Number(r.amount),
         date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
       }));
     }
 
@@ -1575,7 +1636,13 @@ class DatabaseService {
       );
     }
 
-    return repayments.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+    return repayments.sort((a, b) => {
+      const dateCmp = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateCmp !== 0) return dateCmp;
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
   }
 
   async getPaginatedRepayments(userId, options) {

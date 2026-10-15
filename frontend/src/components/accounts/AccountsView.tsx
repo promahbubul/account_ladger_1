@@ -15,6 +15,7 @@ import { Account } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 interface AccountsViewProps {
   onOpenTransferModal: (accountId?: string) => void;
@@ -262,12 +263,6 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
         </div>
       )}
 
-      {errorMsg && (
-        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-          {errorMsg}
-        </div>
-      )}
-
       {/* Main Standard Table */}
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
@@ -285,12 +280,32 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-500">
-                    {isLoading ? 'Loading accounts...' : 'No accounts found matching current filters.'}
-                  </td>
-                </tr>
+              {errorMsg ? (
+                <TableErrorRow
+                  colSpan={8}
+                  title="Failed to load accounts"
+                  description={errorMsg}
+                  onRetry={fetchAccounts}
+                />
+              ) : isLoading ? (
+                <TableLoadingRow
+                  colSpan={8}
+                  message="Loading accounts..."
+                />
+              ) : items.length === 0 ? (
+                <TableEmptyRow
+                  colSpan={8}
+                  title="No accounts found"
+                  description={
+                    searchQuery || filterType !== 'ALL' || filterStatus !== 'ALL'
+                      ? 'No accounts match the selected filters.'
+                      : 'No financial accounts created yet. Add cash or bank accounts to get started.'
+                  }
+                  action={{
+                    label: 'Create Account',
+                    onClick: () => setIsCreateOpen(true),
+                  }}
+                />
               ) : (
                 items.map((acc) => (
                   <tr key={acc.id} className="hover:bg-[#1a1d24] transition-colors">

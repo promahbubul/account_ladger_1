@@ -14,6 +14,7 @@ import { Category } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 interface CategoriesViewProps {
   onSuccessNotification: (msg: string) => void;
@@ -263,12 +264,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
         </div>
       )}
 
-      {errorMsg && (
-        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
-          {errorMsg}
-        </div>
-      )}
-
       {/* Categories Table */}
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
@@ -286,12 +281,32 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-500">
-                    {isLoading ? 'Loading categories...' : 'No categories found.'}
-                  </td>
-                </tr>
+              {errorMsg ? (
+                <TableErrorRow
+                  colSpan={8}
+                  title="Failed to load categories"
+                  description={errorMsg}
+                  onRetry={fetchCategories}
+                />
+              ) : isLoading ? (
+                <TableLoadingRow
+                  colSpan={8}
+                  message="Loading categories..."
+                />
+              ) : items.length === 0 ? (
+                <TableEmptyRow
+                  colSpan={8}
+                  title="No categories found"
+                  description={
+                    searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL'
+                      ? 'No categories match the selected filters.'
+                      : 'No income or expense categories defined yet.'
+                  }
+                  action={{
+                    label: 'Add Category',
+                    onClick: () => setIsAddCatOpen(true),
+                  }}
+                />
               ) : (
                 items.map((c) => {
                   const txList = transactions.filter((t) => t.category === c.name);

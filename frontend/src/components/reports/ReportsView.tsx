@@ -1,15 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Download,
+  Calendar,
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
+import { useDateFilter } from '../../context/DateFilterContext';
+import { Transaction } from '../../mock/data';
+import { TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 export const ReportsView: React.FC = () => {
-  const { transactions, accounts, budgets } = useFinance();
+  const { transactions, accounts, budgets, authFetch } = useFinance();
+  const { dateFilter } = useDateFilter();
   const [selectedPeriod, setSelectedPeriod] = useState<'MONTH' | 'LAST_MONTH' | 'YTD' | 'ALL'>('MONTH');
+  const [reportTransactions, setReportTransactions] = useState<Transaction[]>(transactions);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const reportTransactions = transactions;
+  useEffect(() => {
+    let active = true;
+    const fetchReportData = async () => {
+      try {
+        setIsLoading(true);
+        const params = new URLSearchParams();
+        params.set('all', 'true');
+        if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
+        if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
+
+        const res = await authFetch(`/api/transactions?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (active) {
+            setReportTransactions(data.items || data.transactions || []);
+          }
+        }
+      } catch (err) {
+        console.error('ReportsView fetch error:', err);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+
+    fetchReportData();
+    return () => {
+      active = false;
+    };
+  }, [authFetch, dateFilter.startDate, dateFilter.endDate]);
 
   const totalInflow = reportTransactions
     .filter((t) => t.direction === 'INFLOW')
@@ -113,7 +148,15 @@ export const ReportsView: React.FC = () => {
     <div className="space-y-4 w-full min-w-0">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Reports</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-gray-100">Reports</h2>
+          {dateFilter.formattedRangeLabel && (
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-950/60 border border-blue-800 text-blue-300 rounded text-[11px] font-mono">
+              <Calendar className="w-3 h-3" />
+              {dateFilter.formattedRangeLabel}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-[#16181d] border border-[#22252c] rounded p-0.5 text-xs">
             {(['MONTH', 'LAST_MONTH', 'YTD', 'ALL'] as const).map((p) => (
@@ -195,12 +238,17 @@ export const ReportsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {expenseBreakdown.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-500">
-                    No expense records available for this period.
-                  </td>
-                </tr>
+              {isLoading ? (
+                <TableLoadingRow
+                  colSpan={6}
+                  message="Compiling report data..."
+                />
+              ) : expenseBreakdown.length === 0 ? (
+                <TableEmptyRow
+                  colSpan={6}
+                  title="No expense records available"
+                  description="No expenditures found for this period to display in the breakdown."
+                />
               ) : (
                 expenseBreakdown.map((row) => (
                   <tr key={row.category} className="hover:bg-[#1a1d24]">
