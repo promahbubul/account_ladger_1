@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search,
   Eye,
@@ -9,9 +9,11 @@ import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 export const TransactionsView: React.FC = () => {
-  const { transactions, accounts, deleteTransaction } = useFinance();
+  const { accounts, deleteTransaction, authFetch } = useFinance();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -19,100 +21,180 @@ export const TransactionsView: React.FC = () => {
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
 
-  const filteredTransactions = transactions.filter((t) => {
-    const matchesSearch =
-      t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.category && t.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (t.counterparty && t.counterparty.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (t.reference && t.reference.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Paginated state
+  const [items, setItems] = useState<Transaction[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
-    const matchesAccount =
-      accountFilter === 'ALL' ||
-      t.accountId === accountFilter ||
-      t.destinationAccountId === accountFilter;
+  const {
+    pageSize,
+    cursor,
+    pageIndex,
+    hasNextPage,
+    hasPreviousPage,
+    setPageSize,
+    goToNextPage,
+    goToPreviousPage,
+    resetPagination,
+    setPaginationMeta,
+  } = useCursorPagination({ initialPageSize: 50 });
 
-    return matchesSearch && matchesType && matchesAccount;
-  });
+  // Reset pagination whenever filters or search query change
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    resetPagination();
+  };
 
-  const totalInflow = filteredTransactions
-    .filter((t) => t.direction === 'INFLOW')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const handleTypeChange = (val: string) => {
+    setTypeFilter(val);
+    resetPagination();
+  };
 
-  const totalOutflow = filteredTransactions
-    .filter((t) => t.direction === 'OUTFLOW')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const handleAccountChange = (val: string) => {
+    setAccountFilter(val);
+    resetPagination();
+  };
 
-  const netBalance = totalInflow - totalOutflow;
+  const fetchTransactions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg(null);
 
-  const confirmDelete = () => {
+      const params = new URLSearchParams();
+      params.set('limit', String(pageSize));
+      if (cursor) params.set('cursor', cursor);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (typeFilter !== 'ALL') params.set('type', typeFilter);
+      if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
+
+      const res = await authFetch(`/api/transactions?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to fetch transactions');
+      }
+
+      const data = await res.json();
+      setItems(data.items || []);
+      setTotalCount(data.totalCount ?? (data.items || []).length);
+      setNextCursor(data.nextCursor || null);
+      setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch transactions error:', err);
+      setErrorMsg(err.message || 'Error loading transactions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authFetch, pageSize, cursor, searchQuery, typeFilter, accountFilter, setPaginationMeta]);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  const confirmDelete = async () => {
     if (!txToDelete) return;
-    deleteTransaction(txToDelete.id);
+    await deleteTransaction(txToDelete.id);
     setTxToDelete(null);
+    fetchTransactions();
   };
 
-  const handleExportCSV = () => {
-    const headers = ['Date', 'Type', 'Account', 'Destination Account', 'Category', 'Description', 'Reference', 'Amount', 'Direction', 'Status'];
-    const rows = filteredTransactions.map((t) => [
-      `"${t.date}"`,
-      `"${t.type}"`,
-      `"${t.accountName}"`,
-      `"${t.destinationAccountName || ''}"`,
-      `"${t.category || t.counterparty || ''}"`,
-      `"${t.description.replace(/"/g, '""')}"`,
-      `"${t.reference || ''}"`,
-      t.amount,
-      `"${t.direction}"`,
-      `"${t.status}"`,
-    ]);
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.set('all', 'true');
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (typeFilter !== 'ALL') params.set('type', typeFilter);
+      if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
 
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `hisabflow_transactions_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const res = await authFetch(`/api/transactions?${params.toString()}`);
+      const data = await res.json();
+      const exportList: Transaction[] = data.transactions || items;
+
+      const headers = ['Date', 'Type', 'Account', 'Destination Account', 'Category', 'Description', 'Reference', 'Amount', 'Direction', 'Status'];
+      const rows = exportList.map((t) => [
+        `"${t.date}"`,
+        `"${t.type}"`,
+        `"${t.accountName}"`,
+        `"${t.destinationAccountName || ''}"`,
+        `"${t.category || t.counterparty || ''}"`,
+        `"${t.description.replace(/"/g, '""')}"`,
+        `"${t.reference || ''}"`,
+        t.amount,
+        `"${t.direction}"`,
+        `"${t.status}"`,
+      ]);
+
+      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `hisabflow_transactions_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Export CSV error:', err);
+    }
   };
 
-  const handleExportJSON = () => {
-    const jsonContent = JSON.stringify(filteredTransactions, null, 2);
-    const blob = new Blob([jsonContent], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `hisabflow_transactions_${Date.now()}.json`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportJSON = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.set('all', 'true');
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (typeFilter !== 'ALL') params.set('type', typeFilter);
+      if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
+
+      const res = await authFetch(`/api/transactions?${params.toString()}`);
+      const data = await res.json();
+      const exportList: Transaction[] = data.transactions || items;
+
+      const jsonContent = JSON.stringify(exportList, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `hisabflow_transactions_${Date.now()}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Export JSON error:', err);
+    }
   };
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'INCOME':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">INCOME</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-medium">INCOME</span>;
       case 'EXPENSE':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-300 border border-gray-700">EXPENSE</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-300 border border-gray-700 font-medium">EXPENSE</span>;
       case 'TRANSFER':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-950/70 text-blue-300 border border-blue-800/60">TRANSFER</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-950/70 text-blue-300 border border-blue-800/60 font-medium">TRANSFER</span>;
       case 'LOAN_LENT':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-950/70 text-amber-300 border border-amber-800/60">LOAN GIVEN</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-950/70 text-amber-300 border border-amber-800/60 font-medium">LOAN GIVEN</span>;
       case 'LOAN_BORROWED':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-950/70 text-purple-300 border border-purple-800/60">BORROWED</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-950/70 text-purple-300 border border-purple-800/60 font-medium">BORROWED</span>;
       case 'LOAN_REPAYMENT':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-teal-950/70 text-teal-300 border border-teal-800/60">REPAYMENT</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-teal-950/70 text-teal-300 border border-teal-800/60 font-medium">REPAYMENT</span>;
       default:
-        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-400">{type}</span>;
+        return <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-800 text-gray-400 font-medium">{type}</span>;
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col min-h-0 space-y-3">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Transactions</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">Transactions Ledger</h2>
+          <p className="text-xs text-gray-400">Deterministic cursor pagination & full-height view</p>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCSV}
@@ -131,47 +213,23 @@ export const TransactionsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Inflow (Filtered)</div>
-          <div className="text-lg font-semibold font-mono text-emerald-400 mt-0.5">
-            +{formatBDT(totalInflow)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Outflow (Filtered)</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            -{formatBDT(totalOutflow)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Net Balance (Inflow - Outflow)</div>
-          <div className={`text-lg font-semibold font-mono mt-0.5 ${netBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatBDT(netBalance, true)}
-          </div>
-        </div>
-      </div>
-
       {/* Search & Filter Toolbar */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
-        <div className="relative w-full md:w-72">
+      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+        <div className="relative w-full md:w-80">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search description, category, reference..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto text-xs">
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e) => handleTypeChange(e.target.value)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Types</option>
@@ -185,7 +243,7 @@ export const TransactionsView: React.FC = () => {
 
           <select
             value={accountFilter}
-            onChange={(e) => setAccountFilter(e.target.value)}
+            onChange={(e) => handleAccountChange(e.target.value)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Accounts</option>
@@ -196,12 +254,18 @@ export const TransactionsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Ledger Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-        <div className="overflow-x-auto">
+      {errorMsg && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Viewport-based Scrollable Table Container */}
+      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3">Description</th>
@@ -213,14 +277,14 @@ export const TransactionsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {filteredTransactions.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
-                    No transactions match criteria.
+                  <td colSpan={8} className="py-12 text-center text-gray-500">
+                    {isLoading ? 'Loading transactions...' : 'No transactions match criteria.'}
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((tx) => (
+                items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
                     <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                       {tx.date}
@@ -276,12 +340,21 @@ export const TransactionsView: React.FC = () => {
             </tbody>
           </table>
         </div>
-
-        {/* Footer */}
-        <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs flex justify-between items-center">
-          <span>Showing {filteredTransactions.length} of {transactions.length} transactions</span>
-        </div>
       </div>
+
+      {/* Pinned Pagination Controls */}
+      <TablePagination
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPreviousPage}
+        onNextPage={() => goToNextPage(nextCursor)}
+        onPreviousPage={goToPreviousPage}
+        isLoading={isLoading}
+        itemCount={items.length}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+      />
 
       {/* Details Modal */}
       <Modal

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   UserPlus,
@@ -20,6 +20,8 @@ import {
   Globe,
 } from 'lucide-react';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 interface ManagedUser {
   id: string;
@@ -86,9 +88,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setActiveSection(initialSection);
   }, [initialSection]);
 
-  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<SystemSettings>({
     appName: 'HisabFlow',
     maintenanceMode: false,
@@ -99,7 +99,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     updatedAt: new Date().toISOString(),
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [logSearchQuery, setLogSearchQuery] = useState('');
@@ -123,45 +123,137 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetchAdminData = async () => {
+  // User management pagination state
+  const [userItems, setUserItems] = useState<ManagedUser[]>([]);
+  const [userTotalCount, setUserTotalCount] = useState<number>(0);
+  const [userNextCursor, setUserNextCursor] = useState<string | null>(null);
+  const [isUsersLoading, setIsUsersLoading] = useState(false);
+  const [userError, setUserError] = useState<string | null>(null);
+
+  const userPagination = useCursorPagination({ initialPageSize: 50 });
+
+  // Audit logs pagination state
+  const [logItems, setLogItems] = useState<AuditLog[]>([]);
+  const [logTotalCount, setLogTotalCount] = useState<number>(0);
+  const [logNextCursor, setLogNextCursor] = useState<string | null>(null);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+
+  const logPagination = useCursorPagination({ initialPageSize: 50 });
+
+  const fetchStatsAndSettings = useCallback(async () => {
     if (!token) return;
-    setIsLoading(true);
+    setIsStatsLoading(true);
     try {
-      const [usersRes, statsRes, logsRes, settingsRes] = await Promise.all([
-        fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
+      const [statsRes, settingsRes] = await Promise.all([
         fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/audit-logs', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/admin/settings', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-
-      if (usersRes.ok) {
-        const uData = await usersRes.json();
-        setUsers(uData.users || []);
-      }
       if (statsRes.ok) {
-        const sData = await statsRes.json();
-        setStats(sData);
-      }
-      if (logsRes.ok) {
-        const lData = await logsRes.json();
-        setAuditLogs(lData.logs || []);
+        setStats(await statsRes.json());
       }
       if (settingsRes.ok) {
         const cfgData = await settingsRes.json();
-        if (cfgData.settings) {
-          setSettings(cfgData.settings);
-        }
+        if (cfgData.settings) setSettings(cfgData.settings);
       }
     } catch (err) {
-      console.error('Failed to load admin data:', err);
+      console.error('Failed to load stats/settings:', err);
     } finally {
-      setIsLoading(false);
+      setIsStatsLoading(false);
     }
-  };
+  }, [token]);
+
+  const fetchUsers = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsUsersLoading(true);
+      setUserError(null);
+
+      const params = new URLSearchParams();
+      params.set('limit', String(userPagination.pageSize));
+      if (userPagination.cursor) params.set('cursor', userPagination.cursor);
+      if (userSearchQuery.trim()) params.set('search', userSearchQuery.trim());
+
+      const res = await fetch(`/api/admin/users?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to fetch users');
+      }
+
+      const data = await res.json();
+      setUserItems(data.items || []);
+      setUserTotalCount(data.totalCount ?? (data.items || []).length);
+      setUserNextCursor(data.nextCursor || null);
+      userPagination.setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch users error:', err);
+      setUserError(err.message || 'Error loading users');
+    } finally {
+      setIsUsersLoading(false);
+    }
+  }, [token, userPagination.pageSize, userPagination.cursor, userSearchQuery, userPagination.setPaginationMeta]);
+
+  const fetchLogs = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsLogsLoading(true);
+      setLogError(null);
+
+      const params = new URLSearchParams();
+      params.set('limit', String(logPagination.pageSize));
+      if (logPagination.cursor) params.set('cursor', logPagination.cursor);
+      if (logSearchQuery.trim()) params.set('search', logSearchQuery.trim());
+
+      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to fetch audit logs');
+      }
+
+      const data = await res.json();
+      setLogItems(data.items || []);
+      setLogTotalCount(data.totalCount ?? (data.items || []).length);
+      setLogNextCursor(data.nextCursor || null);
+      logPagination.setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch logs error:', err);
+      setLogError(err.message || 'Error loading logs');
+    } finally {
+      setIsLogsLoading(false);
+    }
+  }, [token, logPagination.pageSize, logPagination.cursor, logSearchQuery, logPagination.setPaginationMeta]);
 
   useEffect(() => {
-    fetchAdminData();
-  }, [token]);
+    fetchStatsAndSettings();
+  }, [fetchStatsAndSettings]);
+
+  useEffect(() => {
+    if (activeSection === 'users') {
+      fetchUsers();
+    } else if (activeSection === 'logs') {
+      fetchLogs();
+    }
+  }, [activeSection, fetchUsers, fetchLogs]);
+
+  const handleUserSearchChange = (val: string) => {
+    setUserSearchQuery(val);
+    userPagination.resetPagination();
+  };
+
+  const handleLogSearchChange = (val: string) => {
+    setLogSearchQuery(val);
+    logPagination.resetPagination();
+  };
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +284,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
           currency: 'BDT',
         });
         onSuccessNotification(`User ${data.user.username} created.`);
-        fetchAdminData();
+        userPagination.resetPagination();
+        fetchUsers();
+        fetchStatsAndSettings();
       }
     } catch (err) {
       setFormError('Network error creating user.');
@@ -228,7 +322,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       } else {
         setEditUser(null);
         onSuccessNotification(`User ${editUser.username} updated.`);
-        fetchAdminData();
+        fetchUsers();
       }
     } catch (err) {
       setFormError('Network error updating user.');
@@ -237,25 +331,22 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  const handleToggleActive = async (userToToggle: ManagedUser) => {
-    if (userToToggle.id === currentUser?.id) {
-      onSuccessNotification('Safeguard: You cannot deactivate your own administrator account.');
+  const handleToggleActive = async (u: ManagedUser) => {
+    if (u.id === currentUser?.id) {
+      alert('You cannot deactivate your own account.');
       return;
     }
 
     try {
-      const res = await fetch(`/api/admin/users/${userToToggle.id}/status`, {
+      const res = await fetch(`/api/admin/users/${u.id}/toggle-active`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isActive: !userToToggle.isActive }),
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       if (res.ok) {
-        onSuccessNotification(`User ${userToToggle.username} status updated.`);
-        fetchAdminData();
+        const nextState = !u.isActive;
+        onSuccessNotification(`User @${u.username} is now ${nextState ? 'Active' : 'Deactivated'}.`);
+        fetchUsers();
+        fetchStatsAndSettings();
       }
     } catch (err) {
       console.error(err);
@@ -284,7 +375,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       } else {
         setResetPasswordUser(null);
         setNewPassword('');
-        onSuccessNotification(data.message || 'Password reset successfully.');
+        onSuccessNotification(`Password for @${resetPasswordUser.username} updated.`);
       }
     } catch (err) {
       setFormError('Network error resetting password.');
@@ -295,22 +386,16 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   const handleDeleteUser = async () => {
     if (!deleteConfirmUser) return;
-    if (deleteConfirmUser.id === currentUser?.id) {
-      onSuccessNotification('Safeguard: You cannot delete your own active administrator account.');
-      setDeleteConfirmUser(null);
-      return;
-    }
-
     try {
       const res = await fetch(`/api/admin/users/${deleteConfirmUser.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (res.ok) {
-        onSuccessNotification(`User ${deleteConfirmUser.username} removed.`);
+        onSuccessNotification(`User @${deleteConfirmUser.username} was permanently deleted.`);
         setDeleteConfirmUser(null);
-        fetchAdminData();
+        fetchUsers();
+        fetchStatsAndSettings();
       }
     } catch (err) {
       console.error(err);
@@ -332,42 +417,18 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       if (res.ok) {
         onSuccessNotification('System settings saved successfully.');
-        fetchAdminData();
       }
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      console.error('Error saving settings:', err);
     } finally {
       setIsSavingSettings(false);
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    const q = userSearchQuery.toLowerCase();
-    return (
-      u.fullName.toLowerCase().includes(q) ||
-      u.username.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      u.role.toLowerCase().includes(q)
-    );
-  });
-
-  const filteredLogs = auditLogs.filter((log) => {
-    const q = logSearchQuery.toLowerCase();
-    return (
-      log.action.toLowerCase().includes(q) ||
-      (log.userEmail && log.userEmail.toLowerCase().includes(q)) ||
-      (log.details && log.details.toLowerCase().includes(q)) ||
-      (log.ipAddress && log.ipAddress.toLowerCase().includes(q))
-    );
-  });
-
-  const activeCount = users.filter((u) => u.isActive).length;
-  const deactivatedCount = users.filter((u) => !u.isActive).length;
-
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col min-h-0 space-y-3">
       {/* Admin Section Tabs */}
-      <div className="flex border-b border-[#22252c] gap-1 pb-px overflow-x-auto">
+      <div className="flex border-b border-[#22252c] gap-1 pb-px overflow-x-auto flex-shrink-0">
         <button
           onClick={() => {
             setActiveSection('dashboard');
@@ -396,9 +457,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
         >
           <Users className="w-3.5 h-3.5" />
           <span>User Management</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#22252e] text-gray-300">
-            {users.length}
-          </span>
+          {stats?.totalUsers !== undefined && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#22252e] text-gray-300">
+              {stats.totalUsers}
+            </span>
+          )}
         </button>
 
         <button
@@ -433,22 +496,23 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
         <div className="ml-auto flex items-center pr-1">
           <button
-            onClick={fetchAdminData}
-            disabled={isLoading}
+            onClick={() => {
+              fetchStatsAndSettings();
+              if (activeSection === 'users') fetchUsers();
+              if (activeSection === 'logs') fetchLogs();
+            }}
+            disabled={isStatsLoading || isUsersLoading || isLogsLoading}
             className="px-2.5 py-1 text-xs text-gray-400 hover:text-white bg-[#171a20] hover:bg-[#20242e] border border-[#2b2f3a] rounded flex items-center gap-1.5 transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isStatsLoading || isUsersLoading || isLogsLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* 1. SYSTEM DASHBOARD & HEALTH                              */}
-      {/* ========================================================= */}
+      {/* 1. SYSTEM DASHBOARD & HEALTH */}
       {activeSection === 'dashboard' && (
-        <div className="space-y-4">
-          {/* Key Metrics */}
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
               <div className="flex items-center justify-between text-xs text-gray-400">
@@ -456,141 +520,72 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <Users className="w-4 h-4 text-gray-500" />
               </div>
               <div className="text-xl font-bold font-mono text-gray-100 mt-1">
-                {stats?.totalUsers ?? users.length}
-              </div>
-              <div className="text-[11px] text-gray-400 mt-1">
-                {activeCount} active · {deactivatedCount} deactivated
+                {stats?.totalUsers ?? '-'}
               </div>
             </div>
 
             <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
               <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>Administrators</span>
+                <span>Active Accounts</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
+                {stats?.activeUsers ?? '-'}
+              </div>
+            </div>
+
+            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>System Admins</span>
                 <Shield className="w-4 h-4 text-purple-400" />
               </div>
               <div className="text-xl font-bold font-mono text-purple-400 mt-1">
-                {stats?.adminCount ?? users.filter((u) => u.role === 'ADMIN').length}
-              </div>
-              <div className="text-[11px] text-gray-400 mt-1">
-                Strict administrative privileges
+                {stats?.adminCount ?? '-'}
               </div>
             </div>
 
             <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
               <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>Database Engine</span>
-                <Database className="w-4 h-4 text-emerald-400" />
+                <Database className="w-4 h-4 text-blue-400" />
               </div>
-              <div className="text-sm font-semibold text-emerald-400 mt-1 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>{stats?.status?.connectedToNeon ? 'Neon PostgreSQL' : 'Local Storage'}</span>
-              </div>
-              <div className="text-[11px] text-gray-400 mt-1">
-                {stats?.status?.connectedToNeon ? 'Cloud Connection Active' : 'Fallback File Mode'}
-              </div>
-            </div>
-
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>Security Events</span>
-                <FileText className="w-4 h-4 text-blue-400" />
-              </div>
-              <div className="text-xl font-bold font-mono text-blue-400 mt-1">
-                {auditLogs.length}
-              </div>
-              <div className="text-[11px] text-gray-400 mt-1">
-                Recorded security audit actions
+              <div className="text-sm font-semibold font-mono text-gray-200 mt-1">
+                {stats?.status.connectedToNeon ? 'PostgreSQL (Neon)' : 'Local Persistent'}
               </div>
             </div>
           </div>
 
-          {/* System Health & Architecture Status */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-4 space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300 flex items-center gap-2">
-                <Server className="w-4 h-4 text-blue-400" />
-                Application Health & Environment
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between py-1.5 border-b border-[#20232a]">
-                  <span className="text-gray-400">System Status</span>
-                  <span className="text-emerald-400 font-medium flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Operational
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-[#20232a]">
-                  <span className="text-gray-400">Application Name</span>
-                  <span className="text-gray-200 font-medium">{settings.appName}</span>
-                </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-[#20232a]">
-                  <span className="text-gray-400">Server Architecture</span>
-                  <span className="text-gray-200 font-mono">Express.js REST API</span>
-                </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-[#20232a]">
-                  <span className="text-gray-400">Maintenance Mode</span>
-                  <span className={`font-medium ${settings.maintenanceMode ? 'text-amber-400' : 'text-gray-300'}`}>
-                    {settings.maintenanceMode ? 'Enabled' : 'Disabled'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-gray-400">Public User Registration</span>
-                  <span className={`font-medium ${settings.allowUserRegistration ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {settings.allowUserRegistration ? 'Allowed' : 'Disabled'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-4 space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-purple-400" />
-                Role & Security Boundary Policy
-              </h3>
-              <div className="space-y-2 text-xs text-gray-300">
-                <div className="p-2.5 rounded bg-[#101216] border border-[#22252c]">
-                  <p className="font-semibold text-purple-300 mb-0.5">Strict Admin Separation</p>
-                  <p className="text-gray-400 leading-relaxed text-[11px]">
-                    System Administrators manage software configuration, security audit logs, and user access.
-                    Administrators have no personal financial accounts and cannot view or manipulate users&apos; private balances or transactions.
-                  </p>
-                </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-[#20232a]">
-                  <span className="text-gray-400">Default Currency</span>
-                  <span className="font-mono text-gray-200">{settings.defaultCurrency}</span>
-                </div>
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-gray-400">Session Validity</span>
-                  <span className="font-mono text-gray-200">{settings.sessionTimeoutHours} Hours</span>
-                </div>
-              </div>
+          <div className="bg-[#16181d] border border-[#22252c] rounded p-4">
+            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Server className="w-4 h-4 text-blue-400" />
+              <span>Storage Architecture & Health</span>
+            </h3>
+            <div className="text-xs text-gray-400 space-y-1">
+              <p>Connection: <strong className="text-gray-200">{stats?.status.connectedToNeon ? 'Neon Serverless Cloud Connected' : 'Local Fallback'}</strong></p>
+              <p>Storage File: <span className="font-mono text-gray-300">{stats?.status.storageFile}</span></p>
+              <p>Total Ledger Rows in DB: <strong className="text-gray-200">{stats?.status.transactionCount ?? 0}</strong></p>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* 2. USER MANAGEMENT                                        */}
-      {/* ========================================================= */}
+      {/* 2. USER MANAGEMENT */}
       {activeSection === 'users' && (
-        <div className="space-y-3">
+        <div className="flex-1 min-h-0 flex flex-col space-y-2.5">
           {/* Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
-            <div className="relative w-full md:w-72">
+          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+            <div className="relative w-full md:w-80">
               <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
               <input
                 type="text"
                 value={userSearchQuery}
-                onChange={(e) => setUserSearchQuery(e.target.value)}
+                onChange={(e) => handleUserSearchChange(e.target.value)}
                 placeholder="Search users by name, username, or email..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-              <span className="text-xs text-gray-400">
-                {filteredUsers.length} of {users.length} users
-              </span>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-xs text-white font-medium rounded flex items-center gap-1.5 transition-colors"
@@ -601,12 +596,18 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </div>
           </div>
 
-          {/* Users Table */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-            <div className="overflow-x-auto">
+          {userError && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+              {userError}
+            </div>
+          )}
+
+          {/* Viewport-based Users Table */}
+          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+                  <tr className="border-b border-[#22252c] text-gray-400 uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">User</th>
                     <th className="py-2.5 px-3">Email</th>
                     <th className="py-2.5 px-3">Role</th>
@@ -617,14 +618,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {filteredUsers.length === 0 ? (
+                  {userItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500">
-                        No users matching criteria.
+                      <td colSpan={7} className="text-center py-12 text-gray-500">
+                        {isUsersLoading ? 'Loading users...' : 'No users matching criteria.'}
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((u) => {
+                    userItems.map((u) => {
                       const isCurrent = u.id === currentUser?.id;
                       return (
                         <tr key={u.id} className="hover:bg-[#1a1d24] transition-colors">
@@ -711,38 +712,52 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </table>
             </div>
           </div>
+
+          {/* Pinned User Pagination */}
+          <TablePagination
+            pageSize={userPagination.pageSize}
+            onPageSizeChange={userPagination.setPageSize}
+            hasNextPage={userPagination.hasNextPage}
+            hasPreviousPage={userPagination.hasPreviousPage}
+            onNextPage={() => userPagination.goToNextPage(userNextCursor)}
+            onPreviousPage={userPagination.goToPreviousPage}
+            isLoading={isUsersLoading}
+            itemCount={userItems.length}
+            totalCount={userTotalCount}
+            pageIndex={userPagination.pageIndex}
+          />
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* 3. AUDIT & SECURITY LOGS                                  */}
-      {/* ========================================================= */}
+      {/* 3. AUDIT & SECURITY LOGS */}
       {activeSection === 'logs' && (
-        <div className="space-y-3">
+        <div className="flex-1 min-h-0 flex flex-col space-y-2.5">
           {/* Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex items-center justify-between flex-shrink-0">
             <div className="relative w-full md:w-80">
               <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
               <input
                 type="text"
                 value={logSearchQuery}
-                onChange={(e) => setLogSearchQuery(e.target.value)}
+                onChange={(e) => handleLogSearchChange(e.target.value)}
                 placeholder="Search audit logs by action, user, or IP..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
-            </div>
-
-            <div className="text-xs text-gray-400">
-              Showing {filteredLogs.length} events
             </div>
           </div>
 
-          {/* Audit Logs Table */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-            <div className="overflow-x-auto">
+          {logError && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+              {logError}
+            </div>
+          )}
+
+          {/* Viewport-based Audit Logs Table */}
+          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+                  <tr className="border-b border-[#22252c] text-gray-400 uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Timestamp</th>
                     <th className="py-2.5 px-3">Action</th>
                     <th className="py-2.5 px-3">User / Actor</th>
@@ -752,14 +767,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {filteredLogs.length === 0 ? (
+                  {logItems.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">
-                        No security audit logs recorded yet.
+                      <td colSpan={6} className="text-center py-12 text-gray-500">
+                        {isLogsLoading ? 'Loading audit logs...' : 'No security audit logs recorded yet.'}
                       </td>
                     </tr>
                   ) : (
-                    filteredLogs.map((log) => (
+                    logItems.map((log) => (
                       <tr key={log.id} className="hover:bg-[#1a1d24] transition-colors">
                         <td className="py-2.5 px-3 font-mono text-[11px] text-gray-400 whitespace-nowrap">
                           {new Date(log.createdAt).toLocaleString()}
@@ -794,14 +809,26 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </table>
             </div>
           </div>
+
+          {/* Pinned Log Pagination */}
+          <TablePagination
+            pageSize={logPagination.pageSize}
+            onPageSizeChange={logPagination.setPageSize}
+            hasNextPage={logPagination.hasNextPage}
+            hasPreviousPage={logPagination.hasPreviousPage}
+            onNextPage={() => logPagination.goToNextPage(logNextCursor)}
+            onPreviousPage={logPagination.goToPreviousPage}
+            isLoading={isLogsLoading}
+            itemCount={logItems.length}
+            totalCount={logTotalCount}
+            pageIndex={logPagination.pageIndex}
+          />
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* 4. SYSTEM SETTINGS                                        */}
-      {/* ========================================================= */}
+      {/* 4. SYSTEM SETTINGS */}
       {activeSection === 'settings' && (
-        <form onSubmit={handleSaveSettings} className="space-y-4 max-w-2xl">
+        <form onSubmit={handleSaveSettings} className="space-y-4 max-w-2xl overflow-y-auto flex-1 min-h-0">
           <div className="bg-[#16181d] border border-[#22252c] rounded p-4 space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300 flex items-center gap-2">
               <Sliders className="w-4 h-4 text-purple-400" />
@@ -907,9 +934,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </form>
       )}
 
-      {/* ========================================================= */}
-      {/* MODALS: CREATE, EDIT, RESET PASSWORD, DELETE             */}
-      {/* ========================================================= */}
       {/* Create User Modal */}
       <Modal
         isOpen={isCreateModalOpen}

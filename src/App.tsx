@@ -113,8 +113,20 @@ function AppContent() {
 
   const title = getPageTitle(currentTab);
 
+  const isDataTableTab = [
+    'transactions',
+    'income',
+    'expenses',
+    'accounts',
+    'transfers',
+    'loans',
+    'categories',
+    'admin-users',
+    'admin-logs',
+  ].includes(currentTab);
+
   return (
-    <div className="min-h-screen bg-[#121417] text-gray-100 flex flex-col antialiased">
+    <div className="h-screen max-h-screen bg-[#121417] text-gray-100 flex flex-col antialiased overflow-hidden">
       {/* Toast Notification */}
       {notification && (
         <div className="fixed top-4 right-4 z-50 max-w-md bg-[#1a1d24] border border-[#2b2e37] text-gray-100 rounded p-3 shadow-xl flex items-start gap-2.5">
@@ -139,7 +151,7 @@ function AppContent() {
       />
 
       {/* Main Content Area */}
-      <div className="lg:pl-64 flex-1 flex flex-col min-w-0">
+      <div className="lg:pl-64 flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
           title={title}
           onOpenMobileSidebar={() => setIsMobileOpen(true)}
@@ -148,7 +160,7 @@ function AppContent() {
           onOpenQuickAction={(action) => setActiveModal(action)}
         />
 
-        <main className="flex-1 p-4 sm:p-5 lg:p-6 max-w-7xl mx-auto w-full">
+        <main className={`flex-1 min-h-0 p-3 sm:p-4 lg:p-5 max-w-7xl mx-auto w-full ${isDataTableTab ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
           {/* System Admin Sections */}
           {isAdmin && (
             <>

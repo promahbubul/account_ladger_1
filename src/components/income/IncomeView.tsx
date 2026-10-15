@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -9,6 +9,8 @@ import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 interface IncomeViewProps {
   onOpenAddIncomeModal: () => void;
@@ -16,10 +18,9 @@ interface IncomeViewProps {
 }
 
 export const IncomeView: React.FC<IncomeViewProps> = ({
-  onOpenAddIncomeModal,
   onSuccessNotification,
 }) => {
-  const { transactions, categories, accounts, deleteTransaction, addIncome } = useFinance();
+  const { categories, accounts, deleteTransaction, addIncome, authFetch } = useFinance();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,43 +40,96 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
   const [formDesc, setFormDesc] = useState('');
   const [formRef, setFormRef] = useState('');
 
-  const incomeTx = transactions.filter((t) => t.type === 'INCOME');
+  // Pagination state
+  const [items, setItems] = useState<Transaction[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const filteredIncome = incomeTx.filter((t) => {
-    const matchesSearch =
-      t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.category && t.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (t.reference && t.reference.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesCat = categoryFilter === 'ALL' || t.category === categoryFilter;
-    const matchesAcc = accountFilter === 'ALL' || t.accountId === accountFilter;
-
-    return matchesSearch && matchesCat && matchesAcc;
-  });
-
-  const totalIncome = filteredIncome.reduce((sum, t) => sum + t.amount, 0);
-  const salaryTotal = incomeTx
-    .filter((t) => t.category?.toLowerCase().includes('salary'))
-    .reduce((sum, t) => sum + t.amount, 0);
-  const freelanceTotal = incomeTx
-    .filter((t) => t.category?.toLowerCase().includes('freelance') || t.category?.toLowerCase().includes('consulting'))
-    .reduce((sum, t) => sum + t.amount, 0);
+  const {
+    pageSize,
+    cursor,
+    pageIndex,
+    hasNextPage,
+    hasPreviousPage,
+    setPageSize,
+    goToNextPage,
+    goToPreviousPage,
+    resetPagination,
+    setPaginationMeta,
+  } = useCursorPagination({ initialPageSize: 50 });
 
   const incomeCategories = categories.filter((c) => c.type === 'INCOME');
 
-  const confirmDelete = () => {
-    if (!txToDelete) return;
-    deleteTransaction(txToDelete.id);
-    onSuccessNotification(`Income transaction deleted and ${formatBDT(txToDelete.amount)} deducted from ${txToDelete.accountName}.`);
-    setTxToDelete(null);
+  const fetchIncome = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg(null);
+
+      const params = new URLSearchParams();
+      params.set('type', 'INCOME');
+      params.set('limit', String(pageSize));
+      if (cursor) params.set('cursor', cursor);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (categoryFilter !== 'ALL') params.set('category', categoryFilter);
+      if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
+
+      const res = await authFetch(`/api/transactions?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to load income records');
+      }
+
+      const data = await res.json();
+      setItems(data.items || []);
+      setTotalCount(data.totalCount ?? (data.items || []).length);
+      setNextCursor(data.nextCursor || null);
+      setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch income error:', err);
+      setErrorMsg(err.message || 'Error fetching income');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authFetch, pageSize, cursor, searchQuery, categoryFilter, accountFilter, setPaginationMeta]);
+
+  useEffect(() => {
+    fetchIncome();
+  }, [fetchIncome]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    resetPagination();
   };
 
-  const handleSaveIncome = (e: React.FormEvent) => {
+  const handleCategoryChange = (val: string) => {
+    setCategoryFilter(val);
+    resetPagination();
+  };
+
+  const handleAccountChange = (val: string) => {
+    setAccountFilter(val);
+    resetPagination();
+  };
+
+  const confirmDelete = async () => {
+    if (!txToDelete) return;
+    await deleteTransaction(txToDelete.id);
+    onSuccessNotification(`Income transaction deleted and ${formatBDT(txToDelete.amount)} deducted from ${txToDelete.accountName}.`);
+    setTxToDelete(null);
+    fetchIncome();
+  };
+
+  const handleSaveIncome = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(formAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    addIncome({
+    await addIncome({
       accountId: formAccId || accounts[0]?.id || '',
       categoryId: formCatId || incomeCategories[0]?.id,
       amount: amountNum,
@@ -90,13 +144,20 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
     setFormAmount('');
     setFormDesc('');
     setFormRef('');
+    resetPagination();
+    fetchIncome();
   };
 
+  const pageIncomeTotal = items.reduce((sum, t) => sum + t.amount, 0);
+
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col min-h-0 space-y-3">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Income</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">Income Records</h2>
+          <p className="text-xs text-gray-400">Track incoming revenue and credits</p>
+        </div>
         <button
           onClick={() => setIsRecordModalOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
@@ -106,47 +167,23 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         </button>
       </div>
 
-      {/* Summary Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Income (Filtered)</div>
-          <div className="text-lg font-semibold font-mono text-emerald-400 mt-0.5">
-            {formatBDT(totalIncome)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Salary & Corporate</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {formatBDT(salaryTotal)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3 col-span-2 lg:col-span-1">
-          <div className="text-xs text-gray-400">Freelance & Consulting</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {formatBDT(freelanceTotal)}
-          </div>
-        </div>
-      </div>
-
       {/* Search & Filter Toolbar */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search income records..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto text-xs">
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => handleCategoryChange(e.target.value)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Categories</option>
@@ -157,7 +194,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 
           <select
             value={accountFilter}
-            onChange={(e) => setAccountFilter(e.target.value)}
+            onChange={(e) => handleAccountChange(e.target.value)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Accounts</option>
@@ -168,12 +205,18 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         </div>
       </div>
 
+      {errorMsg && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {errorMsg}
+        </div>
+      )}
+
       {/* Main Income Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Description</th>
                 <th className="py-2.5 px-3">Category</th>
@@ -184,14 +227,14 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {filteredIncome.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">
-                    No income records found.
+                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                    {isLoading ? 'Loading income records...' : 'No income records found.'}
                   </td>
                 </tr>
               ) : (
-                filteredIncome.map((tx) => (
+                items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
                     <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                       {tx.date}
@@ -237,13 +280,21 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
             </tbody>
           </table>
         </div>
-
-        {/* Footer */}
-        <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs flex justify-between items-center">
-          <span>Showing {filteredIncome.length} of {incomeTx.length} records</span>
-          <span className="font-mono text-emerald-400">Total: +{formatBDT(totalIncome)}</span>
-        </div>
       </div>
+
+      {/* Pinned Pagination Controls */}
+      <TablePagination
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPreviousPage}
+        onNextPage={() => goToNextPage(nextCursor)}
+        onPreviousPage={goToPreviousPage}
+        isLoading={isLoading}
+        itemCount={items.length}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+      />
 
       {/* Record Income Modal */}
       <Modal
@@ -301,7 +352,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">
-                Category *
+                Category
               </label>
               <select
                 value={formCatId}
@@ -317,32 +368,32 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 
           <div>
             <label className="block text-xs text-gray-300 font-medium mb-1">
-              Description / Source *
+              Description *
             </label>
             <input
               type="text"
               required
               value={formDesc}
               onChange={(e) => setFormDesc(e.target.value)}
-              placeholder="e.g. Monthly Salary Deposit or Client Consulting"
+              placeholder="e.g. October Client Retainer"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
           <div>
             <label className="block text-xs text-gray-300 font-medium mb-1">
-              Reference Number (Optional)
+              Reference / Note
             </label>
             <input
               type="text"
               value={formRef}
               onChange={(e) => setFormRef(e.target.value)}
-              placeholder="e.g. TXN987216"
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              placeholder="e.g. Inv #9021"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setIsRecordModalOpen(false)}
@@ -352,7 +403,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
             >
               Save Income
             </button>
@@ -360,11 +411,11 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         </form>
       </Modal>
 
-      {/* Transaction Details Modal */}
+      {/* Details Modal */}
       <Modal
         isOpen={Boolean(selectedTx)}
         onClose={() => setSelectedTx(null)}
-        title="Transaction Details"
+        title="Income Details"
       >
         {selectedTx && (
           <div className="space-y-3 text-xs">
@@ -375,15 +426,17 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               </div>
               <div>
                 <span className="text-gray-400">Amount</span>
-                <p className="font-mono text-emerald-400 font-semibold">+{formatBDT(selectedTx.amount)}</p>
-              </div>
-              <div>
-                <span className="text-gray-400">Category</span>
-                <p className="text-gray-200">{selectedTx.category || 'Income'}</p>
+                <p className="font-mono font-semibold text-emerald-400">
+                  +{formatBDT(selectedTx.amount)}
+                </p>
               </div>
               <div>
                 <span className="text-gray-400">Account</span>
                 <p className="text-gray-200">{selectedTx.accountName}</p>
+              </div>
+              <div>
+                <span className="text-gray-400">Category</span>
+                <p className="text-gray-200">{selectedTx.category || 'General Income'}</p>
               </div>
               <div className="col-span-2">
                 <span className="text-gray-400">Description</span>
@@ -410,13 +463,13 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         )}
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation */}
       <ConfirmModal
         isOpen={Boolean(txToDelete)}
         onClose={() => setTxToDelete(null)}
         onConfirm={confirmDelete}
         title="Delete Income Record"
-        message={txToDelete ? `Delete income record "${txToDelete.description}" (${formatBDT(txToDelete.amount)})? This will reverse the balance in ${txToDelete.accountName}.` : ''}
+        message={txToDelete ? `Are you sure you want to delete "${txToDelete.description}" (${formatBDT(txToDelete.amount)})? This will reverse the account credit.` : ''}
         confirmLabel="Delete"
         isDestructive={true}
       />

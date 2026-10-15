@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -12,6 +12,8 @@ import { useFinance } from '../../context/FinanceContext';
 import { formatBDT } from '../../lib/formatters';
 import { Category } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 interface CategoriesViewProps {
   onSuccessNotification: (msg: string) => void;
@@ -19,7 +21,6 @@ interface CategoriesViewProps {
 
 export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotification }) => {
   const {
-    categories,
     transactions,
     budgets,
     addCategory,
@@ -28,6 +29,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
     toggleArchiveCategory,
     deleteCategory,
     setCategoryBudget,
+    authFetch,
   } = useFinance();
 
   // Filters
@@ -49,23 +51,81 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
   const [initialSubcats, setInitialSubcats] = useState('');
   const [initialBudget, setInitialBudget] = useState('');
 
-  // Filtered categories
-  const filteredCategories = categories.filter((c) => {
-    const isArchived = Boolean(c.isArchived);
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.subcategories.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Pagination state
+  const [items, setItems] = useState<Category[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const matchesType = typeFilter === 'ALL' || c.type === typeFilter;
-    const matchesStatus =
-      statusFilter === 'ALL' ||
-      (statusFilter === 'ACTIVE' && !isArchived) ||
-      (statusFilter === 'ARCHIVED' && isArchived);
+  const {
+    pageSize,
+    cursor,
+    pageIndex,
+    hasNextPage,
+    hasPreviousPage,
+    setPageSize,
+    goToNextPage,
+    goToPreviousPage,
+    resetPagination,
+    setPaginationMeta,
+  } = useCursorPagination({ initialPageSize: 50 });
 
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  const fetchCategories = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg(null);
 
-  const handleCreateCategory = (e: React.FormEvent) => {
+      const params = new URLSearchParams();
+      params.set('paginate', 'true');
+      params.set('limit', String(pageSize));
+      if (cursor) params.set('cursor', cursor);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (typeFilter !== 'ALL') params.set('type', typeFilter);
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
+
+      const res = await authFetch(`/api/categories?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to load categories');
+      }
+
+      const data = await res.json();
+      setItems(data.items || []);
+      setTotalCount(data.totalCount ?? (data.items || []).length);
+      setNextCursor(data.nextCursor || null);
+      setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch categories error:', err);
+      setErrorMsg(err.message || 'Error fetching categories');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authFetch, pageSize, cursor, searchQuery, typeFilter, statusFilter, setPaginationMeta]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    resetPagination();
+  };
+
+  const handleTypeChange = (val: 'ALL' | 'EXPENSE' | 'INCOME') => {
+    setTypeFilter(val);
+    resetPagination();
+  };
+
+  const handleStatusChange = (val: 'ALL' | 'ACTIVE' | 'ARCHIVED') => {
+    setStatusFilter(val);
+    resetPagination();
+  };
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
 
@@ -74,7 +134,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
       .map((s) => s.trim())
       .filter(Boolean);
 
-    addCategory({
+    await addCategory({
       name: newCatName.trim(),
       type: newCatType,
       icon: 'Tag',
@@ -84,7 +144,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
     });
 
     if (newCatType === 'EXPENSE' && initialBudget && parseFloat(initialBudget) > 0) {
-      setCategoryBudget(newCatName.trim(), parseFloat(initialBudget));
+      await setCategoryBudget(newCatName.trim(), parseFloat(initialBudget));
     }
 
     onSuccessNotification(`Category "${newCatName}" added.`);
@@ -92,55 +152,66 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
     setNewCatName('');
     setInitialSubcats('');
     setInitialBudget('');
+    resetPagination();
+    fetchCategories();
   };
 
-  const handleUpdateCategory = (e: React.FormEvent) => {
+  const handleUpdateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editCat) return;
 
-    editCategory(editCat.id, {
+    await editCategory(editCat.id, {
       name: editCat.name,
       type: editCat.type,
+      color: editCat.color,
+      icon: editCat.icon,
+      subcategories: editCat.subcategories,
     });
 
     onSuccessNotification(`Category "${editCat.name}" updated.`);
     setEditCat(null);
+    fetchCategories();
   };
 
-  const handleAddSubcat = (e: React.FormEvent) => {
+  const handleAddSubcat = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subcatModalCat || !newSubcatName.trim()) return;
 
-    addSubcategory(subcatModalCat.id, newSubcatName.trim());
+    await addSubcategory(subcatModalCat.id, newSubcatName.trim());
     onSuccessNotification(`Added "${newSubcatName}" to ${subcatModalCat.name}.`);
     setSubcatModalCat(null);
     setNewSubcatName('');
+    fetchCategories();
   };
 
-  const confirmDelete = () => {
+  const handleToggleArchive = async (cat: Category) => {
+    await toggleArchiveCategory(cat.id);
+    onSuccessNotification(cat.isArchived ? `Restored category "${cat.name}".` : `Archived category "${cat.name}".`);
+    fetchCategories();
+  };
+
+  const confirmDelete = async () => {
     if (!catToDelete) return;
-    const res = deleteCategory(catToDelete.id);
-    if (res.success) {
-      onSuccessNotification(`Category "${catToDelete.name}" deleted.`);
-      setActionError(null);
-    } else {
-      setActionError(res.error || 'Cannot delete category.');
+    const res = await deleteCategory(catToDelete.id);
+    if (!res.success) {
+      setActionError(res.error || 'Failed to delete category.');
+      return;
     }
+
+    onSuccessNotification(`Category "${catToDelete.name}" deleted.`);
+    setCatToDelete(null);
+    setActionError(null);
+    fetchCategories();
   };
 
   return (
-    <div className="space-y-4">
-      {/* Error alert */}
-      {actionError && (
-        <div className="p-3 bg-red-950/40 border border-red-900/60 rounded text-xs text-red-300 flex items-center justify-between">
-          <span>{actionError}</span>
-          <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-200">Dismiss</button>
+    <div className="h-full flex flex-col min-h-0 space-y-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">Categories & Taxonomies</h2>
+          <p className="text-xs text-gray-400">Classify inflows and outflows across your ledger</p>
         </div>
-      )}
-
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Categories</h2>
         <button
           onClick={() => setIsAddCatOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
@@ -151,22 +222,22 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
       </div>
 
       {/* Toolbar */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search categories or subcategories..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto text-xs">
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as any)}
+            onChange={(e) => handleTypeChange(e.target.value as any)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Categories</option>
@@ -176,7 +247,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => handleStatusChange(e.target.value as any)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ACTIVE">Active Categories</option>
@@ -186,12 +257,24 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
         </div>
       </div>
 
+      {actionError && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {actionError}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {errorMsg}
+        </div>
+      )}
+
       {/* Categories Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Category Name</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3">Subcategories</th>
@@ -203,14 +286,14 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {filteredCategories.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
-                    No categories found.
+                  <td colSpan={8} className="py-12 text-center text-gray-500">
+                    {isLoading ? 'Loading categories...' : 'No categories found.'}
                   </td>
                 </tr>
               ) : (
-                filteredCategories.map((c) => {
+                items.map((c) => {
                   const txList = transactions.filter((t) => t.category === c.name);
                   const txCount = txList.length;
                   const totalVolume = txList.reduce((sum, t) => sum + t.amount, 0);
@@ -285,7 +368,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => toggleArchiveCategory(c.id)}
+                            onClick={() => handleToggleArchive(c)}
                             title={c.isArchived ? 'Restore Category' : 'Archive Category'}
                             className="p-1 text-gray-400 hover:text-amber-400 hover:bg-[#22252e] rounded"
                           >
@@ -311,12 +394,21 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
             </tbody>
           </table>
         </div>
-
-        {/* Footer */}
-        <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs">
-          Showing {filteredCategories.length} of {categories.length} categories
-        </div>
       </div>
+
+      {/* Pinned Pagination Controls */}
+      <TablePagination
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPreviousPage}
+        onNextPage={() => goToNextPage(nextCursor)}
+        onPreviousPage={goToPreviousPage}
+        isLoading={isLoading}
+        itemCount={items.length}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+      />
 
       {/* Add Category Modal */}
       <Modal

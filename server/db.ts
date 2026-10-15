@@ -5,6 +5,44 @@ import bcrypt from 'bcryptjs';
 
 const { Pool } = pg;
 
+export interface PaginatedResult<T> {
+  items: T[];
+  nextCursor: string | null;
+  previousCursor: string | null;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  totalCount: number;
+}
+
+export function encodeCursor(data: any): string {
+  try {
+    return Buffer.from(JSON.stringify(data)).toString('base64url');
+  } catch {
+    return '';
+  }
+}
+
+export function decodeCursor<T = any>(cursor: string | null | undefined): T | null {
+  if (!cursor || typeof cursor !== 'string') return null;
+  try {
+    const json = Buffer.from(cursor.trim(), 'base64url').toString('utf-8');
+    return JSON.parse(json) as T;
+  } catch {
+    return null;
+  }
+}
+
+export function validateLimit(limitRaw: any): 50 | 70 | 100 {
+  if (limitRaw === undefined || limitRaw === null || limitRaw === '') {
+    return 50;
+  }
+  const n = Number(limitRaw);
+  if (n === 50 || n === 70 || n === 100) {
+    return n as 50 | 70 | 100;
+  }
+  throw new Error('Invalid limit: only 50, 70, or 100 records per page are permitted.');
+}
+
 export interface UserRecord {
   id: string;
   username: string;
@@ -436,6 +474,15 @@ class DatabaseService {
           ip_address VARCHAR(64),
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
+
+        CREATE INDEX IF NOT EXISTS idx_transactions_cursor ON transactions (user_id, date DESC, created_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_loans_cursor ON loans (user_id, start_date DESC, created_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_repayments_cursor ON repayments (user_id, date DESC, created_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_accounts_cursor ON accounts (user_id, created_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_categories_cursor ON categories (user_id, is_system DESC, name ASC, id ASC);
+        CREATE INDEX IF NOT EXISTS idx_transfers_cursor ON transfers (user_id, date DESC, created_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_cursor ON audit_logs (created_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_users_cursor ON users (created_at DESC, id DESC);
       `);
       console.log('[HisabFlow DB] Neon PostgreSQL schema verified & ready.');
     } finally {
@@ -749,6 +796,173 @@ class DatabaseService {
     return this.inMemoryData.users.map(({ passwordHash, ...rest }) => rest);
   }
 
+  public async getPaginatedUsers(
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+      role?: 'ALL' | 'ADMIN' | 'USER';
+      status?: 'ALL' | 'ACTIVE' | 'INACTIVE';
+    }
+  ): Promise<PaginatedResult<Omit<UserRecord, 'passwordHash'>>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ createdAt: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['1=1'];
+      const params: any[] = [];
+
+      if (options.role && options.role !== 'ALL') {
+        params.push(options.role);
+        conditions.push(`role = $${params.length}`);
+      }
+
+      if (options.status && options.status !== 'ALL') {
+        const isActive = options.status === 'ACTIVE';
+        params.push(isActive);
+        conditions.push(`is_active = $${params.length}`);
+      }
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(username) LIKE $${params.length} OR LOWER(email) LIKE $${params.length} OR LOWER(full_name) LIKE $${params.length})`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM users WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.createdAt || '', decodedCursor.id);
+        const pCreated = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(created_at < ${pCreated} OR (created_at = ${pCreated} AND id < ${pId}))`);
+        } else {
+          pageConditions.push(`(created_at > ${pCreated} OR (created_at = ${pCreated} AND id > ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY created_at DESC, id DESC'
+        : 'ORDER BY created_at ASC, id ASC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, username, email, full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt"
+        FROM users
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: Omit<UserRecord, 'passwordHash'>[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = this.inMemoryData.users.map(({ passwordHash, ...rest }) => rest);
+    if (options.role && options.role !== 'ALL') {
+      all = all.filter(u => u.role === options.role);
+    }
+    if (options.status && options.status !== 'ALL') {
+      const isActive = options.status === 'ACTIVE';
+      all = all.filter(u => u.isActive === isActive);
+    }
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(u =>
+        u.username.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.fullName.toLowerCase().includes(q)
+      );
+    }
+
+    all.sort((a, b) => {
+      const cA = a.createdAt || '';
+      const cB = b.createdAt || '';
+      if (cA !== cB) return cB.localeCompare(cA);
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(u => u.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(u => {
+          if ((u.createdAt || '') !== (decodedCursor.createdAt || '')) return (u.createdAt || '') < (decodedCursor.createdAt || '');
+          return u.id < decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
+  }
+
   public async updateUser(id: string, updates: Partial<UserRecord>): Promise<UserRecord | null> {
     const existing = await this.getUserById(id);
     if (!existing) return null;
@@ -819,6 +1033,172 @@ class DatabaseService {
       return res.rows;
     }
     return this.inMemoryData.accounts.filter(a => a.userId === userId);
+  }
+
+  public async getPaginatedAccounts(
+    userId: string,
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+      type?: 'ALL' | 'CASH' | 'BANK' | 'MOBILE_BANKING';
+      status?: 'ALL' | 'ACTIVE' | 'ARCHIVED';
+    }
+  ): Promise<PaginatedResult<AccountRecord>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ createdAt: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['user_id = $1'];
+      const params: any[] = [userId];
+
+      if (options.type && options.type !== 'ALL') {
+        params.push(options.type);
+        conditions.push(`type = $${params.length}`);
+      }
+
+      if (options.status && options.status !== 'ALL') {
+        params.push(options.status);
+        conditions.push(`status = $${params.length}`);
+      }
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(name) LIKE $${params.length} OR LOWER(COALESCE(provider_name, '')) LIKE $${params.length} OR LOWER(COALESCE(account_number, '')) LIKE $${params.length})`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM accounts WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.createdAt || '', decodedCursor.id);
+        const pCreated = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(created_at < ${pCreated} OR (created_at = ${pCreated} AND id < ${pId}))`);
+        } else {
+          pageConditions.push(`(created_at > ${pCreated} OR (created_at = ${pCreated} AND id > ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY created_at DESC, id DESC'
+        : 'ORDER BY created_at ASC, id ASC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, user_id as "userId", name, type, provider_name as "providerName", account_number as "accountNumber", opening_balance::float as "openingBalance", current_balance::float as "currentBalance", currency, status, created_at as "createdAt", updated_at as "updatedAt"
+        FROM accounts
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: AccountRecord[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = this.inMemoryData.accounts.filter(a => a.userId === userId);
+    if (options.type && options.type !== 'ALL') {
+      all = all.filter(a => a.type === options.type);
+    }
+    if (options.status && options.status !== 'ALL') {
+      all = all.filter(a => a.status === options.status);
+    }
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        (a.providerName && a.providerName.toLowerCase().includes(q)) ||
+        (a.accountNumber && a.accountNumber.includes(q))
+      );
+    }
+
+    all.sort((a, b) => {
+      const cA = a.createdAt || '';
+      const cB = b.createdAt || '';
+      if (cA !== cB) return cB.localeCompare(cA);
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(a => a.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(a => {
+          if ((a.createdAt || '') !== (decodedCursor.createdAt || '')) return (a.createdAt || '') < (decodedCursor.createdAt || '');
+          return a.id < decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
   }
 
   public async createAccount(account: AccountRecord): Promise<AccountRecord> {
@@ -934,6 +1314,174 @@ class DatabaseService {
     return this.inMemoryData.categories.filter(c => c.userId === userId);
   }
 
+  public async getPaginatedCategories(
+    userId: string,
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+      type?: 'ALL' | 'INCOME' | 'EXPENSE';
+      status?: 'ALL' | 'ACTIVE' | 'ARCHIVED';
+    }
+  ): Promise<PaginatedResult<CategoryRecord>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ isSystem: boolean; name: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['user_id = $1'];
+      const params: any[] = [userId];
+
+      if (options.type && options.type !== 'ALL') {
+        params.push(options.type);
+        conditions.push(`type = $${params.length}`);
+      }
+
+      if (options.status && options.status !== 'ALL') {
+        const isArch = options.status === 'ARCHIVED';
+        params.push(isArch);
+        conditions.push(`is_archived = $${params.length}`);
+      }
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(name) LIKE $${params.length})`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM categories WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.isSystem, decodedCursor.name, decodedCursor.id);
+        const pSys = `$${params.length - 2}`;
+        const pName = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(is_system < ${pSys} OR (is_system = ${pSys} AND name > ${pName}) OR (is_system = ${pSys} AND name = ${pName} AND id > ${pId}))`);
+        } else {
+          pageConditions.push(`(is_system > ${pSys} OR (is_system = ${pSys} AND name < ${pName}) OR (is_system = ${pSys} AND name = ${pName} AND id < ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY is_system DESC, name ASC, id ASC'
+        : 'ORDER BY is_system ASC, name DESC, id DESC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, user_id as "userId", name, type, icon, color, subcategories, is_archived as "isArchived", is_system as "isSystem", created_at as "createdAt", updated_at as "updatedAt"
+        FROM categories
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: CategoryRecord[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ isSystem: items[items.length - 1].isSystem, name: items[items.length - 1].name, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ isSystem: items[0].isSystem, name: items[0].name, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ isSystem: items[items.length - 1].isSystem, name: items[items.length - 1].name, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ isSystem: items[0].isSystem, name: items[0].name, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = this.inMemoryData.categories.filter(c => c.userId === userId);
+    if (options.type && options.type !== 'ALL') {
+      all = all.filter(c => c.type === options.type);
+    }
+    if (options.status && options.status !== 'ALL') {
+      const isArch = options.status === 'ARCHIVED';
+      all = all.filter(c => Boolean(c.isArchived) === isArch);
+    }
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.subcategories.some(s => s.toLowerCase().includes(q))
+      );
+    }
+
+    all.sort((a, b) => {
+      if (Boolean(a.isSystem) !== Boolean(b.isSystem)) return a.isSystem ? -1 : 1;
+      if (a.name !== b.name) return a.name.localeCompare(b.name);
+      return a.id.localeCompare(b.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(c => c.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(c => {
+          if (Boolean(c.isSystem) !== Boolean(decodedCursor.isSystem)) return c.isSystem ? true : false;
+          if (c.name !== decodedCursor.name) return c.name > decodedCursor.name;
+          return c.id > decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ isSystem: items[items.length - 1].isSystem, name: items[items.length - 1].name, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ isSystem: items[0].isSystem, name: items[0].name, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ isSystem: items[items.length - 1].isSystem, name: items[items.length - 1].name, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ isSystem: items[0].isSystem, name: items[0].name, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
+  }
+
   public async createCategory(category: CategoryRecord): Promise<CategoryRecord> {
     if (this.isPostgresConnected && this.pool) {
       await this.pool.query(
@@ -1021,6 +1569,203 @@ class DatabaseService {
     return this.inMemoryData.transactions
       .filter(t => t.userId === userId)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  public async getPaginatedTransactions(
+    userId: string,
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+      type?: string;
+      accountId?: string;
+      category?: string;
+      startDate?: string;
+      endDate?: string;
+    }
+  ): Promise<PaginatedResult<TransactionRecord>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ date: string; createdAt: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['user_id = $1'];
+      const params: any[] = [userId];
+
+      if (options.type && options.type !== 'ALL') {
+        params.push(options.type);
+        conditions.push(`type = $${params.length}`);
+      }
+
+      if (options.accountId && options.accountId !== 'ALL') {
+        params.push(options.accountId);
+        conditions.push(`(account_id = $${params.length} OR destination_account_id = $${params.length})`);
+      }
+
+      if (options.category && options.category !== 'ALL') {
+        params.push(options.category);
+        conditions.push(`category = $${params.length}`);
+      }
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(description) LIKE $${params.length} OR LOWER(COALESCE(category, '')) LIKE $${params.length} OR LOWER(COALESCE(counterparty, '')) LIKE $${params.length} OR LOWER(COALESCE(reference, '')) LIKE $${params.length})`);
+      }
+
+      if (options.startDate) {
+        params.push(options.startDate);
+        conditions.push(`date >= $${params.length}`);
+      }
+
+      if (options.endDate) {
+        params.push(options.endDate);
+        conditions.push(`date <= $${params.length}`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM transactions WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.date, decodedCursor.createdAt || '', decodedCursor.id);
+        const pDate = `$${params.length - 2}`;
+        const pCreated = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(date < ${pDate} OR (date = ${pDate} AND created_at < ${pCreated}) OR (date = ${pDate} AND created_at = ${pCreated} AND id < ${pId}))`);
+        } else {
+          pageConditions.push(`(date > ${pDate} OR (date = ${pDate} AND created_at > ${pCreated}) OR (date = ${pDate} AND created_at = ${pCreated} AND id > ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY date DESC, created_at DESC, id DESC'
+        : 'ORDER BY date ASC, created_at ASC, id ASC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", type, category, subcategory, amount::float, direction, to_char(date, 'YYYY-MM-DD') as date, description, reference, counterparty, status, transfer_id as "transferId", loan_id as "loanId", destination_account_id as "destinationAccountId", destination_account_name as "destinationAccountName", created_at as "createdAt"
+        FROM transactions
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: TransactionRecord[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = this.inMemoryData.transactions.filter(t => t.userId === userId);
+    if (options.type && options.type !== 'ALL') {
+      all = all.filter(t => t.type === options.type);
+    }
+    if (options.accountId && options.accountId !== 'ALL') {
+      all = all.filter(t => t.accountId === options.accountId || t.destinationAccountId === options.accountId);
+    }
+    if (options.category && options.category !== 'ALL') {
+      all = all.filter(t => t.category === options.category);
+    }
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(t =>
+        t.description.toLowerCase().includes(q) ||
+        (t.category && t.category.toLowerCase().includes(q)) ||
+        (t.counterparty && t.counterparty.toLowerCase().includes(q)) ||
+        (t.reference && t.reference.toLowerCase().includes(q))
+      );
+    }
+    if (options.startDate) {
+      all = all.filter(t => t.date >= options.startDate!);
+    }
+    if (options.endDate) {
+      all = all.filter(t => t.date <= options.endDate!);
+    }
+
+    all.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      const cA = a.createdAt || '';
+      const cB = b.createdAt || '';
+      if (cA !== cB) return cB.localeCompare(cA);
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(t => t.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(t => {
+          if (t.date !== decodedCursor.date) return t.date < decodedCursor.date;
+          if ((t.createdAt || '') !== (decodedCursor.createdAt || '')) return (t.createdAt || '') < (decodedCursor.createdAt || '');
+          return t.id < decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
   }
 
   public async createTransaction(tx: TransactionRecord): Promise<TransactionRecord> {
@@ -1177,6 +1922,176 @@ class DatabaseService {
     return this.inMemoryData.transfers.filter(t => t.userId === userId);
   }
 
+  public async getPaginatedTransfers(
+    userId: string,
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+      sourceAccountId?: string;
+      destAccountId?: string;
+    }
+  ): Promise<PaginatedResult<TransferRecord>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ date: string; createdAt: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['user_id = $1'];
+      const params: any[] = [userId];
+
+      if (options.sourceAccountId && options.sourceAccountId !== 'ALL') {
+        params.push(options.sourceAccountId);
+        conditions.push(`source_account_id = $${params.length}`);
+      }
+
+      if (options.destAccountId && options.destAccountId !== 'ALL') {
+        params.push(options.destAccountId);
+        conditions.push(`destination_account_id = $${params.length}`);
+      }
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(description) LIKE $${params.length} OR LOWER(COALESCE(reference, '')) LIKE $${params.length} OR LOWER(source_account_name) LIKE $${params.length} OR LOWER(destination_account_name) LIKE $${params.length})`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM transfers WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.date, decodedCursor.createdAt || '', decodedCursor.id);
+        const pDate = `$${params.length - 2}`;
+        const pCreated = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(date < ${pDate} OR (date = ${pDate} AND created_at < ${pCreated}) OR (date = ${pDate} AND created_at = ${pCreated} AND id < ${pId}))`);
+        } else {
+          pageConditions.push(`(date > ${pDate} OR (date = ${pDate} AND created_at > ${pCreated}) OR (date = ${pDate} AND created_at = ${pCreated} AND id > ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY date DESC, created_at DESC, id DESC'
+        : 'ORDER BY date ASC, created_at ASC, id ASC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, user_id as "userId", source_account_id as "sourceAccountId", source_account_name as "sourceAccountName", destination_account_id as "destinationAccountId", destination_account_name as "destinationAccountName", amount::float, transfer_fee::float as "transferFee", to_char(date, 'YYYY-MM-DD') as date, description, reference, created_at as "createdAt"
+        FROM transfers
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: TransferRecord[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = this.inMemoryData.transfers.filter(t => t.userId === userId);
+    if (options.sourceAccountId && options.sourceAccountId !== 'ALL') {
+      all = all.filter(t => t.sourceAccountId === options.sourceAccountId);
+    }
+    if (options.destAccountId && options.destAccountId !== 'ALL') {
+      all = all.filter(t => t.destinationAccountId === options.destAccountId);
+    }
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(t =>
+        (t.description && t.description.toLowerCase().includes(q)) ||
+        (t.reference && t.reference.toLowerCase().includes(q)) ||
+        t.sourceAccountName.toLowerCase().includes(q) ||
+        t.destinationAccountName.toLowerCase().includes(q)
+      );
+    }
+
+    all.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      const cA = a.createdAt || '';
+      const cB = b.createdAt || '';
+      if (cA !== cB) return cB.localeCompare(cA);
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(t => t.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(t => {
+          if (t.date !== decodedCursor.date) return t.date < decodedCursor.date;
+          if ((t.createdAt || '') !== (decodedCursor.createdAt || '')) return (t.createdAt || '') < (decodedCursor.createdAt || '');
+          return t.id < decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
+  }
+
   public async createTransfer(transfer: TransferRecord): Promise<TransferRecord> {
     if (this.isPostgresConnected && this.pool) {
       await this.pool.query(
@@ -1259,6 +2174,182 @@ class DatabaseService {
       return res.rows;
     }
     return this.inMemoryData.loans.filter(l => l.userId === userId);
+  }
+
+  public async getPaginatedLoans(
+    userId: string,
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+      type?: 'ALL' | 'LENT' | 'BORROWED';
+      status?: 'ALL' | 'ACTIVE' | 'SETTLED';
+    }
+  ): Promise<PaginatedResult<LoanRecord>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ startDate: string; createdAt: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['user_id = $1'];
+      const params: any[] = [userId];
+
+      if (options.type && options.type !== 'ALL') {
+        params.push(options.type);
+        conditions.push(`type = $${params.length}`);
+      }
+
+      if (options.status && options.status !== 'ALL') {
+        if (options.status === 'ACTIVE') {
+          conditions.push(`status != 'SETTLED'`);
+        } else {
+          params.push(options.status);
+          conditions.push(`status = $${params.length}`);
+        }
+      }
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(counterparty_name) LIKE $${params.length} OR LOWER(COALESCE(counterparty_contact, '')) LIKE $${params.length})`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM loans WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.startDate, decodedCursor.createdAt || '', decodedCursor.id);
+        const pDate = `$${params.length - 2}`;
+        const pCreated = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(start_date < ${pDate} OR (start_date = ${pDate} AND created_at < ${pCreated}) OR (start_date = ${pDate} AND created_at = ${pCreated} AND id < ${pId}))`);
+        } else {
+          pageConditions.push(`(start_date > ${pDate} OR (start_date = ${pDate} AND created_at > ${pCreated}) OR (start_date = ${pDate} AND created_at = ${pCreated} AND id > ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY start_date DESC, created_at DESC, id DESC'
+        : 'ORDER BY start_date ASC, created_at ASC, id ASC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", type, counterparty_name as "counterpartyName", counterparty_contact as "counterpartyContact", principal_amount::float as "principalAmount", outstanding_principal::float as "outstandingPrincipal", interest_rate::float as "interestRate", to_char(start_date, 'YYYY-MM-DD') as "startDate", to_char(due_date, 'YYYY-MM-DD') as "dueDate", status, notes, created_at as "createdAt", updated_at as "updatedAt"
+        FROM loans
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: LoanRecord[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ startDate: items[items.length - 1].startDate, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ startDate: items[0].startDate, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ startDate: items[items.length - 1].startDate, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ startDate: items[0].startDate, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = this.inMemoryData.loans.filter(l => l.userId === userId);
+    if (options.type && options.type !== 'ALL') {
+      all = all.filter(l => l.type === options.type);
+    }
+    if (options.status && options.status !== 'ALL') {
+      if (options.status === 'ACTIVE') {
+        all = all.filter(l => l.status !== 'SETTLED');
+      } else {
+        all = all.filter(l => l.status === options.status);
+      }
+    }
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(l =>
+        l.counterpartyName.toLowerCase().includes(q) ||
+        (l.counterpartyContact && l.counterpartyContact.toLowerCase().includes(q))
+      );
+    }
+
+    all.sort((a, b) => {
+      if (a.startDate !== b.startDate) return b.startDate.localeCompare(a.startDate);
+      const cA = a.createdAt || '';
+      const cB = b.createdAt || '';
+      if (cA !== cB) return cB.localeCompare(cA);
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(l => l.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(l => {
+          if (l.startDate !== decodedCursor.startDate) return l.startDate < decodedCursor.startDate;
+          if ((l.createdAt || '') !== (decodedCursor.createdAt || '')) return (l.createdAt || '') < (decodedCursor.createdAt || '');
+          return l.id < decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ startDate: items[items.length - 1].startDate, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ startDate: items[0].startDate, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ startDate: items[items.length - 1].startDate, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ startDate: items[0].startDate, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
   }
 
   public async createLoan(loan: LoanRecord): Promise<LoanRecord> {
@@ -1345,6 +2436,165 @@ class DatabaseService {
       return res.rows;
     }
     return this.inMemoryData.repayments.filter(r => r.userId === userId);
+  }
+
+  public async getPaginatedRepayments(
+    userId: string,
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+      loanId?: string;
+    }
+  ): Promise<PaginatedResult<RepaymentRecord>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ date: string; createdAt: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['user_id = $1'];
+      const params: any[] = [userId];
+
+      if (options.loanId) {
+        params.push(options.loanId);
+        conditions.push(`loan_id = $${params.length}`);
+      }
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(counterparty_name) LIKE $${params.length} OR LOWER(COALESCE(notes, '')) LIKE $${params.length})`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM repayments WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.date, decodedCursor.createdAt || '', decodedCursor.id);
+        const pDate = `$${params.length - 2}`;
+        const pCreated = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(date < ${pDate} OR (date = ${pDate} AND created_at < ${pCreated}) OR (date = ${pDate} AND created_at = ${pCreated} AND id < ${pId}))`);
+        } else {
+          pageConditions.push(`(date > ${pDate} OR (date = ${pDate} AND created_at > ${pCreated}) OR (date = ${pDate} AND created_at = ${pCreated} AND id > ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY date DESC, created_at DESC, id DESC'
+        : 'ORDER BY date ASC, created_at ASC, id ASC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, user_id as "userId", loan_id as "loanId", counterparty_name as "counterpartyName", loan_type as "loanType", account_id as "accountId", account_name as "accountName", amount::float, to_char(date, 'YYYY-MM-DD') as date, notes, created_at as "createdAt"
+        FROM repayments
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: RepaymentRecord[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = this.inMemoryData.repayments.filter(r => r.userId === userId);
+    if (options.loanId) {
+      all = all.filter(r => r.loanId === options.loanId);
+    }
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(r =>
+        r.counterpartyName.toLowerCase().includes(q) ||
+        (r.notes && r.notes.toLowerCase().includes(q))
+      );
+    }
+
+    all.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      const cA = a.createdAt || '';
+      const cB = b.createdAt || '';
+      if (cA !== cB) return cB.localeCompare(cA);
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(r => r.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(r => {
+          if (r.date !== decodedCursor.date) return r.date < decodedCursor.date;
+          if ((r.createdAt || '') !== (decodedCursor.createdAt || '')) return (r.createdAt || '') < (decodedCursor.createdAt || '');
+          return r.id < decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ date: items[items.length - 1].date, createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ date: items[0].date, createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
   }
 
   public async addRepayment(repayment: RepaymentRecord): Promise<RepaymentRecord | null> {
@@ -1510,6 +2760,154 @@ class DatabaseService {
       }
     }
     return this.inMemoryData.auditLogs.slice(0, 100);
+  }
+
+  public async getPaginatedAuditLogs(
+    options: {
+      limit?: number;
+      cursor?: string | null;
+      direction?: 'forward' | 'backward';
+      search?: string;
+    }
+  ): Promise<PaginatedResult<AuditLogRecord>> {
+    const limit = validateLimit(options.limit);
+    const direction = options.direction === 'backward' ? 'backward' : 'forward';
+    const decodedCursor = decodeCursor<{ createdAt: string; id: string }>(options.cursor);
+
+    if (this.isPostgresConnected && this.pool) {
+      const conditions: string[] = ['1=1'];
+      const params: any[] = [];
+
+      if (options.search && options.search.trim()) {
+        params.push(`%${options.search.trim().toLowerCase()}%`);
+        conditions.push(`(LOWER(action) LIKE $${params.length} OR LOWER(COALESCE(user_email, '')) LIKE $${params.length} OR LOWER(COALESCE(details, '')) LIKE $${params.length} OR LOWER(COALESCE(entity_type, '')) LIKE $${params.length})`);
+      }
+
+      const countSql = `SELECT COUNT(*) as count FROM audit_logs WHERE ${conditions.join(' AND ')}`;
+      const countRes = await this.pool.query(countSql, params);
+      const totalCount = parseInt(countRes.rows[0].count, 10) || 0;
+
+      const pageConditions = [...conditions];
+      if (decodedCursor) {
+        params.push(decodedCursor.createdAt || '', decodedCursor.id);
+        const pCreated = `$${params.length - 1}`;
+        const pId = `$${params.length}`;
+
+        if (direction === 'forward') {
+          pageConditions.push(`(created_at < ${pCreated} OR (created_at = ${pCreated} AND id < ${pId}))`);
+        } else {
+          pageConditions.push(`(created_at > ${pCreated} OR (created_at = ${pCreated} AND id > ${pId}))`);
+        }
+      }
+
+      const orderBy = direction === 'forward'
+        ? 'ORDER BY created_at DESC, id DESC'
+        : 'ORDER BY created_at ASC, id ASC';
+
+      params.push(limit + 1);
+      const limitParam = `$${params.length}`;
+
+      const querySql = `
+        SELECT id, user_id as "userId", user_email as "userEmail", action, entity_type as "entityType", entity_id as "entityId", details, ip_address as "ipAddress", created_at as "createdAt"
+        FROM audit_logs
+        WHERE ${pageConditions.join(' AND ')}
+        ${orderBy}
+        LIMIT ${limitParam}
+      `;
+
+      const res = await this.pool.query(querySql, params);
+      let rows: AuditLogRecord[] = res.rows;
+
+      if (direction === 'forward') {
+        const hasNextPage = rows.length > limit;
+        const items = hasNextPage ? rows.slice(0, limit) : rows;
+        const nextCursor = hasNextPage && items.length > 0
+          ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const hasPreviousPage = Boolean(decodedCursor);
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      } else {
+        const hasPreviousPage = rows.length > limit;
+        const kept = hasPreviousPage ? rows.slice(0, limit) : rows;
+        const items = kept.reverse();
+        const hasNextPage = true;
+        const nextCursor = items.length > 0
+          ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+          : null;
+        const previousCursor = hasPreviousPage && items.length > 0
+          ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+          : null;
+
+        return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+      }
+    }
+
+    let all = [...this.inMemoryData.auditLogs];
+    if (options.search && options.search.trim()) {
+      const q = options.search.trim().toLowerCase();
+      all = all.filter(l =>
+        l.action.toLowerCase().includes(q) ||
+        (l.userEmail && l.userEmail.toLowerCase().includes(q)) ||
+        (l.details && l.details.toLowerCase().includes(q)) ||
+        l.entityType.toLowerCase().includes(q)
+      );
+    }
+
+    all.sort((a, b) => {
+      const cA = a.createdAt || '';
+      const cB = b.createdAt || '';
+      if (cA !== cB) return cB.localeCompare(cA);
+      return b.id.localeCompare(a.id);
+    });
+
+    const totalCount = all.length;
+    let cursorIdx = -1;
+    if (decodedCursor) {
+      cursorIdx = all.findIndex(l => l.id === decodedCursor.id);
+      if (cursorIdx === -1) {
+        cursorIdx = all.findIndex(l => {
+          if ((l.createdAt || '') !== (decodedCursor.createdAt || '')) return (l.createdAt || '') < (decodedCursor.createdAt || '');
+          return l.id < decodedCursor.id;
+        });
+        if (cursorIdx !== -1) {
+          cursorIdx = cursorIdx - 1;
+        }
+      }
+    }
+
+    if (direction === 'forward') {
+      const start = decodedCursor ? cursorIdx + 1 : 0;
+      const sliced = all.slice(start, start + limit + 1);
+      const hasNextPage = sliced.length > limit;
+      const items = hasNextPage ? sliced.slice(0, limit) : sliced;
+      const hasPreviousPage = start > 0;
+      const nextCursor = hasNextPage && items.length > 0
+        ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    } else {
+      const end = cursorIdx === -1 ? all.length : cursorIdx;
+      const start = Math.max(0, end - limit);
+      const items = all.slice(start, end);
+      const hasPreviousPage = start > 0;
+      const hasNextPage = end < all.length;
+      const nextCursor = items.length > 0
+        ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+        : null;
+      const previousCursor = hasPreviousPage && items.length > 0
+        ? encodeCursor({ createdAt: items[0].createdAt, id: items[0].id })
+        : null;
+
+      return { items, nextCursor, previousCursor, hasNextPage, hasPreviousPage, totalCount };
+    }
   }
 
   // GLOBAL SYSTEM SETTINGS

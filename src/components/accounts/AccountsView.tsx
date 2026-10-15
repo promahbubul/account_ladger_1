@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   ArrowRightLeft,
@@ -11,8 +11,10 @@ import {
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
-import { Account, Transaction } from '../../mock/data';
+import { Account } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 interface AccountsViewProps {
   onOpenTransferModal: (accountId?: string) => void;
@@ -22,10 +24,9 @@ interface AccountsViewProps {
 
 export const AccountsView: React.FC<AccountsViewProps> = ({
   onOpenTransferModal,
-  onNavigateTab,
   onSuccessNotification,
 }) => {
-  const { accounts, transactions, addAccount, editAccount, toggleArchiveAccount, deleteAccount } = useFinance();
+  const { transactions, addAccount, editAccount, toggleArchiveAccount, deleteAccount, authFetch } = useFinance();
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,31 +47,86 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
   const [newNumber, setNewNumber] = useState('');
   const [newOpeningBalance, setNewOpeningBalance] = useState('0');
 
-  // Filter accounts
-  const filteredAccounts = accounts.filter((acc) => {
-    const matchesSearch =
-      acc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (acc.providerName && acc.providerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (acc.accountNumber && acc.accountNumber.includes(searchQuery));
-    
-    const matchesType = filterType === 'ALL' || acc.type === filterType;
-    const matchesStatus = filterStatus === 'ALL' || acc.status === filterStatus;
+  // Pagination state
+  const [items, setItems] = useState<Account[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  const {
+    pageSize,
+    cursor,
+    pageIndex,
+    hasNextPage,
+    hasPreviousPage,
+    setPageSize,
+    goToNextPage,
+    goToPreviousPage,
+    resetPagination,
+    setPaginationMeta,
+  } = useCursorPagination({ initialPageSize: 50 });
 
-  // Summary figures
-  const totalBalance = accounts.filter(a => a.status === 'ACTIVE').reduce((sum, a) => sum + a.currentBalance, 0);
-  const bankBalance = accounts.filter(a => a.status === 'ACTIVE' && a.type === 'BANK').reduce((sum, a) => sum + a.currentBalance, 0);
-  const mfsBalance = accounts.filter(a => a.status === 'ACTIVE' && a.type === 'MOBILE_BANKING').reduce((sum, a) => sum + a.currentBalance, 0);
-  const cashBalance = accounts.filter(a => a.status === 'ACTIVE' && a.type === 'CASH').reduce((sum, a) => sum + a.currentBalance, 0);
+  const fetchAccounts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg(null);
 
-  const handleCreate = (e: React.FormEvent) => {
+      const params = new URLSearchParams();
+      params.set('paginate', 'true');
+      params.set('limit', String(pageSize));
+      if (cursor) params.set('cursor', cursor);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (filterType !== 'ALL') params.set('type', filterType);
+      if (filterStatus !== 'ALL') params.set('status', filterStatus);
+
+      const res = await authFetch(`/api/accounts?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to load accounts');
+      }
+
+      const data = await res.json();
+      setItems(data.items || []);
+      setTotalCount(data.totalCount ?? (data.items || []).length);
+      setNextCursor(data.nextCursor || null);
+      setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch accounts error:', err);
+      setErrorMsg(err.message || 'Error fetching accounts');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authFetch, pageSize, cursor, searchQuery, filterType, filterStatus, setPaginationMeta]);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    resetPagination();
+  };
+
+  const handleTypeChange = (val: 'ALL' | 'CASH' | 'BANK' | 'MOBILE_BANKING') => {
+    setFilterType(val);
+    resetPagination();
+  };
+
+  const handleStatusChange = (val: 'ALL' | 'ACTIVE' | 'ARCHIVED') => {
+    setFilterStatus(val);
+    resetPagination();
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
     const opBal = parseFloat(newOpeningBalance) || 0;
-    addAccount({
+    await addAccount({
       name: newName.trim(),
       type: newType,
       providerName: newProvider.trim() || (newType === 'BANK' ? 'Bank' : newType === 'MOBILE_BANKING' ? 'MFS' : 'Physical Cash'),
@@ -87,13 +143,15 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
     setNewProvider('');
     setNewNumber('');
     setNewOpeningBalance('0');
+    resetPagination();
+    fetchAccounts();
   };
 
-  const handleUpdate = (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editAccountState) return;
 
-    editAccount(editAccountState.id, {
+    await editAccount(editAccountState.id, {
       name: editAccountState.name,
       type: editAccountState.type,
       providerName: editAccountState.providerName,
@@ -103,97 +161,81 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
 
     onSuccessNotification(`Account "${editAccountState.name}" updated.`);
     setEditAccountState(null);
+    fetchAccounts();
   };
 
-  const confirmDelete = () => {
+  const handleToggleArchive = async (id: string, currentStatus: string) => {
+    await toggleArchiveAccount(id);
+    onSuccessNotification(currentStatus === 'ACTIVE' ? 'Account archived.' : 'Account restored to active status.');
+    fetchAccounts();
+  };
+
+  const confirmDelete = async () => {
     if (!accountToDelete) return;
-    const res = deleteAccount(accountToDelete.id);
-    if (res.success) {
-      onSuccessNotification(`Account "${accountToDelete.name}" deleted.`);
-      setActionError(null);
-    } else {
-      setActionError(res.error || 'Cannot delete account with existing transactions.');
+    const res = await deleteAccount(accountToDelete.id);
+    if (!res.success) {
+      setActionError(res.error || 'Failed to delete account.');
+      return;
     }
+
+    onSuccessNotification(`Account "${accountToDelete.name}" deleted.`);
+    setAccountToDelete(null);
+    setActionError(null);
+    fetchAccounts();
   };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'BANK': return 'Bank Account';
-      case 'MOBILE_BANKING': return 'Mobile Banking (MFS)';
-      default: return 'Cash Wallet';
+      case 'MOBILE_BANKING': return 'Mobile Banking';
+      case 'CASH': return 'Physical Cash';
+      default: return type;
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Action Error Banner */}
-      {actionError && (
-        <div className="p-3 bg-red-950/40 border border-red-900/60 rounded text-xs text-red-300 flex items-center justify-between">
-          <span>{actionError}</span>
-          <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-200">Dismiss</button>
-        </div>
-      )}
-
+    <div className="h-full flex flex-col min-h-0 space-y-3">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Accounts</h2>
-        <button
-          onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Account</span>
-        </button>
-      </div>
-
-      {/* Summary Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Liquid Assets</div>
-          <div className="text-lg font-semibold font-mono text-emerald-400 mt-0.5">
-            {formatBDT(totalBalance)}
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">Accounts & Wallets</h2>
+          <p className="text-xs text-gray-400">Manage financial accounts, balances, and institutions</p>
         </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Bank Accounts</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {formatBDT(bankBalance)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Mobile Banking (MFS)</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {formatBDT(mfsBalance)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Cash Reserves</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {formatBDT(cashBalance)}
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onOpenTransferModal()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            <span>Transfer Funds</span>
+          </button>
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Account</span>
+          </button>
         </div>
       </div>
 
-      {/* Search and Filter Toolbar */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+      {/* Search & Filter Toolbar */}
+      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search accounts or provider..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Search account name, bank, number..."
+            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto text-xs">
+        <div className="flex items-center gap-2 w-full md:w-auto text-xs">
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as any)}
+            onChange={(e) => handleTypeChange(e.target.value as any)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Account Types</option>
@@ -204,7 +246,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
 
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
+            onChange={(e) => handleStatusChange(e.target.value as any)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ACTIVE">Active Accounts</option>
@@ -214,12 +256,24 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
         </div>
       </div>
 
+      {actionError && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {actionError}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {errorMsg}
+        </div>
+      )}
+
       {/* Main Standard Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Account Name</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3">Institution / Provider</th>
@@ -231,14 +285,14 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {filteredAccounts.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
-                    No accounts found matching current filters.
+                  <td colSpan={8} className="py-12 text-center text-gray-500">
+                    {isLoading ? 'Loading accounts...' : 'No accounts found matching current filters.'}
                   </td>
                 </tr>
               ) : (
-                filteredAccounts.map((acc) => (
+                items.map((acc) => (
                   <tr key={acc.id} className="hover:bg-[#1a1d24] transition-colors">
                     <td className="py-2.5 px-3 font-medium text-gray-200">
                       {acc.name}
@@ -293,7 +347,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => toggleArchiveAccount(acc.id)}
+                          onClick={() => handleToggleArchive(acc.id, acc.status)}
                           title={acc.status === 'ACTIVE' ? 'Archive Account' : 'Restore Account'}
                           className="p-1 text-gray-400 hover:text-amber-400 hover:bg-[#22252e] rounded"
                         >
@@ -318,13 +372,21 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
             </tbody>
           </table>
         </div>
-
-        {/* Table Footer */}
-        <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs flex justify-between items-center">
-          <span>Showing {filteredAccounts.length} of {accounts.length} accounts</span>
-          <span className="font-mono">Total Liquid: {formatBDT(totalBalance)}</span>
-        </div>
       </div>
+
+      {/* Pinned Pagination Controls */}
+      <TablePagination
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPreviousPage}
+        onNextPage={() => goToNextPage(nextCursor)}
+        onPreviousPage={goToPreviousPage}
+        isLoading={isLoading}
+        itemCount={items.length}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+      />
 
       {/* Add Account Modal */}
       <Modal

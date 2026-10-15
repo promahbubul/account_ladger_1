@@ -102,6 +102,7 @@ interface FinanceContextType {
   resetToDefaults: () => void;
   exportData: () => string;
   importData: (jsonData: any) => boolean;
+  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -195,8 +196,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsLoading(true);
       const [accRes, txRes, loanRes, catRes, bgtRes] = await Promise.all([
         authFetch('/api/accounts'),
-        authFetch('/api/transactions'),
-        authFetch('/api/loans'),
+        authFetch('/api/transactions?all=true'),
+        authFetch('/api/loans?all=true'),
         authFetch('/api/categories'),
         authFetch('/api/budgets'),
       ]);
@@ -806,6 +807,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         resetToDefaults,
         exportData,
         importData,
+        authFetch,
       }}
     >
       {children}

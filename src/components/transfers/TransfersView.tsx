@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -7,8 +7,23 @@ import {
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
-import { Transaction } from '../../mock/data';
+export interface TransferItem {
+  id: string;
+  sourceAccountId: string;
+  sourceAccountName: string;
+  destinationAccountId: string;
+  destinationAccountName: string;
+  amount: number;
+  transferFee?: number;
+  date: string;
+  description?: string;
+  reference?: string;
+  createdAt?: string;
+}
+
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 interface TransfersViewProps {
   onOpenTransferModal: () => void;
@@ -16,10 +31,9 @@ interface TransfersViewProps {
 }
 
 export const TransfersView: React.FC<TransfersViewProps> = ({
-  onOpenTransferModal,
   onSuccessNotification,
 }) => {
-  const { transactions, accounts, addTransfer, deleteTransaction } = useFinance();
+  const { accounts, addTransfer, deleteTransaction, authFetch } = useFinance();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('ALL');
@@ -27,8 +41,8 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [txToReverse, setTxToReverse] = useState<Transaction | null>(null);
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+  const [txToReverse, setTxToReverse] = useState<any | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Transfer form
@@ -38,22 +52,80 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   const [desc, setDesc] = useState('');
   const [refNum, setRefNum] = useState('');
 
-  const transfers = transactions.filter((t) => t.type === 'TRANSFER');
+  // Pagination state
+  const [items, setItems] = useState<TransferItem[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const filteredTransfers = transfers.filter((t) => {
-    const matchesSearch =
-      t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.reference && t.reference.toLowerCase().includes(searchQuery.toLowerCase()));
+  const {
+    pageSize,
+    cursor,
+    pageIndex,
+    hasNextPage,
+    hasPreviousPage,
+    setPageSize,
+    goToNextPage,
+    goToPreviousPage,
+    resetPagination,
+    setPaginationMeta,
+  } = useCursorPagination({ initialPageSize: 50 });
 
-    const matchesSource = sourceFilter === 'ALL' || t.accountId === sourceFilter;
-    const matchesDest = destFilter === 'ALL' || t.destinationAccountId === destFilter;
+  const fetchTransfers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg(null);
 
-    return matchesSearch && matchesSource && matchesDest;
-  });
+      const params = new URLSearchParams();
+      params.set('limit', String(pageSize));
+      if (cursor) params.set('cursor', cursor);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (sourceFilter !== 'ALL') params.set('sourceAccountId', sourceFilter);
+      if (destFilter !== 'ALL') params.set('destAccountId', destFilter);
 
-  const totalVolume = filteredTransfers.reduce((sum, t) => sum + t.amount, 0);
+      const res = await authFetch(`/api/transfers?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to load transfers');
+      }
 
-  const handleCreateTransfer = (e: React.FormEvent) => {
+      const data = await res.json();
+      setItems(data.items || []);
+      setTotalCount(data.totalCount ?? (data.items || []).length);
+      setNextCursor(data.nextCursor || null);
+      setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch transfers error:', err);
+      setErrorMsg(err.message || 'Error fetching transfers');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authFetch, pageSize, cursor, searchQuery, sourceFilter, destFilter, setPaginationMeta]);
+
+  useEffect(() => {
+    fetchTransfers();
+  }, [fetchTransfers]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    resetPagination();
+  };
+
+  const handleSourceFilterChange = (val: string) => {
+    setSourceFilter(val);
+    resetPagination();
+  };
+
+  const handleDestFilterChange = (val: string) => {
+    setDestFilter(val);
+    resetPagination();
+  };
+
+  const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     const amountNum = parseFloat(amount);
@@ -64,7 +136,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
       return;
     }
 
-    const res = addTransfer({
+    const res = await addTransfer({
       sourceAccountId: fromAccId,
       destinationAccountId: toAccId,
       amount: amountNum,
@@ -80,74 +152,55 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
       setAmount('');
       setDesc('');
       setRefNum('');
+      resetPagination();
+      fetchTransfers();
     } else {
       setErrorMessage(res.error || 'Failed to complete transfer.');
     }
   };
 
-  const confirmReverseTransfer = () => {
+  const confirmReverseTransfer = async () => {
     if (!txToReverse) return;
-    deleteTransaction(txToReverse.id);
+    await deleteTransaction(txToReverse.id);
     onSuccessNotification(`Transfer reversed successfully.`);
     setTxToReverse(null);
+    fetchTransfers();
   };
 
   return (
-    <div className="space-y-4">
-      {/* Error Banner */}
-      {errorMessage && (
-        <div className="p-3 bg-red-950/40 border border-red-900/60 rounded text-xs text-red-300 flex items-center justify-between">
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-200">Dismiss</button>
+    <div className="h-full flex flex-col min-h-0 space-y-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">Transfers Ledger</h2>
+          <p className="text-xs text-gray-400">Move funds between accounts and audit movement</p>
         </div>
-      )}
-
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Transfers</h2>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Transfer</span>
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Transferred Volume</div>
-          <div className="text-lg font-semibold font-mono text-gray-100 mt-0.5">
-            {formatBDT(totalVolume)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Transfer Count</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {filteredTransfers.length}
-          </div>
-        </div>
-      </div>
-
       {/* Search and Filters */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search transfers or reference..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto text-xs">
           <select
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
+            onChange={(e) => handleSourceFilterChange(e.target.value)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Source Accounts</option>
@@ -158,7 +211,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
           <select
             value={destFilter}
-            onChange={(e) => setDestFilter(e.target.value)}
+            onChange={(e) => handleDestFilterChange(e.target.value)}
             className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Destination Accounts</option>
@@ -169,12 +222,24 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
         </div>
       </div>
 
+      {errorMessage && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {errorMessage}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+          {errorMsg}
+        </div>
+      )}
+
       {/* Transfers Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Description</th>
                 <th className="py-2.5 px-3">From Account</th>
@@ -185,14 +250,14 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#20232a]">
-              {filteredTransfers.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">
-                    No transfers found.
+                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                    {isLoading ? 'Loading transfers...' : 'No transfers found.'}
                   </td>
                 </tr>
               ) : (
-                filteredTransfers.map((tx) => (
+                items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
                     <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                       {tx.date}
@@ -201,7 +266,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                       {tx.description}
                     </td>
                     <td className="py-2.5 px-3 text-gray-300">
-                      {tx.accountName}
+                      {tx.sourceAccountName}
                     </td>
                     <td className="py-2.5 px-3 text-gray-300">
                       {tx.destinationAccountName || '-'}
@@ -215,14 +280,22 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={() => setSelectedTx(tx)}
+                          onClick={() => setSelectedTx({
+                            ...tx,
+                            accountName: tx.sourceAccountName,
+                            destinationAccountName: tx.destinationAccountName,
+                          })}
                           title="View Details"
                           className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => setTxToReverse(tx)}
+                          onClick={() => setTxToReverse({
+                            ...tx,
+                            accountName: tx.sourceAccountName,
+                            destinationAccountName: tx.destinationAccountName,
+                          })}
                           title="Reverse Transfer"
                           className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
                         >
@@ -236,12 +309,21 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
             </tbody>
           </table>
         </div>
-
-        <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs flex justify-between items-center">
-          <span>Showing {filteredTransfers.length} of {transfers.length} transfers</span>
-          <span className="font-mono text-gray-200">Volume: {formatBDT(totalVolume)}</span>
-        </div>
       </div>
+
+      {/* Pinned Pagination Controls */}
+      <TablePagination
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPreviousPage}
+        onNextPage={() => goToNextPage(nextCursor)}
+        onPreviousPage={goToPreviousPage}
+        isLoading={isLoading}
+        itemCount={items.length}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+      />
 
       {/* Transfer Modal */}
       <Modal
@@ -364,7 +446,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               </div>
               <div>
                 <span className="text-gray-400">From</span>
-                <p className="text-gray-200">{selectedTx.accountName}</p>
+                <p className="text-gray-200">{selectedTx.sourceAccountName || selectedTx.accountName}</p>
               </div>
               <div>
                 <span className="text-gray-400">To</span>
@@ -401,7 +483,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
         onClose={() => setTxToReverse(null)}
         onConfirm={confirmReverseTransfer}
         title="Reverse Transfer"
-        message={txToReverse ? `Reverse transfer of ${formatBDT(txToReverse.amount)} between ${txToReverse.accountName} and ${txToReverse.destinationAccountName}?` : ''}
+        message={txToReverse ? `Reverse transfer of ${formatBDT(txToReverse.amount)} between ${txToReverse.sourceAccountName || txToReverse.accountName} and ${txToReverse.destinationAccountName}?` : ''}
         confirmLabel="Reverse"
         isDestructive={true}
       />

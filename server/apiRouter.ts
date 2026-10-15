@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { dbService, AccountRecord, CategoryRecord, TransactionRecord, TransferRecord, LoanRecord, RepaymentRecord } from './db.js';
+import { dbService, AccountRecord, CategoryRecord, TransactionRecord, TransferRecord, LoanRecord, RepaymentRecord, validateLimit } from './db.js';
 import { authenticateToken, requireAdmin, requireUserOnly, generateToken, AuthenticatedRequest } from './auth.js';
 
 export const apiRouter = Router();
@@ -321,12 +321,46 @@ apiRouter.put('/user/profile', authenticateToken, async (req: AuthenticatedReque
 // 2. ADMIN-ONLY MANAGEMENT ROUTES
 // ==========================================
 
-// Get all users
+// Get users (paginated or all)
 apiRouter.get('/admin/users', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const users = await dbService.getAllUsers();
-    res.json({ users });
+    if (req.query.all === 'true') {
+      const users = await dbService.getAllUsers();
+      res.json({ success: true, users, items: users, totalCount: users.length });
+      return;
+    }
+
+    const limit = validateLimit(req.query.limit);
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const role = typeof req.query.role === 'string' ? req.query.role as any : undefined;
+    const status = typeof req.query.status === 'string' ? req.query.status as any : undefined;
+
+    const result = await dbService.getPaginatedUsers({
+      limit,
+      cursor,
+      direction,
+      search,
+      role,
+      status,
+    });
+
+    res.json({
+      success: true,
+      items: result.items,
+      users: result.items,
+      nextCursor: result.nextCursor,
+      previousCursor: result.previousCursor,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage,
+      totalCount: result.totalCount,
+    });
   } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.status(500).json({ error: 'Failed to fetch users list.' });
   }
 });
@@ -537,12 +571,42 @@ apiRouter.get('/admin/db-status', authenticateToken, requireAdmin, (req: Authent
   res.json({ status });
 });
 
-// Admin Audit Logs
+// Admin Audit Logs (paginated or all)
 apiRouter.get('/admin/audit-logs', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const logs = await dbService.getAuditLogs();
-    res.json({ logs });
-  } catch (err) {
+    if (req.query.all === 'true') {
+      const logs = await dbService.getAuditLogs();
+      res.json({ success: true, logs, items: logs, totalCount: logs.length });
+      return;
+    }
+
+    const limit = validateLimit(req.query.limit);
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+
+    const result = await dbService.getPaginatedAuditLogs({
+      limit,
+      cursor,
+      direction,
+      search,
+    });
+
+    res.json({
+      success: true,
+      items: result.items,
+      logs: result.items,
+      nextCursor: result.nextCursor,
+      previousCursor: result.previousCursor,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage,
+      totalCount: result.totalCount,
+    });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.status(500).json({ error: 'Failed to fetch audit logs.' });
   }
 });
@@ -590,9 +654,43 @@ apiRouter.put('/admin/settings', authenticateToken, requireAdmin, async (req: Au
 
 apiRouter.get('/accounts', authenticateToken, requireUserOnly, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (req.query.paginate === 'true') {
+      const limit = validateLimit(req.query.limit);
+      const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+      const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+      const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+      const type = typeof req.query.type === 'string' ? req.query.type as any : undefined;
+      const status = typeof req.query.status === 'string' ? req.query.status as any : undefined;
+
+      const result = await dbService.getPaginatedAccounts(req.user!.id, {
+        limit,
+        cursor,
+        direction,
+        search,
+        type,
+        status,
+      });
+
+      res.json({
+        success: true,
+        items: result.items,
+        accounts: result.items,
+        nextCursor: result.nextCursor,
+        previousCursor: result.previousCursor,
+        hasNextPage: result.hasNextPage,
+        hasPreviousPage: result.hasPreviousPage,
+        totalCount: result.totalCount,
+      });
+      return;
+    }
+
     const accounts = await dbService.getAccounts(req.user!.id);
-    res.json({ accounts });
-  } catch (err) {
+    res.json({ success: true, accounts, items: accounts, totalCount: accounts.length });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.status(500).json({ error: 'Failed to fetch accounts.' });
   }
 });
@@ -688,9 +786,43 @@ apiRouter.delete('/accounts/:id', authenticateToken, requireUserOnly, async (req
 
 apiRouter.get('/categories', authenticateToken, requireUserOnly, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (req.query.paginate === 'true') {
+      const limit = validateLimit(req.query.limit);
+      const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+      const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+      const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+      const type = typeof req.query.type === 'string' ? req.query.type as any : undefined;
+      const status = typeof req.query.status === 'string' ? req.query.status as any : undefined;
+
+      const result = await dbService.getPaginatedCategories(req.user!.id, {
+        limit,
+        cursor,
+        direction,
+        search,
+        type,
+        status,
+      });
+
+      res.json({
+        success: true,
+        items: result.items,
+        categories: result.items,
+        nextCursor: result.nextCursor,
+        previousCursor: result.previousCursor,
+        hasNextPage: result.hasNextPage,
+        hasPreviousPage: result.hasPreviousPage,
+        totalCount: result.totalCount,
+      });
+      return;
+    }
+
     const categories = await dbService.getCategories(req.user!.id);
-    res.json({ categories });
-  } catch (err) {
+    res.json({ success: true, categories, items: categories, totalCount: categories.length });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.status(500).json({ error: 'Failed to fetch categories.' });
   }
 });
@@ -809,9 +941,50 @@ apiRouter.delete('/categories/:id', authenticateToken, requireUserOnly, async (r
 
 apiRouter.get('/transactions', authenticateToken, requireUserOnly, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const transactions = await dbService.getTransactions(req.user!.id);
-    res.json({ transactions });
-  } catch (err) {
+    if (req.query.all === 'true') {
+      const transactions = await dbService.getTransactions(req.user!.id);
+      res.json({ success: true, transactions, items: transactions, totalCount: transactions.length });
+      return;
+    }
+
+    const limit = validateLimit(req.query.limit);
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const type = typeof req.query.type === 'string' ? req.query.type : undefined;
+    const accountId = typeof req.query.accountId === 'string' ? req.query.accountId : undefined;
+    const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+
+    const result = await dbService.getPaginatedTransactions(req.user!.id, {
+      limit,
+      cursor,
+      direction,
+      search,
+      type,
+      accountId,
+      category,
+      startDate,
+      endDate,
+    });
+
+    res.json({
+      success: true,
+      items: result.items,
+      transactions: result.items,
+      nextCursor: result.nextCursor,
+      previousCursor: result.previousCursor,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage,
+      totalCount: result.totalCount,
+    });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    console.error('Error in GET /transactions:', err);
     res.status(500).json({ error: 'Failed to fetch transactions.' });
   }
 });
@@ -990,9 +1163,44 @@ apiRouter.delete('/transactions/:id', authenticateToken, requireUserOnly, async 
 
 apiRouter.get('/transfers', authenticateToken, requireUserOnly, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const transfers = await dbService.getTransfers(req.user!.id);
-    res.json({ transfers });
-  } catch (err) {
+    if (req.query.all === 'true') {
+      const transfers = await dbService.getTransfers(req.user!.id);
+      res.json({ success: true, transfers, items: transfers, totalCount: transfers.length });
+      return;
+    }
+
+    const limit = validateLimit(req.query.limit);
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const sourceAccountId = typeof req.query.sourceAccountId === 'string' ? req.query.sourceAccountId : undefined;
+    const destAccountId = typeof req.query.destAccountId === 'string' ? req.query.destAccountId : undefined;
+
+    const result = await dbService.getPaginatedTransfers(req.user!.id, {
+      limit,
+      cursor,
+      direction,
+      search,
+      sourceAccountId,
+      destAccountId,
+    });
+
+    res.json({
+      success: true,
+      items: result.items,
+      transfers: result.items,
+      nextCursor: result.nextCursor,
+      previousCursor: result.previousCursor,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage,
+      totalCount: result.totalCount,
+    });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    console.error('Error in GET /transfers:', err);
     res.status(500).json({ error: 'Failed to fetch transfers.' });
   }
 });
@@ -1064,11 +1272,89 @@ apiRouter.delete('/transfers/:id', authenticateToken, requireUserOnly, async (re
 
 apiRouter.get('/loans', authenticateToken, requireUserOnly, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const loans = await dbService.getLoans(req.user!.id);
-    const repayments = await dbService.getRepayments(req.user!.id);
-    res.json({ loans, repayments });
-  } catch (err) {
+    if (req.query.all === 'true') {
+      const loans = await dbService.getLoans(req.user!.id);
+      const repayments = await dbService.getRepayments(req.user!.id);
+      res.json({ success: true, loans, repayments, items: loans, totalCount: loans.length });
+      return;
+    }
+
+    const limit = validateLimit(req.query.limit);
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const type = typeof req.query.type === 'string' ? req.query.type as any : undefined;
+    const status = typeof req.query.status === 'string' ? req.query.status as any : undefined;
+
+    const result = await dbService.getPaginatedLoans(req.user!.id, {
+      limit,
+      cursor,
+      direction,
+      search,
+      type,
+      status,
+    });
+
+    res.json({
+      success: true,
+      items: result.items,
+      loans: result.items,
+      nextCursor: result.nextCursor,
+      previousCursor: result.previousCursor,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage,
+      totalCount: result.totalCount,
+    });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    console.error('Error in GET /loans:', err);
     res.status(500).json({ error: 'Failed to fetch loans.' });
+  }
+});
+
+// Paginated repayments endpoint
+apiRouter.get('/loans/repayments', authenticateToken, requireUserOnly, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.query.all === 'true') {
+      const repayments = await dbService.getRepayments(req.user!.id);
+      res.json({ success: true, repayments, items: repayments, totalCount: repayments.length });
+      return;
+    }
+
+    const limit = validateLimit(req.query.limit);
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const direction = req.query.direction === 'backward' ? 'backward' : 'forward';
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const loanId = typeof req.query.loanId === 'string' ? req.query.loanId : undefined;
+
+    const result = await dbService.getPaginatedRepayments(req.user!.id, {
+      limit,
+      cursor,
+      direction,
+      search,
+      loanId,
+    });
+
+    res.json({
+      success: true,
+      items: result.items,
+      repayments: result.items,
+      nextCursor: result.nextCursor,
+      previousCursor: result.previousCursor,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage,
+      totalCount: result.totalCount,
+    });
+  } catch (err: any) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    console.error('Error in GET /loans/repayments:', err);
+    res.status(500).json({ error: 'Failed to fetch repayments.' });
   }
 });
 

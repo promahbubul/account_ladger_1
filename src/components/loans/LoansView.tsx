@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -10,6 +10,8 @@ import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { Loan, LoanRepayment } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 interface LoansViewProps {
   onOpenAddLoanModal: () => void;
@@ -18,16 +20,17 @@ interface LoansViewProps {
 }
 
 export const LoansView: React.FC<LoansViewProps> = ({
-  onOpenAddLoanModal,
-  onOpenRepaymentModal,
   onSuccessNotification,
 }) => {
-  const { loans, repayments, accounts, addLoan, recordRepayment, deleteLoan } = useFinance();
+  const { accounts, addLoan, recordRepayment, deleteLoan, authFetch } = useFinance();
 
   const [activeTab, setActiveTab] = useState<'LOANS' | 'REPAYMENTS'>('LOANS');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'LENT' | 'BORROWED'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SETTLED'>('ALL');
+
+  // Repayments search
+  const [repSearchQuery, setRepSearchQuery] = useState('');
 
   // Modals
   const [isAddLoanOpen, setIsAddLoanOpen] = useState(false);
@@ -52,40 +55,128 @@ export const LoansView: React.FC<LoansViewProps> = ({
   const [repDate, setRepDate] = useState('14 Oct 2026');
   const [repNotes, setRepNotes] = useState('');
 
-  // Computations
-  const totalReceivables = loans
-    .filter((l) => l.type === 'LENT')
-    .reduce((sum, l) => sum + l.outstandingPrincipal, 0);
+  // Loan pagination state
+  const [loanItems, setLoanItems] = useState<Loan[]>([]);
+  const [loanTotalCount, setLoanTotalCount] = useState<number>(0);
+  const [loanNextCursor, setLoanNextCursor] = useState<string | null>(null);
+  const [isLoansLoading, setIsLoansLoading] = useState<boolean>(false);
+  const [loanError, setLoanError] = useState<string | null>(null);
 
-  const totalPayables = loans
-    .filter((l) => l.type === 'BORROWED')
-    .reduce((sum, l) => sum + l.outstandingPrincipal, 0);
+  const loanPagination = useCursorPagination({ initialPageSize: 50 });
 
-  const activeCount = loans.filter((l) => l.status === 'ACTIVE' || l.status === 'PARTIALLY_REPAID').length;
-  const settledCount = loans.filter((l) => l.status === 'SETTLED').length;
+  // Repayments pagination state
+  const [repItems, setRepItems] = useState<LoanRepayment[]>([]);
+  const [repTotalCount, setRepTotalCount] = useState<number>(0);
+  const [repNextCursor, setRepNextCursor] = useState<string | null>(null);
+  const [isRepsLoading, setIsRepsLoading] = useState<boolean>(false);
+  const [repError, setRepError] = useState<string | null>(null);
 
-  const filteredLoans = loans.filter((l) => {
-    const matchesSearch =
-      l.counterpartyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (l.counterpartyContact && l.counterpartyContact.includes(searchQuery));
+  const repPagination = useCursorPagination({ initialPageSize: 50 });
 
-    const matchesType = typeFilter === 'ALL' || l.type === typeFilter;
-    const matchesStatus =
-      statusFilter === 'ALL' ||
-      (statusFilter === 'ACTIVE' && l.status !== 'SETTLED') ||
-      (statusFilter === 'SETTLED' && l.status === 'SETTLED');
+  // Fetch loans
+  const fetchLoans = useCallback(async () => {
+    try {
+      setIsLoansLoading(true);
+      setLoanError(null);
 
-    return matchesSearch && matchesType && matchesStatus;
-  });
+      const params = new URLSearchParams();
+      params.set('limit', String(loanPagination.pageSize));
+      if (loanPagination.cursor) params.set('cursor', loanPagination.cursor);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (typeFilter !== 'ALL') params.set('type', typeFilter);
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
 
-  const handleCreateLoan = (e: React.FormEvent) => {
+      const res = await authFetch(`/api/loans?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to fetch loans');
+      }
+
+      const data = await res.json();
+      setLoanItems(data.items || []);
+      setLoanTotalCount(data.totalCount ?? (data.items || []).length);
+      setLoanNextCursor(data.nextCursor || null);
+      loanPagination.setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch loans error:', err);
+      setLoanError(err.message || 'Error loading loans');
+    } finally {
+      setIsLoansLoading(false);
+    }
+  }, [authFetch, loanPagination.pageSize, loanPagination.cursor, searchQuery, typeFilter, statusFilter, loanPagination.setPaginationMeta]);
+
+  // Fetch repayments
+  const fetchRepayments = useCallback(async () => {
+    try {
+      setIsRepsLoading(true);
+      setRepError(null);
+
+      const params = new URLSearchParams();
+      params.set('limit', String(repPagination.pageSize));
+      if (repPagination.cursor) params.set('cursor', repPagination.cursor);
+      if (repSearchQuery.trim()) params.set('search', repSearchQuery.trim());
+
+      const res = await authFetch(`/api/loans/repayments?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to fetch repayments');
+      }
+
+      const data = await res.json();
+      setRepItems(data.items || []);
+      setRepTotalCount(data.totalCount ?? (data.items || []).length);
+      setRepNextCursor(data.nextCursor || null);
+      repPagination.setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch repayments error:', err);
+      setRepError(err.message || 'Error loading repayments');
+    } finally {
+      setIsRepsLoading(false);
+    }
+  }, [authFetch, repPagination.pageSize, repPagination.cursor, repSearchQuery, repPagination.setPaginationMeta]);
+
+  useEffect(() => {
+    if (activeTab === 'LOANS') {
+      fetchLoans();
+    } else {
+      fetchRepayments();
+    }
+  }, [activeTab, fetchLoans, fetchRepayments]);
+
+  const handleLoanSearchChange = (val: string) => {
+    setSearchQuery(val);
+    loanPagination.resetPagination();
+  };
+
+  const handleTypeFilterChange = (val: 'ALL' | 'LENT' | 'BORROWED') => {
+    setTypeFilter(val);
+    loanPagination.resetPagination();
+  };
+
+  const handleStatusFilterChange = (val: 'ALL' | 'ACTIVE' | 'SETTLED') => {
+    setStatusFilter(val);
+    loanPagination.resetPagination();
+  };
+
+  const handleRepSearchChange = (val: string) => {
+    setRepSearchQuery(val);
+    repPagination.resetPagination();
+  };
+
+  const handleCreateLoan = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     const amountNum = parseFloat(principal);
     if (isNaN(amountNum) || amountNum <= 0) return;
     if (!counterparty.trim()) return;
 
-    const res = addLoan({
+    const res = await addLoan({
       type: loanType,
       counterpartyName: counterparty.trim(),
       counterpartyContact: contact.trim() || undefined,
@@ -98,27 +189,31 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
     if (res.success) {
       onSuccessNotification(
-        `Recorded ${loanType === 'LENT' ? 'Loan Given to' : 'Loan Borrowed from'} ${counterparty} of ${formatBDT(amountNum)}.`
+        loanType === 'LENT'
+          ? `Lent ${formatBDT(amountNum)} to ${counterparty}. Recorded in ledger.`
+          : `Borrowed ${formatBDT(amountNum)} from ${counterparty}. Account credited.`
       );
       setIsAddLoanOpen(false);
+      setPrincipal('');
       setCounterparty('');
       setContact('');
-      setPrincipal('');
       setDueDate('');
       setNotes('');
+      loanPagination.resetPagination();
+      fetchLoans();
     } else {
-      setErrorMessage(res.error || 'Failed to record loan.');
+      setErrorMessage(res.error || 'Failed to save loan.');
     }
   };
 
-  const handleExecuteRepayment = (e: React.FormEvent) => {
+  const handleExecuteRepayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repaymentTargetLoan) return;
-    setErrorMessage(null);
+
     const amountNum = parseFloat(repAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    const res = recordRepayment({
+    const res = await recordRepayment({
       loanId: repaymentTargetLoan.id,
       accountId: repAccount || accounts[0]?.id || '',
       amount: amountNum,
@@ -128,36 +223,34 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
     if (res.success) {
       onSuccessNotification(
-        `Repayment of ${formatBDT(amountNum)} recorded for ${repaymentTargetLoan.counterpartyName}.`
+        `Recorded ${formatBDT(amountNum)} installment for ${repaymentTargetLoan.counterpartyName}.`
       );
       setRepaymentTargetLoan(null);
       setRepAmount('');
       setRepNotes('');
-    } else {
-      setErrorMessage(res.error || 'Failed to record repayment.');
+      fetchLoans();
+      if (activeTab === 'REPAYMENTS') {
+        fetchRepayments();
+      }
     }
   };
 
-  const confirmDeleteLoan = () => {
+  const confirmDeleteLoan = async () => {
     if (!loanToDelete) return;
-    deleteLoan(loanToDelete.id);
-    onSuccessNotification(`Loan record with ${loanToDelete.counterpartyName} deleted.`);
+    await deleteLoan(loanToDelete.id);
+    onSuccessNotification(`Loan for "${loanToDelete.counterpartyName}" was removed.`);
     setLoanToDelete(null);
+    fetchLoans();
   };
 
   return (
-    <div className="space-y-4">
-      {/* Error alert */}
-      {errorMessage && (
-        <div className="p-3 bg-red-950/40 border border-red-900/60 rounded text-xs text-red-300 flex items-center justify-between">
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-200">Dismiss</button>
-        </div>
-      )}
-
+    <div className="h-full flex flex-col min-h-0 space-y-3">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Loans</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">Loans & Debt Tracker</h2>
+          <p className="text-xs text-gray-400">Track receivables, debts, and installment repayments</p>
+        </div>
         <button
           onClick={() => setIsAddLoanOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
@@ -167,39 +260,8 @@ export const LoansView: React.FC<LoansViewProps> = ({
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Money Lent (Receivable)</div>
-          <div className="text-lg font-semibold font-mono text-emerald-400 mt-0.5">
-            {formatBDT(totalReceivables)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Borrowed (Payable)</div>
-          <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {formatBDT(totalPayables)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Net Loan Balance</div>
-          <div className="text-lg font-semibold font-mono text-blue-400 mt-0.5">
-            {formatBDT(totalReceivables - totalPayables)}
-          </div>
-        </div>
-
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Active vs Settled Loans</div>
-          <div className="text-lg font-semibold font-mono text-gray-100 mt-0.5">
-            {activeCount} Active <span className="text-gray-500 text-sm">/ {settledCount} Settled</span>
-          </div>
-        </div>
-      </div>
-
       {/* Tabs */}
-      <div className="flex border-b border-[#22252c] text-xs">
+      <div className="flex border-b border-[#22252c] text-xs flex-shrink-0">
         <button
           onClick={() => setActiveTab('LOANS')}
           className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
@@ -208,7 +270,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          Loans ({loans.length})
+          Loans
         </button>
         <button
           onClick={() => setActiveTab('REPAYMENTS')}
@@ -219,29 +281,29 @@ export const LoansView: React.FC<LoansViewProps> = ({
           }`}
         >
           <History className="w-3.5 h-3.5" />
-          <span>Repayments ({repayments.length})</span>
+          <span>Repayments</span>
         </button>
       </div>
 
       {activeTab === 'LOANS' ? (
         <>
           {/* Search & Filter Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
             <div className="relative w-full md:w-72">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleLoanSearchChange(e.target.value)}
                 placeholder="Search counterparty name or contact..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto text-xs">
               <select
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
+                onChange={(e) => handleTypeFilterChange(e.target.value as any)}
                 className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Loan Types</option>
@@ -251,7 +313,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) => handleStatusFilterChange(e.target.value as any)}
                 className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Statuses</option>
@@ -261,12 +323,18 @@ export const LoansView: React.FC<LoansViewProps> = ({
             </div>
           </div>
 
-          {/* Loans Table */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-            <div className="overflow-x-auto">
+          {loanError && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+              {loanError}
+            </div>
+          )}
+
+          {/* Viewport-based Scrollable Table */}
+          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+                  <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Counterparty</th>
                     <th className="py-2.5 px-3">Type</th>
                     <th className="py-2.5 px-3">Disbursed From</th>
@@ -279,14 +347,14 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {filteredLoans.length === 0 ? (
+                  {loanItems.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-8 text-center text-gray-500">
-                        No loan records found.
+                      <td colSpan={9} className="py-12 text-center text-gray-500">
+                        {isLoansLoading ? 'Loading loans...' : 'No loan records found.'}
                       </td>
                     </tr>
                   ) : (
-                    filteredLoans.map((loan) => (
+                    loanItems.map((loan) => (
                       <tr key={loan.id} className="hover:bg-[#1a1d24] transition-colors">
                         <td className="py-2.5 px-3">
                           <div className="font-medium text-gray-200">{loan.counterpartyName}</div>
@@ -367,62 +435,104 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 </tbody>
               </table>
             </div>
-
-            <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs flex justify-between items-center">
-              <span>Showing {filteredLoans.length} of {loans.length} loans</span>
-            </div>
           </div>
+
+          {/* Pinned Pagination Controls */}
+          <TablePagination
+            pageSize={loanPagination.pageSize}
+            onPageSizeChange={loanPagination.setPageSize}
+            hasNextPage={loanPagination.hasNextPage}
+            hasPreviousPage={loanPagination.hasPreviousPage}
+            onNextPage={() => loanPagination.goToNextPage(loanNextCursor)}
+            onPreviousPage={loanPagination.goToPreviousPage}
+            isLoading={isLoansLoading}
+            itemCount={loanItems.length}
+            totalCount={loanTotalCount}
+            pageIndex={loanPagination.pageIndex}
+          />
         </>
       ) : (
         /* Repayments History Table */
-        <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
-                  <th className="py-2.5 px-3">Date</th>
-                  <th className="py-2.5 px-3">Counterparty</th>
-                  <th className="py-2.5 px-3">Account</th>
-                  <th className="py-2.5 px-3">Notes</th>
-                  <th className="py-2.5 px-3 text-right">Repayment Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#20232a]">
-                {repayments.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-500">
-                      No repayments recorded yet.
-                    </td>
-                  </tr>
-                ) : (
-                  repayments.map((rep) => (
-                    <tr key={rep.id} className="hover:bg-[#1a1d24]">
-                      <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                        {rep.date}
-                      </td>
-                      <td className="py-2.5 px-3 font-medium text-gray-200">
-                        {rep.counterpartyName}
-                      </td>
-                      <td className="py-2.5 px-3 text-gray-400">
-                        {rep.accountName}
-                      </td>
-                      <td className="py-2.5 px-3 text-gray-500">
-                        {rep.notes || '-'}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-400 whitespace-nowrap">
-                        +{formatBDT(rep.amount)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <>
+          {/* Repayments Search Toolbar */}
+          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex items-center justify-between flex-shrink-0">
+            <div className="relative w-full md:w-72">
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={repSearchQuery}
+                onChange={(e) => handleRepSearchChange(e.target.value)}
+                placeholder="Search repayment counterparty or notes..."
+                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+              />
+            </div>
           </div>
 
-          <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs">
-            Total {repayments.length} repayments processed
+          {repError && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+              {repError}
+            </div>
+          )}
+
+          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+                  <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+                    <th className="py-2.5 px-3">Date</th>
+                    <th className="py-2.5 px-3">Counterparty</th>
+                    <th className="py-2.5 px-3">Account</th>
+                    <th className="py-2.5 px-3">Notes</th>
+                    <th className="py-2.5 px-3 text-right">Repayment Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#20232a]">
+                  {repItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-gray-500">
+                        {isRepsLoading ? 'Loading repayments...' : 'No repayments recorded yet.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    repItems.map((rep) => (
+                      <tr key={rep.id} className="hover:bg-[#1a1d24]">
+                        <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
+                          {rep.date}
+                        </td>
+                        <td className="py-2.5 px-3 font-medium text-gray-200">
+                          {rep.counterpartyName}
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-400">
+                          {rep.accountName}
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-500">
+                          {rep.notes || '-'}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-semibold text-emerald-400 whitespace-nowrap">
+                          +{formatBDT(rep.amount)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Pinned Pagination Controls for Repayments */}
+          <TablePagination
+            pageSize={repPagination.pageSize}
+            onPageSizeChange={repPagination.setPageSize}
+            hasNextPage={repPagination.hasNextPage}
+            hasPreviousPage={repPagination.hasPreviousPage}
+            onNextPage={() => repPagination.goToNextPage(repNextCursor)}
+            onPreviousPage={repPagination.goToPreviousPage}
+            isLoading={isRepsLoading}
+            itemCount={repItems.length}
+            totalCount={repTotalCount}
+            pageIndex={repPagination.pageIndex}
+          />
+        </>
       )}
 
       {/* Record Loan Modal */}
@@ -432,6 +542,12 @@ export const LoansView: React.FC<LoansViewProps> = ({
         title="Record Loan"
       >
         <form onSubmit={handleCreateLoan} className="space-y-3">
+          {errorMessage && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800 text-xs text-red-200 rounded">
+              {errorMessage}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">
@@ -684,14 +800,14 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1e2129]">
-                  {repayments.filter(r => r.loanId === viewHistoryLoan.id).length === 0 ? (
+                  {repItems.filter(r => r.loanId === viewHistoryLoan.id).length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-6 text-center text-gray-500">
                         No repayments recorded for this loan yet.
                       </td>
                     </tr>
                   ) : (
-                    repayments
+                    repItems
                       .filter(r => r.loanId === viewHistoryLoan.id)
                       .map((rep) => (
                         <tr key={rep.id} className="hover:bg-[#1a1d24]">

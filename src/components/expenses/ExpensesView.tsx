@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   FileSpreadsheet,
@@ -11,6 +11,8 @@ import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
+import { TablePagination } from '../common/TablePagination';
+import { useCursorPagination } from '../../hooks/useCursorPagination';
 
 interface ExpensesViewProps {
   onOpenSingleExpenseModal: () => void;
@@ -18,10 +20,9 @@ interface ExpensesViewProps {
 }
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
-  onOpenSingleExpenseModal,
   onSuccessNotification,
 }) => {
-  const { transactions, accounts, categories, addExpense, addBulkExpenses, deleteTransaction } = useFinance();
+  const { accounts, categories, addExpense, addBulkExpenses, deleteTransaction, authFetch } = useFinance();
 
   const [activeTab, setActiveTab] = useState<'RECORDS' | 'BULK_ENTRY'>('RECORDS');
 
@@ -54,23 +55,82 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     { id: '4', category: 'Mobile & Communication', desc: 'Mobile recharge', amount: 100 },
   ]);
 
+  // Paginated state
+  const [items, setItems] = useState<Transaction[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const {
+    pageSize,
+    cursor,
+    pageIndex,
+    hasNextPage,
+    hasPreviousPage,
+    setPageSize,
+    goToNextPage,
+    goToPreviousPage,
+    resetPagination,
+    setPaginationMeta,
+  } = useCursorPagination({ initialPageSize: 50 });
+
   const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
-  const expenseTransactions = transactions.filter((t) => t.type === 'EXPENSE');
 
-  // Filtered expenses
-  const filteredExpenses = expenseTransactions.filter((t) => {
-    const matchesSearch =
-      t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.category && t.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (t.reference && t.reference.toLowerCase().includes(searchQuery.toLowerCase()));
+  const fetchExpenses = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg(null);
 
-    const matchesCat = categoryFilter === 'ALL' || t.category === categoryFilter;
-    const matchesAcc = accountFilter === 'ALL' || t.accountId === accountFilter;
+      const params = new URLSearchParams();
+      params.set('type', 'EXPENSE');
+      params.set('limit', String(pageSize));
+      if (cursor) params.set('cursor', cursor);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (categoryFilter !== 'ALL') params.set('category', categoryFilter);
+      if (accountFilter !== 'ALL') params.set('accountId', accountFilter);
 
-    return matchesSearch && matchesCat && matchesAcc;
-  });
+      const res = await authFetch(`/api/transactions?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to fetch expenses');
+      }
 
-  const totalFiltered = filteredExpenses.reduce((sum, t) => sum + t.amount, 0);
+      const data = await res.json();
+      setItems(data.items || []);
+      setTotalCount(data.totalCount ?? (data.items || []).length);
+      setNextCursor(data.nextCursor || null);
+      setPaginationMeta({
+        hasNextPage: Boolean(data.hasNextPage),
+        hasPreviousPage: Boolean(data.hasPreviousPage),
+      });
+    } catch (err: any) {
+      console.error('Fetch expenses error:', err);
+      setErrorMsg(err.message || 'Error loading expenses');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authFetch, pageSize, cursor, searchQuery, categoryFilter, accountFilter, setPaginationMeta]);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    resetPagination();
+  };
+
+  const handleCategoryChange = (val: string) => {
+    setCategoryFilter(val);
+    resetPagination();
+  };
+
+  const handleAccountChange = (val: string) => {
+    setAccountFilter(val);
+    resetPagination();
+  };
+
   const bulkGrandTotal = bulkRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   const handleAddBulkRow = () => {
@@ -92,7 +152,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     );
   };
 
-  const handleSaveBulkBatch = (e: React.FormEvent) => {
+  const handleSaveBulkBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormValidationMsg(null);
     if (!bulkAccount) {
@@ -100,99 +160,77 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       return;
     }
 
-    const validRows = bulkRows.filter((r) => Number(r.amount) > 0 && r.category.trim());
+    const validRows = bulkRows.filter((r) => Number(r.amount) > 0 && r.desc.trim().length > 0);
     if (validRows.length === 0) {
-      setFormValidationMsg('Please enter at least one valid expense row with an amount greater than 0.');
+      setFormValidationMsg('Please enter at least one expense with a valid description and amount.');
       return;
     }
 
-    const acc = accounts.find((a) => a.id === bulkAccount);
-    const { overBudgetAlerts } = addBulkExpenses({
+    await addBulkExpenses({
       accountId: bulkAccount,
       date: bulkDate,
       items: validRows.map((r) => ({
         category: r.category,
-        desc: r.desc.trim() || `${r.category} expense`,
         amount: Number(r.amount),
+        desc: r.desc.trim(),
       })),
     });
 
-    const accName = acc?.name || 'Account';
-
-    if (overBudgetAlerts && overBudgetAlerts.length > 0) {
-      onSuccessNotification(
-        `Recorded ${validRows.length} expenses (${formatBDT(bulkGrandTotal)}) from ${accName}. Budget alert: ${overBudgetCategoriesString(overBudgetAlerts)}`
-      );
-    } else {
-      onSuccessNotification(
-        `Saved ${validRows.length} daily expenses totaling ${formatBDT(bulkGrandTotal)} from ${accName}.`
-      );
-    }
-
-    setBulkRows([
-      { id: Date.now().toString(), category: expenseCategories[0]?.name || 'Food & Dining', desc: '', amount: 0 },
-    ]);
+    const accName = accounts.find((a) => a.id === bulkAccount)?.name || 'Account';
+    onSuccessNotification(`Recorded ${validRows.length} daily expenses totaling ${formatBDT(bulkGrandTotal)} from ${accName}.`);
     setActiveTab('RECORDS');
+    resetPagination();
+    fetchExpenses();
   };
 
-  const overBudgetCategoriesString = (alerts: any[]) => {
-    return alerts.map(a => `${a.categoryName} (+${formatBDT(a.exceededBy)})`).join(', ');
-  };
-
-  const handleSaveSingleExpense = (e: React.FormEvent) => {
+  const handleSaveSingleExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(singleAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    const chosenCat = singleCat || expenseCategories[0]?.name || 'Food & Dining';
-    const acc = accounts.find((a) => a.id === singleAccount);
-
-    const { overBudgetAlert } = addExpense({
+    await addExpense({
       accountId: singleAccount || accounts[0]?.id || '',
-      category: chosenCat,
+      category: singleCat || expenseCategories[0]?.name || 'Other Expense',
       amount: amountNum,
       date: singleDate,
-      description: singleDesc.trim() || `${chosenCat} expense`,
+      description: singleDesc.trim() || 'Expense item',
       reference: singleRef.trim() || undefined,
     });
 
-    const accName = acc?.name || 'Account';
-
-    if (overBudgetAlert) {
-      onSuccessNotification(
-        `Recorded ${formatBDT(amountNum)} from ${accName}. Budget alert: "${chosenCat}" exceeded limit by ${formatBDT(overBudgetAlert.exceededBy)}.`
-      );
-    } else {
-      onSuccessNotification(`Recorded expense of ${formatBDT(amountNum)} from ${accName}.`);
-    }
-
+    const accName = accounts.find((a) => a.id === singleAccount)?.name || 'Account';
+    onSuccessNotification(`Logged expense ${formatBDT(amountNum)} from ${accName}.`);
     setIsAddExpenseOpen(false);
     setSingleAmount('');
     setSingleDesc('');
     setSingleRef('');
+    resetPagination();
+    fetchExpenses();
   };
 
-  const confirmDeleteExpense = () => {
+  const confirmDeleteExpense = async () => {
     if (!txToDelete) return;
-    deleteTransaction(txToDelete.id);
-    onSuccessNotification(`Expense deleted and ${formatBDT(txToDelete.amount)} refunded to ${txToDelete.accountName}.`);
+    await deleteTransaction(txToDelete.id);
+    onSuccessNotification(`Expense "${txToDelete.description}" removed. Balance restored.`);
     setTxToDelete(null);
+    fetchExpenses();
   };
 
   return (
-    <div className="space-y-4">
-      {/* Validation Banner */}
-      {formValidationMsg && (
-        <div className="p-3 bg-red-950/40 border border-red-900/60 rounded text-xs text-red-300 flex items-center justify-between">
-          <span>{formValidationMsg}</span>
-          <button onClick={() => setFormValidationMsg(null)} className="text-red-400 hover:text-red-200">Dismiss</button>
-        </div>
-      )}
-
+    <div className="h-full flex flex-col min-h-0 space-y-3">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Expenses</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">Expenses</h2>
+          <p className="text-xs text-gray-400">Track and categorize expenditures</p>
+        </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab(activeTab === 'RECORDS' ? 'BULK_ENTRY' : 'RECORDS')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>{activeTab === 'RECORDS' ? 'Daily Bulk Entry' : 'View Records'}</span>
+          </button>
           <button
             onClick={() => setIsAddExpenseOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
@@ -204,7 +242,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#22252c] text-xs">
+      <div className="flex border-b border-[#22252c] text-xs flex-shrink-0">
         <button
           onClick={() => setActiveTab('RECORDS')}
           className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
@@ -213,7 +251,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          Expense Records ({expenseTransactions.length})
+          Expense Records
         </button>
         <button
           onClick={() => setActiveTab('BULK_ENTRY')}
@@ -230,66 +268,23 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
       {activeTab === 'RECORDS' ? (
         <>
-          {/* Summary Row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-              <div className="text-xs text-gray-400">Total Expenses (Filtered)</div>
-              <div className="text-lg font-semibold font-mono text-gray-100 mt-0.5">
-                {formatBDT(totalFiltered)}
-              </div>
-            </div>
-
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-              <div className="text-xs text-gray-400">Food & Dining</div>
-              <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-                {formatBDT(
-                  expenseTransactions
-                    .filter((t) => t.category?.toLowerCase().includes('food') || t.category?.toLowerCase().includes('dining'))
-                    .reduce((sum, t) => sum + t.amount, 0)
-                )}
-              </div>
-            </div>
-
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-              <div className="text-xs text-gray-400">Transport & Commute</div>
-              <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-                {formatBDT(
-                  expenseTransactions
-                    .filter((t) => t.category?.toLowerCase().includes('transport') || t.category?.toLowerCase().includes('commute'))
-                    .reduce((sum, t) => sum + t.amount, 0)
-                )}
-              </div>
-            </div>
-
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-              <div className="text-xs text-gray-400">Housing & Utilities</div>
-              <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-                {formatBDT(
-                  expenseTransactions
-                    .filter((t) => t.category?.toLowerCase().includes('housing') || t.category?.toLowerCase().includes('utilities'))
-                    .reduce((sum, t) => sum + t.amount, 0)
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Search & Filter Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5">
+          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
             <div className="relative w-full md:w-72">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search expense records..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto text-xs">
               <select
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Categories</option>
@@ -300,7 +295,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
               <select
                 value={accountFilter}
-                onChange={(e) => setAccountFilter(e.target.value)}
+                onChange={(e) => handleAccountChange(e.target.value)}
                 className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Accounts</option>
@@ -311,12 +306,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             </div>
           </div>
 
-          {/* Main Table */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-            <div className="overflow-x-auto">
+          {errorMsg && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800/60 rounded text-xs text-red-300 flex-shrink-0">
+              {errorMsg}
+            </div>
+          )}
+
+          {/* Viewport-based Scrollable Table */}
+          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
+                  <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Date</th>
                     <th className="py-2.5 px-3">Description</th>
                     <th className="py-2.5 px-3">Category</th>
@@ -327,14 +328,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#20232a]">
-                  {filteredExpenses.length === 0 ? (
+                  {items.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-500">
-                        No expense records found.
+                      <td colSpan={7} className="py-12 text-center text-gray-500">
+                        {isLoading ? 'Loading expenses...' : 'No expense records found.'}
                       </td>
                     </tr>
                   ) : (
-                    filteredExpenses.map((tx) => (
+                    items.map((tx) => (
                       <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
                         <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                           {tx.date}
@@ -380,17 +381,32 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 </tbody>
               </table>
             </div>
-
-            {/* Table Footer */}
-            <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs flex justify-between items-center">
-              <span>Showing {filteredExpenses.length} of {expenseTransactions.length} records</span>
-              <span className="font-mono text-gray-200">Total: -{formatBDT(totalFiltered)}</span>
-            </div>
           </div>
+
+          {/* Pinned Pagination Controls */}
+          <TablePagination
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            hasNextPage={hasNextPage}
+            hasPreviousPage={hasPreviousPage}
+            onNextPage={() => goToNextPage(nextCursor)}
+            onPreviousPage={goToPreviousPage}
+            isLoading={isLoading}
+            itemCount={items.length}
+            totalCount={totalCount}
+            pageIndex={pageIndex}
+          />
         </>
       ) : (
         /* Daily Bulk Entry Grid */
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 min-h-0 overflow-y-auto">
+          {formValidationMsg && (
+            <div className="p-3 bg-amber-950/40 border border-amber-800 text-amber-200 text-xs rounded flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span>{formValidationMsg}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSaveBulkBatch} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#16181d] border border-[#22252c] rounded p-3">
               <div>
