@@ -10,4 +10,5 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || 'hisabflow-secure-jwt-secret-key-neon-db',
   adminInitialPassword: process.env.ADMIN_INITIAL_PASSWORD || 'Mahbub@12345',
   userInitialPassword: process.env.USER_INITIAL_PASSWORD || 'User@12345',
+  firebaseProjectId: process.env.FIREBASE_PROJECT_ID || 'account-ladger01',
 };

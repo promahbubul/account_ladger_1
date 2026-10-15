@@ -111,6 +111,10 @@ export async function createTransfer(req, res) {
     const created = await dbService.createTransfer(transfer);
     res.status(201).json({ success: true, transfer: created });
   } catch (err) {
+    if (err.message && (err.message.includes('different') || err.message.includes('positive') || err.message.includes('negative') || err.message.includes('not found') || err.message.includes('access denied'))) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.status(500).json({ error: 'Failed to record transfer.' });
   }
 }

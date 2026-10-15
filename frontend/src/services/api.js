@@ -64,10 +64,10 @@ export const authService = {
       method: 'POST',
       body: JSON.stringify(userData),
     }),
-  googleLogin: (email, name) =>
+  googleLogin: (idToken, linkPassword) =>
     apiFetch('/auth/google', {
       method: 'POST',
-      body: JSON.stringify({ email, name }),
+      body: JSON.stringify({ idToken, linkPassword }),
     }),
   getMe: () => apiFetch('/auth/me'),
   updateProfile: (profileData) =>

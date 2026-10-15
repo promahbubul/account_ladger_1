@@ -184,4 +184,187 @@ test('Express API Integration Tests', async (t) => {
     const delParentFinal = await fetch(`${baseUrl}/api/categories/${parentId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     assert.equal(delParentFinal.status, 200);
   });
+
+  await t.test('Transfer atomic lifecycle and integrity constraints', async () => {
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'user@example.com', password: '123456' }),
+    });
+    const { token } = await loginRes.json();
+
+    const accs = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    assert.ok(accs.length >= 2, 'Need at least 2 accounts for transfer test');
+    const src = accs[0];
+    const dst = accs[1];
+    const srcInitial = Number(src.currentBalance);
+    const dstInitial = Number(dst.currentBalance);
+
+    // 1. Reject self-transfer (same source and destination)
+    const selfRes = await fetch(`${baseUrl}/api/transfers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        sourceAccountId: src.id,
+        destinationAccountId: src.id,
+        amount: 500,
+        date: '2026-10-15',
+      }),
+    });
+    assert.equal(selfRes.status, 400);
+
+    // 2. Reject negative transfer amount
+    const negRes = await fetch(`${baseUrl}/api/transfers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        sourceAccountId: src.id,
+        destinationAccountId: dst.id,
+        amount: -500,
+        date: '2026-10-15',
+      }),
+    });
+    assert.equal(negRes.status, 400);
+
+    // 3. Create valid transfer
+    const trfRes = await fetch(`${baseUrl}/api/transfers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        sourceAccountId: src.id,
+        destinationAccountId: dst.id,
+        amount: 1000,
+        transferFee: 15,
+        date: '2026-10-15',
+        description: 'Test Inter-Account Transfer',
+      }),
+    });
+    assert.equal(trfRes.status, 201);
+    const { transfer } = await trfRes.json();
+    assert.ok(transfer.id);
+
+    // Verify balances updated atomically
+    const accsAfterTrf = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    const srcAfter = accsAfterTrf.find((a) => a.id === src.id);
+    const dstAfter = accsAfterTrf.find((a) => a.id === dst.id);
+    assert.equal(Number(srcAfter.currentBalance), Number((srcInitial - 1015).toFixed(2)));
+    assert.equal(Number(dstAfter.currentBalance), Number((dstInitial + 1000).toFixed(2)));
+
+    // 4. Delete transfer -> balances restored
+    const delRes = await fetch(`${baseUrl}/api/transfers/${transfer.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(delRes.status, 200);
+
+    const accsAfterDel = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    const srcRestored = accsAfterDel.find((a) => a.id === src.id);
+    const dstRestored = accsAfterDel.find((a) => a.id === dst.id);
+    assert.equal(Number(srcRestored.currentBalance), Number(srcInitial.toFixed(2)));
+    assert.equal(Number(dstRestored.currentBalance), Number(dstInitial.toFixed(2)));
+  });
+
+  await t.test('Loan and Repayment atomic lifecycle and overpayment prevention', async () => {
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'user@example.com', password: '123456' }),
+    });
+    const { token } = await loginRes.json();
+
+    const accs = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    const acc = accs[0];
+    const initialBalance = Number(acc.currentBalance);
+
+    // 1. Create Loan (LENT: money given to counterparty)
+    const loanRes = await fetch(`${baseUrl}/api/loans`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        accountId: acc.id,
+        type: 'LENT',
+        counterpartyName: 'Rahim Khan',
+        counterpartyContact: '01711000000',
+        principalAmount: 5000,
+        startDate: '2026-10-15',
+        notes: 'Personal friendly loan',
+      }),
+    });
+    assert.equal(loanRes.status, 201);
+    const { loan } = await loanRes.json();
+    assert.equal(loan.principalAmount, 5000);
+    assert.equal(loan.outstandingPrincipal, 5000);
+
+    // Verify account balance was deducted by 5000
+    const accsAfterLoan = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    const updatedAcc1 = accsAfterLoan.find((a) => a.id === acc.id);
+    assert.equal(Number(updatedAcc1.currentBalance), Number((initialBalance - 5000).toFixed(2)));
+
+    try {
+      // 2. Reject repayment exceeding outstanding principal
+      const overpayRes = await fetch(`${baseUrl}/api/loans/${loan.id}/repayments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          accountId: acc.id,
+          amount: 6000, // 6000 > 5000
+          date: '2026-10-15',
+        }),
+      });
+      assert.equal(overpayRes.status, 400);
+
+      // 3. Add partial repayment of 2000
+      const repRes1 = await fetch(`${baseUrl}/api/loans/${loan.id}/repayments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          accountId: acc.id,
+          amount: 2000,
+          date: '2026-10-15',
+          notes: 'First installment',
+        }),
+      });
+      assert.equal(repRes1.status, 201);
+
+      // Verify loan outstanding is now 3000 and account balance was refunded 2000
+      const loansList1 = (await (await fetch(`${baseUrl}/api/loans`, { headers: { Authorization: `Bearer ${token}` } })).json()).loans;
+      const loanUpdated1 = loansList1.find((l) => l.id === loan.id);
+      assert.equal(Number(loanUpdated1.outstandingPrincipal), 3000);
+      assert.equal(loanUpdated1.status, 'PARTIALLY_REPAID');
+
+      const accsAfterRep1 = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+      const updatedAcc2 = accsAfterRep1.find((a) => a.id === acc.id);
+      assert.equal(Number(updatedAcc2.currentBalance), Number((initialBalance - 3000).toFixed(2)));
+    } finally {
+      // 4. Clean up: Delete loan -> reverses remaining and repayments
+      const delLoanRes = await fetch(`${baseUrl}/api/loans/${loan.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(delLoanRes.status, 200);
+
+      // Verify account balance restored to initial balance
+      const accsAfterDel = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+      const updatedAcc3 = accsAfterDel.find((a) => a.id === acc.id);
+      assert.equal(Number(updatedAcc3.currentBalance), Number(initialBalance.toFixed(2)));
+    }
+  });
+
+  await t.test('Authoritative Balance Reconciliation function detects and heals drift', async () => {
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'user@example.com', password: '123456' }),
+    });
+    const { token, user } = await loginRes.json();
+
+    const accs = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    const acc = accs[0];
+
+    // Run reconciliation on the account
+    const recon = await dbService.reconcileAccountBalance(acc.id, user.id);
+    assert.ok(recon);
+    assert.equal(recon.accountId, acc.id);
+    assert.equal(typeof recon.calculatedBalance, 'number');
+  });
 });

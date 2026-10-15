@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { generateToken, requireAdmin, requireUserOnly } from '../src/middleware/auth.js';
 import jwt from 'jsonwebtoken';
 import { config } from '../src/config/env.js';
+import { createApp } from '../src/app.js';
+import { dbService } from '../src/services/db.service.js';
 
 test('Authentication & Role Enforcement', async (t) => {
   const dummyUser = {
@@ -103,4 +105,131 @@ test('Authentication & Role Enforcement', async (t) => {
     requireUserOnly(req, res, next);
     assert.equal(nextCalled, true);
   });
+});
+
+test('Registration Flow - Email and Password Only', async (t) => {
+  await dbService.initialize();
+  const app = createApp();
+
+  let server;
+  let baseUrl;
+
+  await new Promise((resolve) => {
+    server = app.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      baseUrl = `http://127.0.0.1:${port}`;
+      resolve();
+    });
+  });
+
+  t.after(() => {
+    server.close();
+  });
+
+  const testEmail = `reg_only_${Date.now()}@example.com`;
+  const testPassword = 'Password123!';
+  let createdUserId = null;
+
+  await t.test('1. Rejects registration missing email or password with 400', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: '' }),
+    });
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.ok(data.error.includes('Email and password are required'));
+  });
+
+  await t.test('2. Rejects invalid email format with 400', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'invalidemailformat', password: 'validPassword123' }),
+    });
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.ok(data.error.includes('valid email address'));
+  });
+
+  await t.test('3. Rejects password shorter than 6 characters with 400', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'shortpass@example.com', password: '123' }),
+    });
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.ok(data.error.includes('at least 6 characters'));
+  });
+
+  await t.test('4. Successfully registers user with ONLY email and password (no fullName provided)', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: testEmail,
+        password: testPassword,
+      }), // STRICT: No fullName sent!
+    });
+
+    assert.equal(res.status, 201);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.ok(data.token, 'Session JWT token must be returned');
+    assert.equal(data.user.email, testEmail);
+    assert.equal(data.user.role, 'USER');
+    assert.equal(data.user.fullName, null, 'fullName should be null when not provided');
+    assert.equal(data.user.passwordHash, undefined, 'passwordHash must never be exposed');
+
+    createdUserId = data.user.id;
+
+    // Verify database row directly
+    const userInDb = await dbService.getUserById(createdUserId);
+    assert.ok(userInDb, 'User must exist in database');
+    assert.equal(userInDb.fullName, null, 'Database column full_name must be null');
+
+    // Verify default accounts and categories seeded
+    const accounts = await dbService.getAccounts(createdUserId);
+    assert.ok(accounts.length >= 2, 'Default accounts should be seeded');
+    const categories = await dbService.getCategories(createdUserId);
+    assert.ok(categories.length >= 10, 'Default categories should be seeded');
+  });
+
+  await t.test('5. Rejects duplicate email registration with 409 Conflict', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: testEmail,
+        password: 'AnotherPassword123!',
+      }),
+    });
+    assert.equal(res.status, 409);
+    const data = await res.json();
+    assert.ok(data.error.includes('already exists'));
+  });
+
+  await t.test('6. Newly registered user logs in successfully with email and password', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: testEmail,
+        password: testPassword,
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.ok(data.token);
+    assert.equal(data.user.id, createdUserId);
+    assert.equal(data.user.email, testEmail);
+  });
+
+  // Cleanup created test user
+  if (createdUserId) {
+    await dbService.deleteUser(createdUserId);
+  }
 });

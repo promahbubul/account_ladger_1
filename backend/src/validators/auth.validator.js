@@ -8,8 +8,8 @@ export function validateLoginInput(identifier, password) {
   return null;
 }
 
-export function validateRegisterInput(email, password, fullName) {
-  if (!email || !String(email).includes('@')) {
+export function validateRegisterInput(email, password) {
+  if (!email || !String(email).includes('@') || !String(email).includes('.')) {
     return 'A valid email address is required.';
   }
   if (!password || String(password).length < 6) {
@@ -17,3 +17,4 @@ export function validateRegisterInput(email, password, fullName) {
   }
   return null;
 }
+

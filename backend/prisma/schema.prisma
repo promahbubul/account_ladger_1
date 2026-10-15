@@ -70,7 +70,10 @@ model User {
   username     String        @unique
   email        String        @unique
   passwordHash String        @map("password_hash")
-  fullName     String        @map("full_name")
+  firebaseUid  String?       @unique @map("firebase_uid")
+  authProvider String        @default("LOCAL") @map("auth_provider")
+  avatarUrl    String?       @map("avatar_url")
+  fullName     String?       @map("full_name") @db.VarChar(128)
   role         Role          @default(USER)
   isActive     Boolean       @default(true) @map("is_active")
   currency     String        @default("BDT")

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_BASE_URL } from '../services/api';
+import { signOutFirebase } from '../lib/firebase';
 
 export interface AuthUser {
   id: string;
@@ -11,15 +12,15 @@ export interface AuthUser {
   currency: string;
   timezone: string;
   dateFormat: string;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithGoogle: (email: string, fullName?: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: { username?: string; email: string; fullName?: string; password: string }) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (idToken: string, linkPassword?: string) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { email: string; password: string; username?: string; fullName?: string }) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (updates: { currency?: string; fullName?: string; timezone?: string; dateFormat?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -105,12 +106,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithGoogle = async (email: string, fullName?: string): Promise<{ success: boolean; error?: string }> => {
+  const loginWithGoogle = async (
+    idToken: string,
+    linkPassword?: string
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, fullName }),
+        body: JSON.stringify({ idToken, linkPassword }),
       });
 
       const data = await res.json();
@@ -129,10 +133,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (formData: {
-    username?: string;
     email: string;
-    fullName?: string;
     password: string;
+    username?: string;
+    fullName?: string;
   }): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -191,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    signOutFirebase();
   };
 
   const refreshUser = async () => {

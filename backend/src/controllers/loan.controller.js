@@ -231,6 +231,10 @@ export async function addRepayment(req, res) {
     const recorded = await dbService.addRepayment(repayment);
     res.status(201).json({ success: true, repayment: recorded });
   } catch (err) {
+    if (err.message && (err.message.includes('exceed') || err.message.includes('positive') || err.message.includes('not found') || err.message.includes('access denied'))) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.status(500).json({ error: 'Failed to record repayment.' });
   }
 }

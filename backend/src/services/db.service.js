@@ -171,7 +171,7 @@ class DatabaseService {
           username VARCHAR(64) UNIQUE NOT NULL,
           email VARCHAR(128) UNIQUE NOT NULL,
           password_hash VARCHAR(255) NOT NULL,
-          full_name VARCHAR(128) NOT NULL,
+          full_name VARCHAR(128),
           role VARCHAR(20) DEFAULT 'USER' NOT NULL,
           is_active BOOLEAN DEFAULT TRUE NOT NULL,
           currency VARCHAR(10) DEFAULT 'BDT' NOT NULL,
@@ -188,10 +188,10 @@ class DatabaseService {
           type VARCHAR(32) NOT NULL,
           provider_name VARCHAR(128),
           account_number VARCHAR(64),
-          opening_balance NUMERIC(14, 2) DEFAULT 0.00,
-          current_balance NUMERIC(14, 2) DEFAULT 0.00,
-          currency VARCHAR(10) DEFAULT 'BDT',
-          status VARCHAR(20) DEFAULT 'ACTIVE',
+          opening_balance NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+          current_balance NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+          currency VARCHAR(10) NOT NULL DEFAULT 'BDT',
+          status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
@@ -199,6 +199,7 @@ class DatabaseService {
         CREATE TABLE IF NOT EXISTS categories (
           id VARCHAR(64) PRIMARY KEY,
           user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+          parent_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL,
           name VARCHAR(128) NOT NULL,
           type VARCHAR(20) NOT NULL,
           icon VARCHAR(64),
@@ -213,8 +214,9 @@ class DatabaseService {
         CREATE TABLE IF NOT EXISTS transactions (
           id VARCHAR(64) PRIMARY KEY,
           user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
-          account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE CASCADE,
+          account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE RESTRICT,
           account_name VARCHAR(128),
+          category_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL,
           type VARCHAR(32) NOT NULL,
           category VARCHAR(128),
           subcategory VARCHAR(128),
@@ -235,9 +237,9 @@ class DatabaseService {
         CREATE TABLE IF NOT EXISTS transfers (
           id VARCHAR(64) PRIMARY KEY,
           user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
-          source_account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE CASCADE,
+          source_account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE RESTRICT,
           source_account_name VARCHAR(128),
-          destination_account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE CASCADE,
+          destination_account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE RESTRICT,
           destination_account_name VARCHAR(128),
           amount NUMERIC(14, 2) NOT NULL,
           transfer_fee NUMERIC(14, 2) DEFAULT 0.00,
@@ -250,7 +252,7 @@ class DatabaseService {
         CREATE TABLE IF NOT EXISTS loans (
           id VARCHAR(64) PRIMARY KEY,
           user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
-          account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE CASCADE,
+          account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE RESTRICT,
           account_name VARCHAR(128),
           type VARCHAR(20) NOT NULL,
           counterparty_name VARCHAR(128) NOT NULL,
@@ -269,10 +271,10 @@ class DatabaseService {
         CREATE TABLE IF NOT EXISTS repayments (
           id VARCHAR(64) PRIMARY KEY,
           user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
-          loan_id VARCHAR(64) REFERENCES loans(id) ON DELETE CASCADE,
+          loan_id VARCHAR(64) REFERENCES loans(id) ON DELETE RESTRICT,
           counterparty_name VARCHAR(128) NOT NULL,
           loan_type VARCHAR(20) NOT NULL,
-          account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE CASCADE,
+          account_id VARCHAR(64) REFERENCES accounts(id) ON DELETE RESTRICT,
           account_name VARCHAR(128),
           amount NUMERIC(14, 2) NOT NULL,
           date DATE NOT NULL,
@@ -289,7 +291,7 @@ class DatabaseService {
 
         CREATE TABLE IF NOT EXISTS audit_logs (
           id VARCHAR(64) PRIMARY KEY,
-          user_id VARCHAR(64),
+          user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
           user_email VARCHAR(128),
           action VARCHAR(64) NOT NULL,
           entity_type VARCHAR(64) NOT NULL,
@@ -310,11 +312,58 @@ class DatabaseService {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
 
-        -- Ensure parent_id exists on categories for hierarchical subcategories
+        -- Ensure schema integrity columns and constraints
         ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS category_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
+
+        -- Unique indexes
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_accounts_user_name ON accounts(user_id, LOWER(name));
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_user_name_parent ON categories(user_id, LOWER(name), type, COALESCE(parent_id, ''));
+
+        -- Performance indexes
         CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_categories_user_type ON categories(user_id, type);
+        CREATE INDEX IF NOT EXISTS idx_transactions_category_id ON transactions(category_id);
+        CREATE INDEX IF NOT EXISTS idx_transactions_user_account_date ON transactions(user_id, account_id, date DESC, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_transactions_user_type_date ON transactions(user_id, type, date DESC);
+        CREATE INDEX IF NOT EXISTS idx_transfers_user_date ON transfers(user_id, date DESC, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_transfers_source_account ON transfers(source_account_id);
+        CREATE INDEX IF NOT EXISTS idx_transfers_destination_account ON transfers(destination_account_id);
+        CREATE INDEX IF NOT EXISTS idx_loans_user_type_status ON loans(user_id, type, status);
+        CREATE INDEX IF NOT EXISTS idx_loans_account_id ON loans(account_id);
+        CREATE INDEX IF NOT EXISTS idx_repayments_loan_id ON repayments(loan_id);
+        CREATE INDEX IF NOT EXISTS idx_repayments_account_id ON repayments(account_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_user_entity ON audit_logs(user_id, entity_type, entity_id);
+
+        -- Check constraints
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_categories_parent_not_self') THEN
+            ALTER TABLE categories ADD CONSTRAINT chk_categories_parent_not_self CHECK (parent_id IS NULL OR parent_id <> id);
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_transfers_diff_accounts') THEN
+            ALTER TABLE transfers ADD CONSTRAINT chk_transfers_diff_accounts CHECK (source_account_id <> destination_account_id);
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_transfers_amount_positive') THEN
+            ALTER TABLE transfers ADD CONSTRAINT chk_transfers_amount_positive CHECK (amount > 0);
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_transactions_amount_positive') THEN
+            ALTER TABLE transactions ADD CONSTRAINT chk_transactions_amount_positive CHECK (amount > 0);
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_loans_principal_positive') THEN
+            ALTER TABLE loans ADD CONSTRAINT chk_loans_principal_positive CHECK (principal_amount > 0);
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_loans_outstanding_non_negative') THEN
+            ALTER TABLE loans ADD CONSTRAINT chk_loans_outstanding_non_negative CHECK (outstanding_principal >= 0);
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_repayments_amount_positive') THEN
+            ALTER TABLE repayments ADD CONSTRAINT chk_repayments_amount_positive CHECK (amount > 0);
+          END IF;
+        END $$;
+
+        -- Ensure full_name is optional (nullable)
+        ALTER TABLE users ALTER COLUMN full_name DROP NOT NULL;
       `);
-      logger.info('PostgreSQL schema verification and table creation complete.');
+      logger.info('PostgreSQL schema verification, constraints, and indexes complete.');
     } catch (err) {
       logger.error('Error creating PostgreSQL tables:', err);
     } finally {
@@ -535,7 +584,7 @@ class DatabaseService {
   async getUserById(id) {
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1',
         [id]
       );
       return res.rows[0] || null;
@@ -547,7 +596,7 @@ class DatabaseService {
     const clean = identifier.trim().toLowerCase();
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
         [clean]
       );
       return res.rows[0] || null;
@@ -563,7 +612,7 @@ class DatabaseService {
     const clean = email.trim().toLowerCase();
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(email) = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(email) = $1',
         [clean]
       );
       return res.rows[0] || null;
@@ -571,22 +620,37 @@ class DatabaseService {
     return this.inMemoryData.users.find((u) => u.email.toLowerCase() === clean) || null;
   }
 
+  async getUserByFirebaseUid(firebaseUid) {
+    if (!firebaseUid) return null;
+    if (this.isPostgresConnected && this.pool) {
+      const res = await this.pool.query(
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE firebase_uid = $1',
+        [firebaseUid]
+      );
+      return res.rows[0] || null;
+    }
+    return this.inMemoryData.users.find((u) => u.firebaseUid === firebaseUid) || null;
+  }
+
   async createUser(user) {
     if (this.isPostgresConnected && this.pool) {
       await this.pool.query(
-        `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, currency, timezone, date_format)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, currency, timezone, date_format, firebase_uid, auth_provider, avatar_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           user.id,
           user.username,
           user.email,
           user.passwordHash,
-          user.fullName,
+          user.fullName || null,
           user.role || 'USER',
           user.isActive !== false,
           user.currency || 'BDT',
           user.timezone || 'Asia/Dhaka',
           user.dateFormat || 'DD MMM YYYY',
+          user.firebaseUid || null,
+          user.authProvider || 'LOCAL',
+          user.avatarUrl || null,
         ]
       );
       return user;
@@ -613,6 +677,18 @@ class DatabaseService {
       if (updates.passwordHash !== undefined) {
         fields.push(`password_hash = $${i++}`);
         values.push(updates.passwordHash);
+      }
+      if (updates.firebaseUid !== undefined) {
+        fields.push(`firebase_uid = $${i++}`);
+        values.push(updates.firebaseUid);
+      }
+      if (updates.authProvider !== undefined) {
+        fields.push(`auth_provider = $${i++}`);
+        values.push(updates.authProvider);
+      }
+      if (updates.avatarUrl !== undefined) {
+        fields.push(`avatar_url = $${i++}`);
+        values.push(updates.avatarUrl);
       }
       if (updates.role !== undefined) {
         fields.push(`role = $${i++}`);
@@ -873,12 +949,121 @@ class DatabaseService {
     }
   }
 
+  async reconcileAccountBalance(accountId, userId) {
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const accRes = await client.query('SELECT * FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE', [accountId, userId]);
+        if (accRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return null;
+        }
+        const acc = accRes.rows[0];
+        const opening = Number(acc.opening_balance);
+
+        const txRes = await client.query(
+          `SELECT 
+             COALESCE(SUM(CASE WHEN direction = 'INFLOW' THEN amount ELSE 0 END), 0) as inflows,
+             COALESCE(SUM(CASE WHEN direction = 'OUTFLOW' THEN amount ELSE 0 END), 0) as outflows
+           FROM transactions 
+           WHERE account_id = $1 AND user_id = $2`,
+          [accountId, userId]
+        );
+        const inflows = Number(txRes.rows[0].inflows);
+        const outflows = Number(txRes.rows[0].outflows);
+
+        const trfOutRes = await client.query(
+          `SELECT COALESCE(SUM(amount + transfer_fee), 0) as transfers_out 
+           FROM transfers WHERE source_account_id = $1 AND user_id = $2`,
+          [accountId, userId]
+        );
+        const transfersOut = Number(trfOutRes.rows[0].transfers_out);
+
+        const trfInRes = await client.query(
+          `SELECT COALESCE(SUM(amount), 0) as transfers_in 
+           FROM transfers WHERE destination_account_id = $1 AND user_id = $2`,
+          [accountId, userId]
+        );
+        const transfersIn = Number(trfInRes.rows[0].transfers_in);
+
+        const loansRes = await client.query(
+          `SELECT 
+             COALESCE(SUM(CASE WHEN type = 'LENT' THEN principal_amount ELSE 0 END), 0) as lent,
+             COALESCE(SUM(CASE WHEN type = 'BORROWED' THEN principal_amount ELSE 0 END), 0) as borrowed
+           FROM loans WHERE account_id = $1 AND user_id = $2`,
+          [accountId, userId]
+        );
+        const lent = Number(loansRes.rows[0].lent);
+        const borrowed = Number(loansRes.rows[0].borrowed);
+
+        const repsRes = await client.query(
+          `SELECT 
+             COALESCE(SUM(CASE WHEN loan_type = 'LENT' THEN amount ELSE 0 END), 0) as lent_repaid,
+             COALESCE(SUM(CASE WHEN loan_type = 'BORROWED' THEN amount ELSE 0 END), 0) as borrowed_repaid
+           FROM repayments WHERE account_id = $1 AND user_id = $2`,
+          [accountId, userId]
+        );
+        const lentRepaid = Number(repsRes.rows[0].lent_repaid);
+        const borrowedRepaid = Number(repsRes.rows[0].borrowed_repaid);
+
+        const calculatedBalance = Number(
+          (opening + inflows - outflows - transfersOut + transfersIn - lent + borrowed + lentRepaid - borrowedRepaid).toFixed(2)
+        );
+        const currentStored = Number(acc.current_balance);
+        const drift = Number((currentStored - calculatedBalance).toFixed(2));
+
+        if (drift !== 0) {
+          logger.warn(`Account balance drift detected for account ${accountId}: stored=${currentStored}, calculated=${calculatedBalance}, drift=${drift}. Auto-reconciling...`);
+          await client.query('UPDATE accounts SET current_balance = $1, updated_at = NOW() WHERE id = $2', [calculatedBalance, accountId]);
+        }
+
+        await client.query('COMMIT');
+        return {
+          accountId,
+          openingBalance: opening,
+          storedBalance: currentStored,
+          calculatedBalance,
+          drift,
+          reconciled: drift !== 0,
+        };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+    return null;
+  }
+
+  async reconcileAllUserAccounts(userId) {
+    const accounts = await this.getAccounts(userId);
+    const results = [];
+    for (const a of accounts) {
+      const res = await this.reconcileAccountBalance(a.id, userId);
+      if (res) results.push(res);
+    }
+    return results;
+  }
+
   async deleteAccount(id, userId) {
-    // Safety check: Cannot delete account if it has transactions
+    // Safety check: Cannot delete account if it has any financial history
     const txs = await this.getTransactions(userId);
-    const hasTx = txs.some((t) => t.accountId === id);
-    if (hasTx) {
+    if (txs.some((t) => t.accountId === id || t.destinationAccountId === id)) {
       return { success: false, error: 'Cannot delete account with existing transactions. Please archive it instead.' };
+    }
+    const trfs = await this.getTransfers(userId);
+    if (trfs.some((t) => t.sourceAccountId === id || t.destinationAccountId === id)) {
+      return { success: false, error: 'Cannot delete account with existing transfers. Please archive it instead.' };
+    }
+    const loans = await this.getLoans(userId);
+    if (loans.some((l) => l.accountId === id)) {
+      return { success: false, error: 'Cannot delete account with associated loans. Please archive it instead.' };
+    }
+    const reps = await this.getRepayments(userId);
+    if (reps.some((r) => r.accountId === id)) {
+      return { success: false, error: 'Cannot delete account with associated repayments. Please archive it instead.' };
     }
 
     if (this.isPostgresConnected && this.pool) {
@@ -905,7 +1090,23 @@ class DatabaseService {
         'SELECT id, user_id as "userId", parent_id as "parentId", name, type, icon, color, subcategories, is_archived as "isArchived", is_system as "isSystem", created_at as "createdAt", updated_at as "updatedAt" FROM categories WHERE user_id = $1 ORDER BY name ASC',
         [userId]
       );
-      return res.rows;
+      const all = res.rows;
+      const childMap = new Map();
+      for (const c of all) {
+        if (c.parentId) {
+          if (!childMap.has(c.parentId)) childMap.set(c.parentId, []);
+          childMap.get(c.parentId).push(c.name);
+        }
+      }
+      return all.map((c) => {
+        const extraSubs = childMap.get(c.id) || [];
+        const existingSubs = Array.isArray(c.subcategories) ? c.subcategories : [];
+        const combined = Array.from(new Set([...existingSubs, ...extraSubs]));
+        return {
+          ...c,
+          subcategories: combined,
+        };
+      });
     }
     return this.inMemoryData.categories.filter((c) => c.userId === userId);
   }
@@ -1024,6 +1225,10 @@ class DatabaseService {
         conditions.push(`account_id = $${pIdx++}`);
         values.push(filters.accountId);
       }
+      if (filters.categoryId) {
+        conditions.push(`category_id = $${pIdx++}`);
+        values.push(filters.categoryId);
+      }
       if (filters.category && filters.category !== 'ALL') {
         conditions.push(`category = $${pIdx++}`);
         values.push(filters.category);
@@ -1045,10 +1250,10 @@ class DatabaseService {
 
       const sql = `
         SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", 
-               type, category, subcategory, amount, direction, date, description, reference, 
-               counterparty, status, transfer_id as "transferId", loan_id as "loanId", 
-               destination_account_id as "destinationAccountId", destination_account_name as "destinationAccountName", 
-               created_at as "createdAt" 
+               category_id as "categoryId", type, category, subcategory, amount, direction, date, 
+               description, reference, counterparty, status, transfer_id as "transferId", 
+               loan_id as "loanId", destination_account_id as "destinationAccountId", 
+               destination_account_name as "destinationAccountName", created_at as "createdAt" 
         FROM transactions 
         WHERE ${conditions.join(' AND ')} 
         ORDER BY date DESC, created_at DESC
@@ -1155,46 +1360,101 @@ class DatabaseService {
   }
 
   async createTransaction(tx) {
+    const cleanAmount = Number(tx.amount);
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      throw new Error('Transaction amount must be a positive number.');
+    }
+
     if (this.isPostgresConnected && this.pool) {
-      await this.pool.query(
-        `INSERT INTO transactions (id, user_id, account_id, account_name, type, category, subcategory, amount, direction, date, description, reference, counterparty, status, transfer_id, loan_id, destination_account_id, destination_account_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
-        [
-          tx.id,
-          tx.userId,
-          tx.accountId,
-          tx.accountName,
-          tx.type,
-          tx.category || null,
-          tx.subcategory || null,
-          tx.amount,
-          tx.direction,
-          tx.date,
-          tx.description,
-          tx.reference || null,
-          tx.counterparty || null,
-          tx.status || 'COMPLETED',
-          tx.transferId || null,
-          tx.loanId || null,
-          tx.destinationAccountId || null,
-          tx.destinationAccountName || null,
-        ]
-      );
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Check account ownership and lock row
+        const accRes = await client.query(
+          'SELECT id, name FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+          [tx.accountId, tx.userId]
+        );
+        if (accRes.rows.length === 0) {
+          throw new Error('Account not found or access denied.');
+        }
+
+        // Resolve or verify categoryId
+        let categoryId = tx.categoryId || null;
+        if (!categoryId && (tx.category || tx.subcategory)) {
+          const catRes = await client.query(
+            `SELECT id FROM categories 
+             WHERE user_id = $1 
+               AND (LOWER(name) = LOWER($2) OR (LOWER(name) = LOWER($3) AND $3 IS NOT NULL))
+             ORDER BY parent_id NULLS LAST LIMIT 1`,
+            [tx.userId, tx.subcategory || tx.category, tx.category]
+          );
+          if (catRes.rows.length > 0) {
+            categoryId = catRes.rows[0].id;
+          }
+        }
+
+        await client.query(
+          `INSERT INTO transactions (id, user_id, account_id, account_name, category_id, type, category, subcategory, amount, direction, date, description, reference, counterparty, status, transfer_id, loan_id, destination_account_id, destination_account_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+          [
+            tx.id,
+            tx.userId,
+            tx.accountId,
+            tx.accountName || accRes.rows[0].name,
+            categoryId,
+            tx.type,
+            tx.category || null,
+            tx.subcategory || null,
+            cleanAmount,
+            tx.direction,
+            tx.date,
+            tx.description,
+            tx.reference || null,
+            tx.counterparty || null,
+            tx.status || 'COMPLETED',
+            tx.transferId || null,
+            tx.loanId || null,
+            tx.destinationAccountId || null,
+            tx.destinationAccountName || null,
+          ]
+        );
+
+        let balanceDelta = 0;
+        if (tx.direction === 'INFLOW') balanceDelta = cleanAmount;
+        else if (tx.direction === 'OUTFLOW') balanceDelta = -cleanAmount;
+
+        if (balanceDelta !== 0) {
+          await client.query(
+            'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+            [balanceDelta, tx.accountId]
+          );
+        }
+
+        await client.query('COMMIT');
+        return {
+          ...tx,
+          categoryId,
+          amount: cleanAmount,
+        };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } else {
       this.inMemoryData.transactions.push(tx);
+      let balanceDelta = 0;
+      if (tx.direction === 'INFLOW') balanceDelta = cleanAmount;
+      else if (tx.direction === 'OUTFLOW') balanceDelta = -cleanAmount;
+
+      if (balanceDelta !== 0) {
+        await this.updateAccountBalance(tx.accountId, balanceDelta);
+      }
       this.persistLocalDb();
+      return tx;
     }
-
-    // Update account balance
-    let balanceDelta = 0;
-    if (tx.direction === 'INFLOW') balanceDelta = tx.amount;
-    else if (tx.direction === 'OUTFLOW') balanceDelta = -tx.amount;
-
-    if (balanceDelta !== 0) {
-      await this.updateAccountBalance(tx.accountId, balanceDelta);
-    }
-
-    return tx;
   }
 
   async updateTransaction(id, userId, updates) {
@@ -1468,52 +1728,117 @@ class DatabaseService {
   }
 
   async createTransfer(transfer) {
+    if (transfer.sourceAccountId === transfer.destinationAccountId) {
+      throw new Error('Source and destination accounts must be different.');
+    }
+    const cleanAmount = Number(transfer.amount);
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      throw new Error('Transfer amount must be a positive number.');
+    }
+    const cleanFee = Number(transfer.transferFee || 0);
+    if (isNaN(cleanFee) || cleanFee < 0) {
+      throw new Error('Transfer fee cannot be negative.');
+    }
+    const totalOut = Number((cleanAmount + cleanFee).toFixed(2));
+
     if (this.isPostgresConnected && this.pool) {
-      await this.pool.query(
-        `INSERT INTO transfers (id, user_id, source_account_id, source_account_name, destination_account_id, destination_account_name, amount, transfer_fee, date, description, reference)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [
-          transfer.id,
-          transfer.userId,
-          transfer.sourceAccountId,
-          transfer.sourceAccountName,
-          transfer.destinationAccountId,
-          transfer.destinationAccountName,
-          transfer.amount,
-          transfer.transferFee || 0,
-          transfer.date,
-          transfer.description || null,
-          transfer.reference || null,
-        ]
-      );
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Lock and verify both accounts belong to this user
+        const srcRes = await client.query('SELECT id, name FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE', [transfer.sourceAccountId, transfer.userId]);
+        const dstRes = await client.query('SELECT id, name FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE', [transfer.destinationAccountId, transfer.userId]);
+        if (srcRes.rows.length === 0 || dstRes.rows.length === 0) {
+          throw new Error('Source or destination account not found or access denied.');
+        }
+
+        await client.query(
+          `INSERT INTO transfers (id, user_id, source_account_id, source_account_name, destination_account_id, destination_account_name, amount, transfer_fee, date, description, reference)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [
+            transfer.id,
+            transfer.userId,
+            transfer.sourceAccountId,
+            transfer.sourceAccountName || srcRes.rows[0].name,
+            transfer.destinationAccountId,
+            transfer.destinationAccountName || dstRes.rows[0].name,
+            cleanAmount,
+            cleanFee,
+            transfer.date,
+            transfer.description || null,
+            transfer.reference || null,
+          ]
+        );
+
+        // Deduct from source: amount + fee
+        await client.query(
+          'UPDATE accounts SET current_balance = current_balance - $1, updated_at = NOW() WHERE id = $2',
+          [totalOut, transfer.sourceAccountId]
+        );
+        // Add to destination: amount
+        await client.query(
+          'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+          [cleanAmount, transfer.destinationAccountId]
+        );
+
+        await client.query('COMMIT');
+        return {
+          ...transfer,
+          amount: cleanAmount,
+          transferFee: cleanFee,
+        };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } else {
       this.inMemoryData.transfers.push(transfer);
+      await this.updateAccountBalance(transfer.sourceAccountId, -totalOut);
+      await this.updateAccountBalance(transfer.destinationAccountId, cleanAmount);
       this.persistLocalDb();
+      return transfer;
     }
-
-    // Deduct from source: amount + fee
-    const totalOut = Number((transfer.amount + (transfer.transferFee || 0)).toFixed(2));
-    await this.updateAccountBalance(transfer.sourceAccountId, -totalOut);
-    // Add to destination
-    await this.updateAccountBalance(transfer.destinationAccountId, transfer.amount);
-
-    return transfer;
   }
 
   async deleteTransfer(transferId, userId) {
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const res = await client.query('SELECT * FROM transfers WHERE id = $1 AND user_id = $2 FOR UPDATE', [transferId, userId]);
+        if (res.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return false;
+        }
+        const existing = res.rows[0];
+        const totalOut = Number((Number(existing.amount) + Number(existing.transfer_fee || 0)).toFixed(2));
+
+        // Reverse source account: refund amount + fee
+        await client.query('UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2', [totalOut, existing.source_account_id]);
+        // Reverse destination account: deduct amount
+        await client.query('UPDATE accounts SET current_balance = current_balance - $1, updated_at = NOW() WHERE id = $2', [existing.amount, existing.destination_account_id]);
+
+        await client.query('DELETE FROM transfers WHERE id = $1 AND user_id = $2', [transferId, userId]);
+        await client.query('COMMIT');
+        return true;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
     const transfers = await this.getTransfers(userId);
     const existing = transfers.find((t) => t.id === transferId);
     if (!existing) return false;
 
-    // Reverse balances
     const totalOut = Number((existing.amount + (existing.transferFee || 0)).toFixed(2));
     await this.updateAccountBalance(existing.sourceAccountId, totalOut);
     await this.updateAccountBalance(existing.destinationAccountId, -existing.amount);
-
-    if (this.isPostgresConnected && this.pool) {
-      await this.pool.query('DELETE FROM transfers WHERE id = $1 AND user_id = $2', [transferId, userId]);
-      return true;
-    }
 
     const idx = this.inMemoryData.transfers.findIndex((t) => t.id === transferId && t.userId === userId);
     if (idx !== -1) {
@@ -1629,52 +1954,109 @@ class DatabaseService {
   }
 
   async createLoan(loan) {
+    const cleanPrincipal = Number(loan.principalAmount);
+    if (isNaN(cleanPrincipal) || cleanPrincipal <= 0) {
+      throw new Error('Principal amount must be a positive number.');
+    }
+    const delta = loan.type === 'LENT' ? -cleanPrincipal : cleanPrincipal;
+
     if (this.isPostgresConnected && this.pool) {
-      await this.pool.query(
-        `INSERT INTO loans (id, user_id, account_id, account_name, type, counterparty_name, counterparty_contact, principal_amount, outstanding_principal, interest_rate, start_date, due_date, status, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-        [
-          loan.id,
-          loan.userId,
-          loan.accountId,
-          loan.accountName,
-          loan.type,
-          loan.counterpartyName,
-          loan.counterpartyContact || null,
-          loan.principalAmount,
-          loan.outstandingPrincipal,
-          loan.interestRate || 0,
-          loan.startDate,
-          loan.dueDate || null,
-          loan.status || 'ACTIVE',
-          loan.notes || null,
-        ]
-      );
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const accRes = await client.query('SELECT id, name FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE', [loan.accountId, loan.userId]);
+        if (accRes.rows.length === 0) {
+          throw new Error('Disbursing/receiving account not found or access denied.');
+        }
+
+        await client.query(
+          `INSERT INTO loans (id, user_id, account_id, account_name, type, counterparty_name, counterparty_contact, principal_amount, outstanding_principal, interest_rate, start_date, due_date, status, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          [
+            loan.id,
+            loan.userId,
+            loan.accountId,
+            loan.accountName || accRes.rows[0].name,
+            loan.type,
+            loan.counterpartyName,
+            loan.counterpartyContact || null,
+            cleanPrincipal,
+            cleanPrincipal,
+            loan.interestRate || 0,
+            loan.startDate,
+            loan.dueDate || null,
+            loan.status || 'ACTIVE',
+            loan.notes || null,
+          ]
+        );
+
+        // Adjust account balance
+        await client.query(
+          'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+          [delta, loan.accountId]
+        );
+
+        await client.query('COMMIT');
+        return {
+          ...loan,
+          principalAmount: cleanPrincipal,
+          outstandingPrincipal: cleanPrincipal,
+        };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } else {
       this.inMemoryData.loans.push(loan);
+      await this.updateAccountBalance(loan.accountId, delta);
       this.persistLocalDb();
+      return loan;
     }
-
-    // Money Lent: Outflow from account. Money Borrowed: Inflow into account.
-    const delta = loan.type === 'LENT' ? -loan.principalAmount : loan.principalAmount;
-    await this.updateAccountBalance(loan.accountId, delta);
-
-    return loan;
   }
 
   async deleteLoan(loanId, userId) {
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const loanRes = await client.query('SELECT * FROM loans WHERE id = $1 AND user_id = $2 FOR UPDATE', [loanId, userId]);
+        if (loanRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return false;
+        }
+        const existing = loanRes.rows[0];
+
+        // Check and reverse any associated repayments
+        const repsRes = await client.query('SELECT * FROM repayments WHERE loan_id = $1', [loanId]);
+        for (const rep of repsRes.rows) {
+          const repReverse = existing.type === 'LENT' ? -Number(rep.amount) : Number(rep.amount);
+          await client.query('UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2', [repReverse, rep.account_id]);
+        }
+        await client.query('DELETE FROM repayments WHERE loan_id = $1', [loanId]);
+
+        // Reverse initial loan disbursement
+        const reversePrincipal = existing.type === 'LENT' ? Number(existing.principal_amount) : -Number(existing.principal_amount);
+        await client.query('UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2', [reversePrincipal, existing.account_id]);
+
+        await client.query('DELETE FROM loans WHERE id = $1 AND user_id = $2', [loanId, userId]);
+        await client.query('COMMIT');
+        return true;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
     const loans = await this.getLoans(userId);
     const existing = loans.find((l) => l.id === loanId);
     if (!existing) return false;
 
-    // Reverse balance
     const reverse = existing.type === 'LENT' ? existing.principalAmount : -existing.principalAmount;
     await this.updateAccountBalance(existing.accountId, reverse);
-
-    if (this.isPostgresConnected && this.pool) {
-      await this.pool.query('DELETE FROM loans WHERE id = $1 AND user_id = $2', [loanId, userId]);
-      return true;
-    }
 
     const idx = this.inMemoryData.loans.findIndex((l) => l.id === loanId && l.userId === userId);
     if (idx !== -1) {
@@ -1780,47 +2162,86 @@ class DatabaseService {
   }
 
   async addRepayment(repayment) {
-    const loans = await this.getLoans(repayment.userId);
-    const loan = loans.find((l) => l.id === repayment.loanId);
-    if (!loan) return null;
-
-    const newOutstanding = Number(Math.max(0, loan.outstandingPrincipal - repayment.amount).toFixed(2));
-    const newStatus = newOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID';
+    const cleanAmount = Number(repayment.amount);
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      throw new Error('Repayment amount must be a positive number.');
+    }
 
     if (this.isPostgresConnected && this.pool) {
-      await this.pool.query(
-        `INSERT INTO repayments (id, user_id, loan_id, counterparty_name, loan_type, account_id, account_name, amount, date, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          repayment.id,
-          repayment.userId,
-          repayment.loanId,
-          repayment.counterpartyName,
-          repayment.loanType,
-          repayment.accountId,
-          repayment.accountName,
-          repayment.amount,
-          repayment.date,
-          repayment.notes || null,
-        ]
-      );
-      await this.pool.query(
-        'UPDATE loans SET outstanding_principal = $1, status = $2, updated_at = NOW() WHERE id = $3',
-        [newOutstanding, newStatus, repayment.loanId]
-      );
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const loanRes = await client.query('SELECT * FROM loans WHERE id = $1 AND user_id = $2 FOR UPDATE', [repayment.loanId, repayment.userId]);
+        if (loanRes.rows.length === 0) {
+          throw new Error('Associated loan not found or access denied.');
+        }
+        const loan = loanRes.rows[0];
+        const outstanding = Number(loan.outstanding_principal);
+        if (cleanAmount > outstanding) {
+          throw new Error(`Repayment amount (${cleanAmount}) cannot exceed outstanding principal (${outstanding}).`);
+        }
+
+        const newOutstanding = Number(Math.max(0, outstanding - cleanAmount).toFixed(2));
+        const newStatus = newOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID';
+
+        await client.query(
+          `INSERT INTO repayments (id, user_id, loan_id, counterparty_name, loan_type, account_id, account_name, amount, date, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            repayment.id,
+            repayment.userId,
+            repayment.loanId,
+            loan.counterparty_name,
+            loan.type,
+            repayment.accountId,
+            repayment.accountName,
+            cleanAmount,
+            repayment.date,
+            repayment.notes || null,
+          ]
+        );
+
+        await client.query(
+          'UPDATE loans SET outstanding_principal = $1, status = $2, updated_at = NOW() WHERE id = $3',
+          [newOutstanding, newStatus, repayment.loanId]
+        );
+
+        // Money Lent Repaid: money returned to us -> INFLOW. Money Borrowed Repaid: money paid back -> OUTFLOW.
+        const delta = loan.type === 'LENT' ? cleanAmount : -cleanAmount;
+        await client.query(
+          'UPDATE accounts SET current_balance = current_balance + $1, updated_at = NOW() WHERE id = $2',
+          [delta, repayment.accountId]
+        );
+
+        await client.query('COMMIT');
+        return {
+          ...repayment,
+          amount: cleanAmount,
+        };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } else {
+      const loans = await this.getLoans(repayment.userId);
+      const loan = loans.find((l) => l.id === repayment.loanId);
+      if (!loan) return null;
+      if (cleanAmount > loan.outstandingPrincipal) {
+        throw new Error(`Repayment amount (${cleanAmount}) cannot exceed outstanding principal (${loan.outstandingPrincipal}).`);
+      }
+      const newOutstanding = Number(Math.max(0, loan.outstandingPrincipal - cleanAmount).toFixed(2));
+      const newStatus = newOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID';
       this.inMemoryData.repayments.push(repayment);
       loan.outstandingPrincipal = newOutstanding;
       loan.status = newStatus;
       loan.updatedAt = new Date().toISOString();
+      const delta = loan.type === 'LENT' ? cleanAmount : -cleanAmount;
+      await this.updateAccountBalance(repayment.accountId, delta);
       this.persistLocalDb();
+      return repayment;
     }
-
-    // Money Lent Repaid: money returned to us -> INFLOW. Money Borrowed Repaid: money paid back -> OUTFLOW.
-    const delta = loan.type === 'LENT' ? repayment.amount : -repayment.amount;
-    await this.updateAccountBalance(repayment.accountId, delta);
-
-    return repayment;
   }
 
   // --------------------------------------------------------------------------

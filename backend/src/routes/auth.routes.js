@@ -7,4 +7,5 @@ export const authRouter = Router();
 authRouter.post('/login', login);
 authRouter.post('/register', register);
 authRouter.post('/google', googleLogin);
+authRouter.post('/google/link', googleLogin);
 authRouter.get('/me', authenticateToken, getMe);
