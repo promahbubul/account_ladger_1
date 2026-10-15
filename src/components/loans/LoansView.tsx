@@ -244,7 +244,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 space-y-3">
+    <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
         <div>

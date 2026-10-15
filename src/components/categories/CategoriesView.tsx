@@ -205,7 +205,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 space-y-3">
+    <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
         <div>
@@ -316,7 +316,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-gray-400">
-                        <div className="flex flex-wrap items-center gap-1 max-w-xs">
+                        <div className="flex flex-wrap items-center gap-1">
                           {c.subcategories && c.subcategories.length > 0 ? (
                             c.subcategories.map((sub, idx) => (
                               <span

@@ -426,7 +426,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 space-y-3">
+    <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
       {/* Admin Section Tabs */}
       <div className="flex border-b border-[#22252c] gap-1 pb-px overflow-x-auto flex-shrink-0">
         <button
@@ -828,7 +828,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       {/* 4. SYSTEM SETTINGS */}
       {activeSection === 'settings' && (
-        <form onSubmit={handleSaveSettings} className="space-y-4 max-w-2xl overflow-y-auto flex-1 min-h-0">
+        <form onSubmit={handleSaveSettings} className="space-y-4 w-full min-w-0 overflow-y-auto flex-1 min-h-0">
           <div className="bg-[#16181d] border border-[#22252c] rounded p-4 space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300 flex items-center gap-2">
               <Sliders className="w-4 h-4 text-purple-400" />

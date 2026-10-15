@@ -18,7 +18,7 @@ export const BlueprintView: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-w-0">
       {/* Blueprint Header */}
       <div className="bg-[#111827] border border-cyan-800/40 rounded-xl p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

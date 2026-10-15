@@ -95,7 +95,7 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4 w-full min-w-0">
       {/* Page Header */}
       <div>
         <h2 className="text-base font-semibold text-gray-100">Settings</h2>

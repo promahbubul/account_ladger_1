@@ -39,7 +39,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const overBudgetCategories = budgetAlerts.filter(b => b.status === 'EXCEEDED');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full min-w-0">
       {/* Budget Alert Banner */}
       {overBudgetCategories.length > 0 && (
         <div className="bg-[#1f1618] border border-red-900/80 rounded p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">

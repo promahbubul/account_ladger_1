@@ -160,7 +160,7 @@ function AppContent() {
           onOpenQuickAction={(action) => setActiveModal(action)}
         />
 
-        <main className={`flex-1 min-h-0 p-3 sm:p-4 lg:p-5 max-w-7xl mx-auto w-full ${isDataTableTab ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
+        <main className={`flex-1 min-h-0 p-3 sm:p-4 lg:p-5 w-full min-w-0 ${isDataTableTab ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
           {/* System Admin Sections */}
           {isAdmin && (
             <>
