@@ -1,0 +1,822 @@
+{
+  "users": [
+    {
+      "id": "user_admin_mahbub",
+      "username": "mahbub",
+      "email": "mahbub@gmail.com",
+      "passwordHash": "$2b$10$1NO6u/jN1ZNBAytjQNmya.qETo56i/DZFht0PZQOcOyneizVXswOu",
+      "fullName": "Mahbub Alam",
+      "role": "ADMIN",
+      "isActive": true,
+      "currency": "BDT",
+      "timezone": "Asia/Dhaka",
+      "dateFormat": "DD MMM YYYY",
+      "createdAt": "2026-10-14T11:41:42.702Z",
+      "updatedAt": "2026-10-14T18:15:25.176Z"
+    },
+    {
+      "id": "user_standard_01",
+      "username": "user",
+      "email": "user@example.com",
+      "passwordHash": "$2b$10$8otzGMmoK5eAMme5QTBY6.WGm3XeiEKSzZPXtBC.8KBNPEfRKa6Oi",
+      "fullName": "Standard User",
+      "role": "USER",
+      "isActive": true,
+      "currency": "BDT",
+      "timezone": "Asia/Dhaka",
+      "dateFormat": "DD MMM YYYY",
+      "createdAt": "2026-10-14T11:41:46.715Z",
+      "updatedAt": "2026-10-14T18:15:23.757Z"
+    },
+    {
+      "id": "user_admin_example",
+      "username": "admin",
+      "email": "admin@example.com",
+      "passwordHash": "$2b$10$OSkvCdLFNzbL1GkZT8Nkh.OohFcQN21qqvuDW/sxPbL9j5biYc75K",
+      "fullName": "System Administrator",
+      "role": "ADMIN",
+      "isActive": true,
+      "currency": "BDT",
+      "timezone": "Asia/Dhaka",
+      "dateFormat": "DD MMM YYYY",
+      "createdAt": "2026-10-14T12:09:52.094Z",
+      "updatedAt": "2026-10-15T06:23:45.518Z"
+    }
+  ],
+  "accounts": [
+    {
+      "id": "acc_mfs_1791979794399_31sw",
+      "userId": "user_standard_01",
+      "name": "bKash Personal",
+      "type": "MOBILE_BANKING",
+      "providerName": "bKash",
+      "accountNumber": "01700000000",
+      "openingBalance": 10000,
+      "currentBalance": 10000,
+      "currency": "BDT",
+      "status": "ACTIVE",
+      "createdAt": "2026-10-14T12:09:54.399Z",
+      "updatedAt": "2026-10-14T12:09:54.399Z"
+    },
+    {
+      "id": "acc_bank_1791979794166_c1an",
+      "userId": "user_standard_01",
+      "name": "City Bank Account",
+      "type": "BANK",
+      "providerName": "City Bank Ltd",
+      "accountNumber": "1102938475",
+      "openingBalance": 85000,
+      "currentBalance": 85000,
+      "currency": "BDT",
+      "status": "ACTIVE",
+      "createdAt": "2026-10-14T12:09:54.166Z",
+      "updatedAt": "2026-10-14T12:09:54.166Z"
+    },
+    {
+      "id": "acc_cash_1791979793937_25ag",
+      "userId": "user_standard_01",
+      "name": "Cash Wallet",
+      "type": "CASH",
+      "openingBalance": 15000,
+      "currentBalance": 15000,
+      "currency": "BDT",
+      "status": "ACTIVE",
+      "createdAt": "2026-10-14T12:09:53.937Z",
+      "updatedAt": "2026-10-14T12:09:53.937Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat_inc_1791976997214_tmj9l",
+      "userId": "user_standard_01",
+      "name": "Salary & Wages",
+      "type": "INCOME",
+      "icon": "Briefcase",
+      "color": "#10b981",
+      "subcategories": [
+        "Basic Salary",
+        "Bonus",
+        "Commission",
+        "Overtime"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.214Z",
+      "updatedAt": "2026-10-14T11:23:17.214Z"
+    },
+    {
+      "id": "cat_inc_1791976997214_mo1vz",
+      "userId": "user_standard_01",
+      "name": "Business & Sales",
+      "type": "INCOME",
+      "icon": "Building2",
+      "color": "#06b6d4",
+      "subcategories": [
+        "Product Sales",
+        "Service Revenue",
+        "Client Consulting"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.214Z",
+      "updatedAt": "2026-10-14T11:23:17.214Z"
+    },
+    {
+      "id": "cat_inc_1791976997214_15ffn",
+      "userId": "user_standard_01",
+      "name": "Investments & Returns",
+      "type": "INCOME",
+      "icon": "TrendingUp",
+      "color": "#3b82f6",
+      "subcategories": [
+        "Stock Dividends",
+        "Capital Gains",
+        "Bank Profit/Interest"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.214Z",
+      "updatedAt": "2026-10-14T11:23:17.214Z"
+    },
+    {
+      "id": "cat_inc_1791976997215_ltpu5",
+      "userId": "user_standard_01",
+      "name": "Freelance & Contracting",
+      "type": "INCOME",
+      "icon": "Laptop",
+      "color": "#8b5cf6",
+      "subcategories": [
+        "Upwork/Fiverr",
+        "Direct Clients",
+        "Project Deliverables"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.215Z",
+      "updatedAt": "2026-10-14T11:23:17.215Z"
+    },
+    {
+      "id": "cat_inc_1791976997215_0wm8z",
+      "userId": "user_standard_01",
+      "name": "Rental Income",
+      "type": "INCOME",
+      "icon": "Home",
+      "color": "#ec4899",
+      "subcategories": [
+        "Residential Rent",
+        "Commercial Rent",
+        "Parking Space"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.215Z",
+      "updatedAt": "2026-10-14T11:23:17.215Z"
+    },
+    {
+      "id": "cat_inc_1791976997215_mppip",
+      "userId": "user_standard_01",
+      "name": "Other Income",
+      "type": "INCOME",
+      "icon": "Coins",
+      "color": "#64748b",
+      "subcategories": [
+        "Gifts & Family Support",
+        "Tax Refund",
+        "Reimbursements",
+        "Asset Liquidation"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.215Z",
+      "updatedAt": "2026-10-14T11:23:17.215Z"
+    },
+    {
+      "id": "cat_exp_1791976997215_662ob",
+      "userId": "user_standard_01",
+      "name": "Food & Dining",
+      "type": "EXPENSE",
+      "icon": "UtensilsCrossed",
+      "color": "#f59e0b",
+      "subcategories": [
+        "Groceries & Provisions",
+        "Dining Out & Restaurants",
+        "Snacks & Cafes",
+        "Water & Milk"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.215Z",
+      "updatedAt": "2026-10-14T11:23:17.215Z"
+    },
+    {
+      "id": "cat_exp_1791976997216_4a06t",
+      "userId": "user_standard_01",
+      "name": "Housing & Utilities",
+      "type": "EXPENSE",
+      "icon": "Home",
+      "color": "#ef4444",
+      "subcategories": [
+        "Apartment Rent",
+        "Electricity Bill",
+        "Gas & Cylinder",
+        "Water Bill",
+        "Internet & Fiber",
+        "Building Service Charge"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.216Z",
+      "updatedAt": "2026-10-14T11:23:17.216Z"
+    },
+    {
+      "id": "cat_exp_1791976997216_7zbjz",
+      "userId": "user_standard_01",
+      "name": "Transportation",
+      "type": "EXPENSE",
+      "icon": "Car",
+      "color": "#3b82f6",
+      "subcategories": [
+        "Vehicle Fuel & CNG",
+        "Public Bus & Metro",
+        "Ride Sharing (Uber/Pathao)",
+        "Vehicle Maintenance",
+        "Tolls & Parking"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.216Z",
+      "updatedAt": "2026-10-14T11:23:17.216Z"
+    },
+    {
+      "id": "cat_exp_1791976997216_dpbhc",
+      "userId": "user_standard_01",
+      "name": "Healthcare & Medical",
+      "type": "EXPENSE",
+      "icon": "HeartPulse",
+      "color": "#ec4899",
+      "subcategories": [
+        "Prescription Medicines",
+        "Doctor Consultation",
+        "Medical Diagnostic Tests",
+        "Hospital Care",
+        "Dental & Vision"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.216Z",
+      "updatedAt": "2026-10-14T11:23:17.216Z"
+    },
+    {
+      "id": "cat_exp_1791976997216_9i40p",
+      "userId": "user_standard_01",
+      "name": "Family & Education",
+      "type": "EXPENSE",
+      "icon": "GraduationCap",
+      "color": "#8b5cf6",
+      "subcategories": [
+        "Tuition & School Fees",
+        "Books & Stationery",
+        "Courses & Learning",
+        "Children Allowances",
+        "Parental Support"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.216Z",
+      "updatedAt": "2026-10-14T11:23:17.216Z"
+    },
+    {
+      "id": "cat_exp_1791976997216_2d2as",
+      "userId": "user_standard_01",
+      "name": "Shopping & Apparel",
+      "type": "EXPENSE",
+      "icon": "ShoppingBag",
+      "color": "#14b8a6",
+      "subcategories": [
+        "Clothing & Footwear",
+        "Electronics & Gadgets",
+        "Home Appliances",
+        "Gifts & Celebrations"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.216Z",
+      "updatedAt": "2026-10-14T11:23:17.216Z"
+    },
+    {
+      "id": "cat_exp_1791976997216_57mt5",
+      "userId": "user_standard_01",
+      "name": "Personal Care & Lifestyle",
+      "type": "EXPENSE",
+      "icon": "Smile",
+      "color": "#06b6d4",
+      "subcategories": [
+        "Grooming & Salon",
+        "Gym & Fitness",
+        "Streaming Subscriptions",
+        "Entertainment & Outings"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.216Z",
+      "updatedAt": "2026-10-14T11:23:17.216Z"
+    },
+    {
+      "id": "cat_exp_1791976997217_g53in",
+      "userId": "user_standard_01",
+      "name": "Financial & Banking",
+      "type": "EXPENSE",
+      "icon": "Landmark",
+      "color": "#64748b",
+      "subcategories": [
+        "Bank Service Charges",
+        "Card Annual Fees",
+        "Mobile Money Cashout Fees",
+        "Government Taxes"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.217Z",
+      "updatedAt": "2026-10-14T11:23:17.217Z"
+    },
+    {
+      "id": "cat_exp_1791976997217_dvyz2",
+      "userId": "user_standard_01",
+      "name": "Miscellaneous",
+      "type": "EXPENSE",
+      "icon": "Receipt",
+      "color": "#94a3b8",
+      "subcategories": [
+        "Emergency Repairs",
+        "Unplanned Incidentals",
+        "General Donations"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:23:17.217Z",
+      "updatedAt": "2026-10-14T11:23:17.217Z"
+    },
+    {
+      "id": "cat_inc_1791978107162_m7mlp",
+      "userId": "user_standard_01",
+      "name": "Salary & Wages",
+      "type": "INCOME",
+      "icon": "Briefcase",
+      "color": "#10b981",
+      "subcategories": [
+        "Basic Salary",
+        "Bonus",
+        "Commission",
+        "Overtime"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:47.162Z",
+      "updatedAt": "2026-10-14T11:41:47.162Z"
+    },
+    {
+      "id": "cat_inc_1791978107384_p91cc",
+      "userId": "user_standard_01",
+      "name": "Business & Sales",
+      "type": "INCOME",
+      "icon": "Building2",
+      "color": "#06b6d4",
+      "subcategories": [
+        "Product Sales",
+        "Service Revenue",
+        "Client Consulting"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:47.384Z",
+      "updatedAt": "2026-10-14T11:41:47.384Z"
+    },
+    {
+      "id": "cat_inc_1791978107606_otyxg",
+      "userId": "user_standard_01",
+      "name": "Investments & Returns",
+      "type": "INCOME",
+      "icon": "TrendingUp",
+      "color": "#3b82f6",
+      "subcategories": [
+        "Stock Dividends",
+        "Capital Gains",
+        "Bank Profit/Interest"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:47.606Z",
+      "updatedAt": "2026-10-14T11:41:47.606Z"
+    },
+    {
+      "id": "cat_inc_1791978107829_mrxb1",
+      "userId": "user_standard_01",
+      "name": "Freelance & Contracting",
+      "type": "INCOME",
+      "icon": "Laptop",
+      "color": "#8b5cf6",
+      "subcategories": [
+        "Upwork/Fiverr",
+        "Direct Clients",
+        "Project Deliverables"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:47.829Z",
+      "updatedAt": "2026-10-14T11:41:47.829Z"
+    },
+    {
+      "id": "cat_inc_1791978108052_lynv1",
+      "userId": "user_standard_01",
+      "name": "Rental Income",
+      "type": "INCOME",
+      "icon": "Home",
+      "color": "#ec4899",
+      "subcategories": [
+        "Residential Rent",
+        "Commercial Rent",
+        "Parking Space"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:48.052Z",
+      "updatedAt": "2026-10-14T11:41:48.052Z"
+    },
+    {
+      "id": "cat_inc_1791978108274_m4jkg",
+      "userId": "user_standard_01",
+      "name": "Other Income",
+      "type": "INCOME",
+      "icon": "Coins",
+      "color": "#64748b",
+      "subcategories": [
+        "Gifts & Family Support",
+        "Tax Refund",
+        "Reimbursements",
+        "Asset Liquidation"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:48.274Z",
+      "updatedAt": "2026-10-14T11:41:48.274Z"
+    },
+    {
+      "id": "cat_exp_1791978108496_vudc9",
+      "userId": "user_standard_01",
+      "name": "Food & Dining",
+      "type": "EXPENSE",
+      "icon": "UtensilsCrossed",
+      "color": "#f59e0b",
+      "subcategories": [
+        "Groceries & Provisions",
+        "Dining Out & Restaurants",
+        "Snacks & Cafes",
+        "Water & Milk"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:48.496Z",
+      "updatedAt": "2026-10-14T11:41:48.496Z"
+    },
+    {
+      "id": "cat_exp_1791978108719_svvz6",
+      "userId": "user_standard_01",
+      "name": "Housing & Utilities",
+      "type": "EXPENSE",
+      "icon": "Home",
+      "color": "#ef4444",
+      "subcategories": [
+        "Apartment Rent",
+        "Electricity Bill",
+        "Gas & Cylinder",
+        "Water Bill",
+        "Internet & Fiber",
+        "Building Service Charge"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:48.719Z",
+      "updatedAt": "2026-10-14T11:41:48.719Z"
+    },
+    {
+      "id": "cat_exp_1791978108941_v1ufd",
+      "userId": "user_standard_01",
+      "name": "Transportation",
+      "type": "EXPENSE",
+      "icon": "Car",
+      "color": "#3b82f6",
+      "subcategories": [
+        "Vehicle Fuel & CNG",
+        "Public Bus & Metro",
+        "Ride Sharing (Uber/Pathao)",
+        "Vehicle Maintenance",
+        "Tolls & Parking"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:48.942Z",
+      "updatedAt": "2026-10-14T11:41:48.942Z"
+    },
+    {
+      "id": "cat_exp_1791978109164_uwcwx",
+      "userId": "user_standard_01",
+      "name": "Healthcare & Medical",
+      "type": "EXPENSE",
+      "icon": "HeartPulse",
+      "color": "#ec4899",
+      "subcategories": [
+        "Prescription Medicines",
+        "Doctor Consultation",
+        "Medical Diagnostic Tests",
+        "Hospital Care",
+        "Dental & Vision"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:49.164Z",
+      "updatedAt": "2026-10-14T11:41:49.164Z"
+    },
+    {
+      "id": "cat_exp_1791978109385_vouwe",
+      "userId": "user_standard_01",
+      "name": "Family & Education",
+      "type": "EXPENSE",
+      "icon": "GraduationCap",
+      "color": "#8b5cf6",
+      "subcategories": [
+        "Tuition & School Fees",
+        "Books & Stationery",
+        "Courses & Learning",
+        "Children Allowances",
+        "Parental Support"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:49.385Z",
+      "updatedAt": "2026-10-14T11:41:49.385Z"
+    },
+    {
+      "id": "cat_exp_1791978109607_mdbvp",
+      "userId": "user_standard_01",
+      "name": "Shopping & Apparel",
+      "type": "EXPENSE",
+      "icon": "ShoppingBag",
+      "color": "#14b8a6",
+      "subcategories": [
+        "Clothing & Footwear",
+        "Electronics & Gadgets",
+        "Home Appliances",
+        "Gifts & Celebrations"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:49.607Z",
+      "updatedAt": "2026-10-14T11:41:49.607Z"
+    },
+    {
+      "id": "cat_exp_1791978109829_i8qxs",
+      "userId": "user_standard_01",
+      "name": "Personal Care & Lifestyle",
+      "type": "EXPENSE",
+      "icon": "Smile",
+      "color": "#06b6d4",
+      "subcategories": [
+        "Grooming & Salon",
+        "Gym & Fitness",
+        "Streaming Subscriptions",
+        "Entertainment & Outings"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:49.829Z",
+      "updatedAt": "2026-10-14T11:41:49.829Z"
+    },
+    {
+      "id": "cat_exp_1791978110052_wm3j7",
+      "userId": "user_standard_01",
+      "name": "Financial & Banking",
+      "type": "EXPENSE",
+      "icon": "Landmark",
+      "color": "#64748b",
+      "subcategories": [
+        "Bank Service Charges",
+        "Card Annual Fees",
+        "Mobile Money Cashout Fees",
+        "Government Taxes"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:50.052Z",
+      "updatedAt": "2026-10-14T11:41:50.052Z"
+    },
+    {
+      "id": "cat_exp_1791978110276_mduxx",
+      "userId": "user_standard_01",
+      "name": "Miscellaneous",
+      "type": "EXPENSE",
+      "icon": "Receipt",
+      "color": "#94a3b8",
+      "subcategories": [
+        "Emergency Repairs",
+        "Unplanned Incidentals",
+        "General Donations"
+      ],
+      "isArchived": false,
+      "isSystem": true,
+      "createdAt": "2026-10-14T11:41:50.276Z",
+      "updatedAt": "2026-10-14T11:41:50.276Z"
+    }
+  ],
+  "transactions": [],
+  "transfers": [],
+  "loans": [],
+  "repayments": [],
+  "budgets": [],
+  "auditLogs": [
+    {
+      "id": "log_1792046616893_7sr6bj",
+      "userId": "user_standard_01",
+      "userEmail": "user@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_standard_01",
+      "details": "User logged in (USER)",
+      "ipAddress": "127.0.0.1",
+      "createdAt": "2026-10-15T06:43:36.893Z"
+    },
+    {
+      "id": "log_1792045698364_i7c8oc",
+      "userId": "user_standard_01",
+      "userEmail": "user@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_standard_01",
+      "details": "User logged in (USER)",
+      "ipAddress": "127.0.0.1",
+      "createdAt": "2026-10-15T06:28:18.364Z"
+    },
+    {
+      "id": "log_1792045425533_3o6vsz",
+      "userId": "user_admin_example",
+      "userEmail": "admin@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_example",
+      "details": "User logged in (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "createdAt": "2026-10-15T06:23:45.533Z"
+    },
+    {
+      "id": "log_1792045252612_k70ytc",
+      "userId": "user_standard_01",
+      "userEmail": "user@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_standard_01",
+      "details": "User logged in (USER)",
+      "ipAddress": "127.0.0.1",
+      "createdAt": "2026-10-15T06:20:52.613Z"
+    },
+    {
+      "id": "log_1792044789124_41xj7f",
+      "userId": "user_standard_01",
+      "userEmail": "user@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_standard_01",
+      "details": "User logged in (USER)",
+      "ipAddress": "127.0.0.1",
+      "createdAt": "2026-10-15T06:13:09.124Z"
+    },
+    {
+      "userId": "user_admin_mahbub",
+      "userEmail": "mahbub@gmail.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_mahbub",
+      "details": "User logged in (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1792001889960_0tph",
+      "createdAt": "2026-10-14T18:18:09.960Z"
+    },
+    {
+      "userId": "user_admin_mahbub",
+      "userEmail": "mahbub@gmail.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_mahbub",
+      "details": "User logged in (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1792001795557_bfxa",
+      "createdAt": "2026-10-14T18:16:35.557Z"
+    },
+    {
+      "userId": "usr_1791998205854_zppgg",
+      "userEmail": "mahbublalam500@gmail.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "usr_1791998205854_zppgg",
+      "details": "User logged in (USER)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1792001752000_nhxr",
+      "createdAt": "2026-10-14T18:15:52.000Z"
+    },
+    {
+      "userId": "user_admin_example",
+      "userEmail": "admin@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_example",
+      "details": "User logged in (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1792001663282_h3mu",
+      "createdAt": "2026-10-14T18:14:23.282Z"
+    },
+    {
+      "userId": "user_standard_01",
+      "userEmail": "user@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_standard_01",
+      "details": "User logged in (USER)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1792001413790_bccq",
+      "createdAt": "2026-10-14T18:10:13.790Z"
+    },
+    {
+      "userId": "user_admin_example",
+      "userEmail": "admin@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_example",
+      "details": "User logged in (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1792001388662_dutp",
+      "createdAt": "2026-10-14T18:09:48.662Z"
+    },
+    {
+      "userId": "user_standard_01",
+      "userEmail": "user@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_standard_01",
+      "details": "User logged in (USER)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1791979847114_nmp0",
+      "createdAt": "2026-10-14T12:10:47.114Z"
+    },
+    {
+      "userId": "user_admin_example",
+      "userEmail": "admin@example.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_example",
+      "details": "User logged in (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1791979847116_1p1g",
+      "createdAt": "2026-10-14T12:10:47.116Z"
+    },
+    {
+      "userId": "user_admin_mahbub",
+      "userEmail": "mahbub@gmail.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_mahbub",
+      "details": "User logged in via credentials (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1791977557344_4jc8",
+      "createdAt": "2026-10-14T11:32:37.344Z"
+    },
+    {
+      "userId": "user_admin_mahbub",
+      "userEmail": "mahbub@gmail.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_mahbub",
+      "details": "User logged in via credentials (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1791977130699_oove",
+      "createdAt": "2026-10-14T11:25:30.699Z"
+    },
+    {
+      "userId": "user_admin_mahbub",
+      "userEmail": "mahbub@gmail.com",
+      "action": "LOGIN",
+      "entityType": "AUTH",
+      "entityId": "user_admin_mahbub",
+      "details": "User logged in via credentials (ADMIN)",
+      "ipAddress": "127.0.0.1",
+      "id": "log_1791977007513_hecy",
+      "createdAt": "2026-10-14T11:23:27.513Z"
+    }
+  ],
+  "systemSettings": {
+    "appName": "HisabFlow",
+    "maintenanceMode": false,
+    "allowUserRegistration": true,
+    "defaultCurrency": "BDT",
+    "sessionTimeoutHours": 720,
+    "auditLoggingEnabled": true,
+    "updatedAt": "2026-10-14T11:58:09.189Z"
+  }
+}
