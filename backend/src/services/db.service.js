@@ -115,6 +115,9 @@ class DatabaseService {
   }
 
   persistLocalDb() {
+    if (this.isPostgresConnected) {
+      return;
+    }
     try {
       const dir = path.dirname(this.localDbPath);
       if (!fs.existsSync(dir)) {
