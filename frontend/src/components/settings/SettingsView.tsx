@@ -199,7 +199,7 @@ export const SettingsView: React.FC = () => {
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center gap-1.5 transition-colors self-start sm:self-auto font-medium"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Download JSON Backup</span>
+          <span>Download Backup</span>
         </button>
       </div>
 
@@ -210,7 +210,7 @@ export const SettingsView: React.FC = () => {
         <div className="flex items-center gap-2">
           <label className="cursor-pointer px-3 py-1.5 bg-[#1b1e25] hover:bg-[#232833] border border-[#2c313e] text-gray-200 rounded flex items-center gap-1.5 transition-colors">
             <Upload className="w-3.5 h-3.5" />
-            <span>Upload JSON File</span>
+            <span>Upload Backup</span>
             <input
               type="file"
               accept=".json"
@@ -225,7 +225,7 @@ export const SettingsView: React.FC = () => {
             rows={3}
             value={importJsonText}
             onChange={(e) => setImportJsonText(e.target.value)}
-            placeholder="Paste backup JSON content here..."
+            placeholder="Paste backup JSON..."
             className="w-full bg-[#111317] border border-[#262932] rounded p-2 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
           />
           <div className="flex justify-end">
@@ -234,7 +234,7 @@ export const SettingsView: React.FC = () => {
               disabled={!importJsonText.trim()}
               className="px-3 py-1.5 bg-[#1b1e25] hover:bg-[#232833] disabled:opacity-40 border border-[#2c313e] text-gray-200 rounded transition-colors"
             >
-              Restore from Text
+              Restore Backup
             </button>
           </div>
         </form>

@@ -439,7 +439,6 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               type="text"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              placeholder="e.g. Bank to bKash refill"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -452,7 +451,6 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               type="text"
               value={refNum}
               onChange={(e) => setRefNum(e.target.value)}
-              placeholder="e.g. TR-99882"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>

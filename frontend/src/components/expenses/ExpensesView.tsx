@@ -749,7 +749,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           type="text"
                           value={row.desc}
                           onChange={(e) => handleBulkRowChange(row.id, 'desc', e.target.value)}
-                          placeholder="e.g. Lunch or Metro fare"
                           className="w-full bg-[#111317] border border-[#262932] rounded px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                         />
                       </td>
@@ -913,7 +912,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               required
               value={singleDesc}
               onChange={(e) => setSingleDesc(e.target.value)}
-              placeholder="e.g. Groceries at supermarket"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -926,7 +924,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               type="text"
               value={singleRef}
               onChange={(e) => setSingleRef(e.target.value)}
-              placeholder="e.g. Receipt #1234 or Transaction ID"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -1057,7 +1054,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               required
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              placeholder="e.g. Groceries at supermarket"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -1070,7 +1066,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               type="text"
               value={editRef}
               onChange={(e) => setEditRef(e.target.value)}
-              placeholder="e.g. Receipt #1234"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>

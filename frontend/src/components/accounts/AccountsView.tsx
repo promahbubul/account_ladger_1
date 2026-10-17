@@ -453,7 +453,6 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               required
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. City Bank Priority or bKash Personal"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -482,7 +481,6 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 type="text"
                 value={newProvider}
                 onChange={(e) => setNewProvider(e.target.value)}
-                placeholder="e.g. BRAC Bank, bKash, Cash"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -497,7 +495,6 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 type="text"
                 value={newNumber}
                 onChange={(e) => setNewNumber(e.target.value)}
-                placeholder="e.g. 102938472"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>

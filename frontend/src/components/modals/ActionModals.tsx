@@ -35,29 +35,32 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
   const incomeCategories = categories.filter((c) => c.type === 'INCOME');
 
+  const getTodayDate = () =>
+    new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
   const [modalError, setModalError] = useState<string | null>(null);
 
   // Income form state
-  const [incomeAmount, setIncomeAmount] = useState('45000');
+  const [incomeAmount, setIncomeAmount] = useState('');
   const [incomeAccount, setIncomeAccount] = useState(accounts[0]?.id || '');
   const [incomeCategory, setIncomeCategory] = useState(incomeCategories[0]?.id || '');
-  const [incomeDate, setIncomeDate] = useState('14 Oct 2026');
-  const [incomeDesc, setIncomeDesc] = useState('Consulting payout');
+  const [incomeDate, setIncomeDate] = useState(getTodayDate());
+  const [incomeDesc, setIncomeDesc] = useState('');
   const [incomeRef, setIncomeRef] = useState('');
 
   // Expense form state
-  const [expenseAmount, setExpenseAmount] = useState('750');
+  const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseAccount, setExpenseAccount] = useState(accounts[0]?.id || '');
   const [expenseCategory, setExpenseCategory] = useState(expenseCategories[0]?.name || 'Food & Dining');
-  const [expenseDate, setExpenseDate] = useState('14 Oct 2026');
-  const [expenseDesc, setExpenseDesc] = useState('Dinner & groceries');
+  const [expenseDate, setExpenseDate] = useState(getTodayDate());
+  const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseRef, setExpenseRef] = useState('');
 
   // Transfer form state
   const [sourceAccId, setSourceAccId] = useState(accounts[0]?.id || '');
   const [destAccId, setDestAccId] = useState(accounts[1]?.id || '');
-  const [transferAmount, setTransferAmount] = useState('5000');
-  const [transferDesc, setTransferDesc] = useState('Internal transfer');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferDesc, setTransferDesc] = useState('');
   const [transferRef, setTransferRef] = useState('');
 
   // Loan form state
@@ -66,24 +69,21 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   const [loanContact, setLoanContact] = useState('');
   const [loanAmount, setLoanAmount] = useState('');
   const [loanAccount, setLoanAccount] = useState(accounts[0]?.id || '');
-  const [loanStartDate, setLoanStartDate] = useState('14 Oct 2026');
+  const [loanStartDate, setLoanStartDate] = useState(getTodayDate());
   const [loanDueDate, setLoanDueDate] = useState('');
   const [loanNote, setLoanNote] = useState('');
 
   // Repayment form state
   const [repaymentAmount, setRepaymentAmount] = useState('');
   const [repaymentAccount, setRepaymentAccount] = useState(accounts[0]?.id || '');
-  const [repaymentDate, setRepaymentDate] = useState('14 Oct 2026');
+  const [repaymentDate, setRepaymentDate] = useState(getTodayDate());
   const [repaymentNote, setRepaymentNote] = useState('');
 
   // Daily Bulk Expense form state
-  const [bulkDate, setBulkDate] = useState('14 Oct 2026');
+  const [bulkDate, setBulkDate] = useState(getTodayDate());
   const [bulkAccount, setBulkAccount] = useState(accounts[0]?.id || '');
   const [bulkLines, setBulkLines] = useState([
-    { id: '1', category: 'Food & Dining', desc: 'Lunch', amount: 180 },
-    { id: '2', category: 'Transport', desc: 'Commute', amount: 60 },
-    { id: '3', category: 'Food & Dining', desc: 'Groceries', amount: 450 },
-    { id: '4', category: 'Mobile & Communication', desc: 'Recharge', amount: 100 },
+    { id: '1', category: expenseCategories[0]?.name || 'Food & Dining', desc: '', amount: 0 },
   ]);
 
   const bulkTotal = bulkLines.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -298,7 +298,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 required
                 value={incomeDate}
                 onChange={(e) => setIncomeDate(e.target.value)}
-                placeholder="14 Oct 2026"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -361,7 +360,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={incomeRef}
               onChange={(e) => setIncomeRef(e.target.value)}
-              placeholder="e.g. SLIP-1029"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -399,7 +397,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 required
                 value={expenseDate}
                 onChange={(e) => setExpenseDate(e.target.value)}
-                placeholder="14 Oct 2026"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -462,7 +459,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={expenseRef}
               onChange={(e) => setExpenseRef(e.target.value)}
-              placeholder="e.g. REC-5542"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -624,7 +620,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 required
                 value={counterparty}
                 onChange={(e) => setCounterparty(e.target.value)}
-                placeholder="e.g. Farhan Karim"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -635,7 +630,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 type="text"
                 value={loanContact}
                 onChange={(e) => setLoanContact(e.target.value)}
-                placeholder="+8801700000000"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -673,7 +667,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={loanDueDate}
               onChange={(e) => setLoanDueDate(e.target.value)}
-              placeholder="e.g. 30 Nov 2026"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -684,7 +677,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={loanNote}
               onChange={(e) => setLoanNote(e.target.value)}
-              placeholder="Terms or remarks"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -779,7 +771,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                   type="text"
                   value={repaymentNote}
                   onChange={(e) => setRepaymentNote(e.target.value)}
-                  placeholder="Remarks"
                   className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -873,7 +864,6 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                         type="text"
                         value={line.desc}
                         onChange={(e) => handleUpdateBulkLine(line.id, 'desc', e.target.value)}
-                        placeholder="Description"
                         className="w-full bg-[#111317] border border-[#262932] rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                       />
                     </td>

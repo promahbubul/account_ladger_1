@@ -210,7 +210,6 @@ export const ResetPasswordView: React.FC = () => {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat new password"
                     disabled={isSubmitting}
                     className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
                   />

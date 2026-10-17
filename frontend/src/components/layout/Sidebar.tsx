@@ -138,9 +138,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
           {isAdmin ? (
             <div>
-              <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-purple-400">
-                System Administration
-              </div>
               {adminNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
@@ -167,9 +164,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           ) : (
             <div>
-              <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
-                Accounting Modules
-              </div>
               {userNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =

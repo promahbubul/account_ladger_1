@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#171a20] border border-[#262a34] rounded text-xs text-purple-400">
               <Shield className="w-3.5 h-3.5 text-purple-400" />
-              <span className="font-medium text-[11px]">System Administration Mode</span>
+              <span className="font-medium text-[11px]">Admin Mode</span>
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#171a20] border border-[#262a34] rounded text-xs text-emerald-400">
               <Activity className="w-3.5 h-3.5 text-emerald-400" />
@@ -226,7 +226,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Liquid Balance Summary */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-[#171a20] border border-[#242730] rounded text-xs">
               <Wallet className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-gray-400">Total Liquid:</span>
+              <span className="text-gray-400">Liquid:</span>
               <span className="font-semibold text-gray-200 font-mono">
                 {formatBDT(totalBalance)}
               </span>

@@ -371,7 +371,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                   description={
                     searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL'
                       ? 'No categories match your filters.'
-                      : 'No custom categories created yet. Click "Add Category" to begin.'
+                      : 'No categories created yet.'
                   }
                   action={{
                     label: 'Add Category',
@@ -543,7 +543,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               required
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
-              placeholder="e.g. Groceries or Freelance Design"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -593,7 +592,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               type="text"
               value={initialSubcats}
               onChange={(e) => setInitialSubcats(e.target.value)}
-              placeholder="e.g. Rice, Vegetables, Snacks"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -608,7 +606,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                 step="0.01"
                 value={initialBudget}
                 onChange={(e) => setInitialBudget(e.target.value)}
-                placeholder="Optional, e.g. 15000"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -729,7 +726,6 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               required
               value={newSubcatName}
               onChange={(e) => setNewSubcatName(e.target.value)}
-              placeholder="e.g. Fuel, Dental, Course Fee"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>

@@ -410,7 +410,7 @@ export const TransactionsView: React.FC = () => {
                   description={
                     searchQuery || typeFilter !== 'ALL' || accountFilter !== 'ALL' || dateFilter.startDate
                       ? 'No transactions match the selected filters or date range.'
-                      : 'No financial activity logged in the ledger yet.'
+                      : 'No transactions recorded yet.'
                   }
                 />
               ) : (
@@ -623,7 +623,6 @@ export const TransactionsView: React.FC = () => {
               required
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              placeholder="Description"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -636,7 +635,6 @@ export const TransactionsView: React.FC = () => {
               type="text"
               value={editRef}
               onChange={(e) => setEditRef(e.target.value)}
-              placeholder="e.g. Inv #9021"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>

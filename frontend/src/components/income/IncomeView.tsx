@@ -666,7 +666,6 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               required
               value={formDesc}
               onChange={(e) => setFormDesc(e.target.value)}
-              placeholder="e.g. October Client Retainer"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -679,7 +678,6 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               type="text"
               value={formRef}
               onChange={(e) => setFormRef(e.target.value)}
-              placeholder="e.g. Inv #9021"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -815,7 +813,6 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               required
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              placeholder="e.g. October Client Retainer"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -828,7 +825,6 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               type="text"
               value={editRef}
               onChange={(e) => setEditRef(e.target.value)}
-              placeholder="e.g. Inv #9021"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>

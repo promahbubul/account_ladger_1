@@ -564,7 +564,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <div className="bg-[#16181d] border border-[#22252c] rounded p-4">
             <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Server className="w-4 h-4 text-blue-400" />
-              <span>Storage Architecture & Health</span>
+              <span>Storage Architecture</span>
             </h3>
             <div className="text-xs text-gray-400 space-y-1">
               <p>Connection: <strong className="text-gray-200">{stats?.status?.connectedToNeon ? 'Neon Serverless Cloud Connected' : 'Local Fallback'}</strong></p>
@@ -1000,7 +1000,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
               required
               value={createForm.fullName}
               onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-              placeholder="e.g. Mahbub Alam"
               className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -1013,7 +1012,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 required
                 value={createForm.username}
                 onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                placeholder="e.g. mahbub"
                 className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -1037,7 +1035,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
               required
               value={createForm.email}
               onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-              placeholder="name@example.com"
               className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>

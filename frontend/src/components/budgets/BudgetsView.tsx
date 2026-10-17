@@ -122,21 +122,21 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Monthly Budget</div>
+          <div className="text-xs text-gray-400">Monthly Budget</div>
           <div className="text-lg font-semibold font-mono text-gray-100 mt-0.5">
             {formatBDT(totalMonthlyBudget)}
           </div>
         </div>
 
         <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Budgeted Spent</div>
+          <div className="text-xs text-gray-400">Total Spent</div>
           <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
             {formatBDT(totalBudgetedSpent)}
           </div>
         </div>
 
         <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Categories Over Limit</div>
+          <div className="text-xs text-gray-400">Over Limit</div>
           <div className={`text-lg font-semibold font-mono mt-0.5 ${overBudgetCategories.length > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
             {overBudgetCategories.length}
           </div>
@@ -163,7 +163,6 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                 <TableEmptyRow
                   colSpan={7}
                   title="No category budgets defined"
-                  description="Set monthly spending limits for expense categories to receive threshold alerts."
                   action={{
                     label: 'Set Budget',
                     onClick: handleOpenNew,
@@ -276,7 +275,6 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
               required
               value={budgetLimitInput}
               onChange={(e) => setBudgetLimitInput(e.target.value)}
-              placeholder="e.g. 15000"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>

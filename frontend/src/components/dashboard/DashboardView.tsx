@@ -77,7 +77,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Summary Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Total Liquid Balance</div>
+          <div className="text-xs text-gray-400">Liquid Balance</div>
           <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
             {formatBDT(totalBalance)}
           </div>
@@ -109,7 +109,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-[#16181d] border border-[#22252c] rounded p-3 flex items-center justify-between">
           <div>
-            <div className="text-xs text-gray-400">Loans Given (Receivables)</div>
+            <div className="text-xs text-gray-400">Receivables (Lent)</div>
             <div className="text-base font-semibold font-mono text-emerald-400 mt-0.5">
               {formatBDT(totalReceivables)}
             </div>
@@ -118,13 +118,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => onNavigateTab('loans')}
             className="text-xs text-blue-400 hover:text-blue-300 font-medium"
           >
-            Manage Loans →
+            Loans →
           </button>
         </div>
 
         <div className="bg-[#16181d] border border-[#22252c] rounded p-3 flex items-center justify-between">
           <div>
-            <div className="text-xs text-gray-400">Loans Borrowed (Payables)</div>
+            <div className="text-xs text-gray-400">Payables (Borrowed)</div>
             <div className="text-base font-semibold font-mono text-gray-200 mt-0.5">
               {formatBDT(totalPayables)}
             </div>
@@ -133,7 +133,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => onNavigateTab('loans')}
             className="text-xs text-blue-400 hover:text-blue-300 font-medium"
           >
-            View Payables →
+            Loans →
           </button>
         </div>
       </div>
@@ -211,7 +211,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <TableEmptyRow
                     colSpan={4}
                     title="No accounts found"
-                    description="No liquid accounts configured in the ledger."
                     minHeightClass="min-h-[160px]"
                   />
                 ) : (
@@ -267,7 +266,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <TableEmptyRow
                     colSpan={4}
                     title="No transactions recorded"
-                    description="No ledger activity found for the selected period."
                     minHeightClass="min-h-[160px]"
                   />
                 ) : (

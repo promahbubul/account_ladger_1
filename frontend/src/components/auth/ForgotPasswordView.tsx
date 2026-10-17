@@ -101,7 +101,7 @@ export const ForgotPasswordView: React.FC = () => {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <p className="text-xs text-gray-300 leading-relaxed mb-4">
-                Enter the email address registered with your account. We will send you a secure link to reset your password.
+                Enter your email address to receive a secure password reset link.
               </p>
 
               <div>
@@ -114,7 +114,6 @@ export const ForgotPasswordView: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@example.com"
                     disabled={isLoading}
                     autoFocus
                     className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded pl-8 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"

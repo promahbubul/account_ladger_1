@@ -394,7 +394,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                       description={
                         searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL'
                           ? 'No loans match the current filters.'
-                          : 'No loans given or borrowed yet. Use "New Loan" to record receivables or payables.'
+                          : 'No loans recorded yet.'
                       }
                       action={{
                         label: 'New Loan',
@@ -552,7 +552,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                       description={
                         repSearchQuery
                           ? 'No repayments match your search query.'
-                          : 'No repayment installments recorded yet.'
+                          : 'No repayments recorded yet.'
                       }
                     />
                   ) : (
@@ -655,7 +655,6 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 required
                 value={counterparty}
                 onChange={(e) => setCounterparty(e.target.value)}
-                placeholder="e.g. Farhan Karim"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -668,7 +667,6 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 type="text"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                placeholder="e.g. +8801712000000"
                 className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -712,7 +710,6 @@ export const LoansView: React.FC<LoansViewProps> = ({
               type="text"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              placeholder="e.g. 30 Nov 2026"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -725,7 +722,6 @@ export const LoansView: React.FC<LoansViewProps> = ({
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Purpose or terms"
               className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -822,7 +818,6 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   type="text"
                   value={repNotes}
                   onChange={(e) => setRepNotes(e.target.value)}
-                  placeholder="Installment remarks"
                   className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 />
               </div>

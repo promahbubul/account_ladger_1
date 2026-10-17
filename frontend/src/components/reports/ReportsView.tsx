@@ -203,7 +203,7 @@ export const ReportsView: React.FC = () => {
         </div>
 
         <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
-          <div className="text-xs text-gray-400">Net Surplus / Flow</div>
+          <div className="text-xs text-gray-400">Net Flow</div>
           <div className={`text-lg font-semibold font-mono mt-0.5 ${netCashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {formatBDT(netCashFlow, true)}
           </div>
@@ -221,7 +221,7 @@ export const ReportsView: React.FC = () => {
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
         <div className="p-3 border-b border-[#22252c] bg-[#121417]">
           <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
-            Expense Category Breakdown
+            Expense Categories
           </h3>
         </div>
         <div className="overflow-x-auto">
@@ -246,7 +246,7 @@ export const ReportsView: React.FC = () => {
                 <TableEmptyRow
                   colSpan={6}
                   title="No expense records available"
-                  description="No expenditures found for this period to display in the breakdown."
+                  description="No expenditures found for this period."
                 />
               ) : (
                 expenseBreakdown.map((row) => (
@@ -283,7 +283,7 @@ export const ReportsView: React.FC = () => {
       <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
         <div className="p-3 border-b border-[#22252c] bg-[#121417]">
           <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
-            Account Balances & Flow Movements
+            Account Balances & Flows
           </h3>
         </div>
         <div className="overflow-x-auto">
@@ -293,8 +293,8 @@ export const ReportsView: React.FC = () => {
                 <th className="py-2.5 px-3">Account</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3 text-right">Opening Balance</th>
-                <th className="py-2.5 px-3 text-right">Inflows & Transfers In</th>
-                <th className="py-2.5 px-3 text-right">Outflows & Transfers Out</th>
+                <th className="py-2.5 px-3 text-right">Total Inflows</th>
+                <th className="py-2.5 px-3 text-right">Total Outflows</th>
                 <th className="py-2.5 px-3 text-right">Net Change</th>
                 <th className="py-2.5 px-3 text-right">Current Balance</th>
               </tr>
