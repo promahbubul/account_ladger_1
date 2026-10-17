@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { signInWithGoogle } from '../../lib/firebase';
+import { useRouter } from '../../lib/router';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
+  const router = useRouter();
   const { login, register, loginWithGoogle } = useAuth();
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
+
 
   // Sign in state
   const [identifier, setIdentifier] = useState('');
@@ -237,9 +240,18 @@ export const LoginView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                  Password
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-gray-300">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/forgot-password')}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}

@@ -15,6 +15,8 @@ import { SettingsView } from './components/settings/SettingsView';
 import { AdminView } from './components/admin/AdminView';
 import { ActionModals } from './components/modals/ActionModals';
 import { LoginView } from './components/auth/LoginView';
+import { ForgotPasswordView } from './components/auth/ForgotPasswordView';
+import { ResetPasswordView } from './components/auth/ResetPasswordView';
 import { Loan } from './mock/data';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
@@ -130,6 +132,12 @@ function AppContent() {
   }
 
   if (!user) {
+    if (pathname === '/forgot-password') {
+      return <ForgotPasswordView />;
+    }
+    if (pathname === '/reset-password') {
+      return <ResetPasswordView />;
+    }
     return <LoginView />;
   }
 

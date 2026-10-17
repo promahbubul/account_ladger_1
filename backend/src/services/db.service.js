@@ -64,6 +64,7 @@ class DatabaseService {
       repayments: [],
       budgets: [],
       auditLogs: [],
+      passwordResetTokens: [],
       systemSettings: {
         appName: 'AccountLedger.com',
         maintenanceMode: false,
@@ -114,6 +115,7 @@ class DatabaseService {
           repayments: (parsed.repayments || []).filter((r) => r.userId !== 'user_admin_mahbub'),
           budgets: (parsed.budgets || []).filter((b) => b.userId !== 'user_admin_mahbub'),
           auditLogs: parsed.auditLogs || [],
+          passwordResetTokens: parsed.passwordResetTokens || [],
           systemSettings: parsed.systemSettings || {
             appName: 'AccountLedger.com',
             maintenanceMode: false,
@@ -328,6 +330,18 @@ class DatabaseService {
           audit_logging_enabled BOOLEAN DEFAULT TRUE,
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
+
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          id VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token_hash VARCHAR(128) UNIQUE NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          used_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
 
         -- Ensure schema integrity columns and constraints
         ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
@@ -767,10 +781,206 @@ class DatabaseService {
       this.inMemoryData.loans = this.inMemoryData.loans.filter((l) => l.userId !== id);
       this.inMemoryData.repayments = this.inMemoryData.repayments.filter((r) => r.userId !== id);
       this.inMemoryData.budgets = this.inMemoryData.budgets.filter((b) => b.userId !== id);
+      this.inMemoryData.passwordResetTokens = (this.inMemoryData.passwordResetTokens || []).filter((p) => p.userId !== id);
       this.persistLocalDb();
       return true;
     }
     return false;
+  }
+
+  async createPasswordResetToken({ userId, tokenHash, expiresAt }) {
+    const id = `prt_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const expiresAtIso = typeof expiresAt === 'string' ? expiresAt : expiresAt.toISOString();
+
+    if (this.isPostgresConnected && this.pool) {
+      // Invalidate previous active tokens for this user
+      await this.pool.query(
+        'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
+        [userId]
+      );
+
+      await this.pool.query(
+        `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [id, userId, tokenHash, expiresAtIso]
+      );
+      return { id, userId, tokenHash, expiresAt: expiresAtIso };
+    }
+
+    this.inMemoryData.passwordResetTokens = this.inMemoryData.passwordResetTokens || [];
+    this.inMemoryData.passwordResetTokens.forEach((t) => {
+      if (t.userId === userId && !t.usedAt) {
+        t.usedAt = new Date().toISOString();
+      }
+    });
+
+    const record = {
+      id,
+      userId,
+      tokenHash,
+      expiresAt: expiresAtIso,
+      usedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    this.inMemoryData.passwordResetTokens.push(record);
+    this.persistLocalDb();
+    return record;
+  }
+
+  async getPasswordResetTokenByHash(tokenHash) {
+    if (this.isPostgresConnected && this.pool) {
+      const res = await this.pool.query(
+        `SELECT id, user_id as "userId", token_hash as "tokenHash", expires_at as "expiresAt", used_at as "usedAt", created_at as "createdAt"
+         FROM password_reset_tokens
+         WHERE token_hash = $1`,
+        [tokenHash]
+      );
+      return res.rows[0] || null;
+    }
+    this.inMemoryData.passwordResetTokens = this.inMemoryData.passwordResetTokens || [];
+    return this.inMemoryData.passwordResetTokens.find((t) => t.tokenHash === tokenHash) || null;
+  }
+
+  async redeemPasswordResetToken({ tokenHash, newPasswordHash, ipAddress }) {
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Select for update to prevent concurrent redemption race conditions
+        const tokenRes = await client.query(
+          `SELECT id, user_id as "userId", token_hash as "tokenHash", expires_at as "expiresAt", used_at as "usedAt"
+           FROM password_reset_tokens
+           WHERE token_hash = $1
+           FOR UPDATE`,
+          [tokenHash]
+        );
+
+        if (tokenRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'Invalid or unrecognized password reset token.' };
+        }
+
+        const tokenRecord = tokenRes.rows[0];
+
+        if (tokenRecord.usedAt) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'This password reset link has already been used. Please request a new one.' };
+        }
+
+        if (new Date(tokenRecord.expiresAt) < new Date()) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'This password reset link has expired. Please request a new one.' };
+        }
+
+        // Verify user exists and is active
+        const userRes = await client.query(
+          'SELECT id, email, role, is_active FROM users WHERE id = $1 FOR UPDATE',
+          [tokenRecord.userId]
+        );
+
+        if (userRes.rows.length === 0 || !userRes.rows[0].is_active) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'User account is inactive or not found.' };
+        }
+
+        const user = userRes.rows[0];
+
+        // 1. Update user password hash
+        await client.query(
+          'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+          [newPasswordHash, user.id]
+        );
+
+        // 2. Mark this token as used atomically
+        await client.query(
+          'UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1',
+          [tokenRecord.id]
+        );
+
+        // 3. Invalidate any other outstanding reset tokens for this user
+        await client.query(
+          'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND id <> $2 AND used_at IS NULL',
+          [user.id, tokenRecord.id]
+        );
+
+        // 4. Record audit log
+        await client.query(
+          `INSERT INTO audit_logs (id, user_id, user_email, action, entity_type, entity_id, details, ip_address, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+          [
+            `log_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            user.id,
+            user.email,
+            'PASSWORD_RESET',
+            'AUTH',
+            user.id,
+            'Password successfully reset via email token',
+            ipAddress || null,
+          ]
+        );
+
+        await client.query('COMMIT');
+        return { success: true, userId: user.id };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    // In-memory fallback for offline/test mode
+    this.inMemoryData.passwordResetTokens = this.inMemoryData.passwordResetTokens || [];
+    const tokenRecord = this.inMemoryData.passwordResetTokens.find((t) => t.tokenHash === tokenHash);
+    if (!tokenRecord) {
+      return { success: false, error: 'Invalid or unrecognized password reset token.' };
+    }
+    if (tokenRecord.usedAt) {
+      return { success: false, error: 'This password reset link has already been used. Please request a new one.' };
+    }
+    if (new Date(tokenRecord.expiresAt) < new Date()) {
+      return { success: false, error: 'This password reset link has expired. Please request a new one.' };
+    }
+
+    const user = this.inMemoryData.users.find((u) => u.id === tokenRecord.userId);
+    if (!user || !user.isActive) {
+      return { success: false, error: 'User account is inactive or not found.' };
+    }
+
+    user.passwordHash = newPasswordHash;
+    user.updatedAt = new Date().toISOString();
+    tokenRecord.usedAt = new Date().toISOString();
+
+    // Invalidate all other tokens for this user
+    this.inMemoryData.passwordResetTokens.forEach((t) => {
+      if (t.userId === user.id && t.id !== tokenRecord.id && !t.usedAt) {
+        t.usedAt = new Date().toISOString();
+      }
+    });
+
+    this.persistLocalDb();
+    return { success: true, userId: user.id };
+  }
+
+  async cleanupExpiredResetTokens() {
+    if (this.isPostgresConnected && this.pool) {
+      await this.pool.query(
+        `DELETE FROM password_reset_tokens 
+         WHERE expires_at < NOW() - INTERVAL '1 day' 
+            OR (used_at IS NOT NULL AND used_at < NOW() - INTERVAL '1 day')`
+      );
+      return;
+    }
+    if (this.inMemoryData.passwordResetTokens) {
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      this.inMemoryData.passwordResetTokens = this.inMemoryData.passwordResetTokens.filter((t) => {
+        const exp = new Date(t.expiresAt).getTime();
+        const used = t.usedAt ? new Date(t.usedAt).getTime() : 0;
+        return exp > oneDayAgo && (!used || used > oneDayAgo);
+      });
+      this.persistLocalDb();
+    }
   }
 
   async getPaginatedUsers(options) {

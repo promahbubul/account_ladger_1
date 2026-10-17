@@ -4,6 +4,7 @@ import { dbService } from '../services/db.service.js';
 import { generateToken } from '../middleware/auth.js';
 import { config } from '../config/env.js';
 import { verifyFirebaseIdToken } from '../config/firebase-admin.js';
+import { emailService } from '../services/email.service.js';
 
 export async function login(req, res) {
   try {
@@ -325,3 +326,145 @@ export function getMe(req, res) {
   const { passwordHash, ...safeUser } = req.user;
   res.json({ user: safeUser });
 }
+
+export async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email || !String(email).includes('@') || !String(email).includes('.')) {
+      res.status(400).json({ error: 'Please enter a valid email address.' });
+      return;
+    }
+
+    const cleanEmail = String(email).toLowerCase().trim();
+
+    // Universal generic response to prevent email enumeration attacks
+    const genericResponse = {
+      success: true,
+      message: 'If an account exists for this email address, you will receive a password reset link shortly.',
+    };
+
+    const user = await dbService.getUserByEmail(cleanEmail);
+    if (!user || !user.isActive) {
+      // Return identical response for non-existent or inactive accounts
+      res.json(genericResponse);
+      return;
+    }
+
+    // Generate cryptographically secure random token (64 hex characters from 32 bytes)
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    // 20-minute validity period
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+
+    // Save token hash in database (invalidates any older pending tokens)
+    await dbService.createPasswordResetToken({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+    });
+
+    // Build reset URL using configured frontend origin
+    const baseUrl = (config.frontendUrl || 'http://localhost:5000').replace(/\/+$/, '');
+    const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
+
+    // Send email via Gmail SMTP
+    try {
+      await emailService.sendPasswordResetEmail({
+        to: user.email,
+        resetUrl,
+        userDisplayName: user.fullName || user.username,
+        expirationMinutes: 20,
+      });
+    } catch (mailErr) {
+      // Do not leak SMTP infrastructure errors to client
+      console.error('[AccountLedger.com API Warning] Failed to dispatch password reset email:', mailErr.message);
+    }
+
+    await dbService.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'PASSWORD_RESET_REQUESTED',
+      entityType: 'AUTH',
+      entityId: user.id,
+      details: 'Password reset link requested',
+      ipAddress: req.ip,
+    });
+
+    res.json(genericResponse);
+  } catch (err) {
+    console.error('[AccountLedger.com API Error] forgotPassword error:', err);
+    res.status(500).json({ error: 'Failed to process password reset request.' });
+  }
+}
+
+export async function verifyResetToken(req, res) {
+  try {
+    const token = req.query.token || (req.body && req.body.token);
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      res.status(400).json({ valid: false, error: 'Password reset token is required.' });
+      return;
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(String(token).trim()).digest('hex');
+    const record = await dbService.getPasswordResetTokenByHash(tokenHash);
+
+    if (!record) {
+      res.status(400).json({ valid: false, error: 'Invalid or unrecognized password reset token.' });
+      return;
+    }
+
+    if (record.usedAt) {
+      res.status(400).json({ valid: false, error: 'This password reset link has already been used. Please request a new one.' });
+      return;
+    }
+
+    if (new Date(record.expiresAt) < new Date()) {
+      res.status(400).json({ valid: false, error: 'This password reset link has expired. Please request a new one.' });
+      return;
+    }
+
+    res.json({ valid: true });
+  } catch (err) {
+    console.error('[AccountLedger.com API Error] verifyResetToken error:', err);
+    res.status(500).json({ valid: false, error: 'Failed to verify password reset token.' });
+  }
+}
+
+export async function resetPassword(req, res) {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      res.status(400).json({ error: 'Password reset token is required.' });
+      return;
+    }
+
+    if (!newPassword || String(newPassword).length < 6) {
+      res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+      return;
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(String(token).trim()).digest('hex');
+    const newPasswordHash = await bcrypt.hash(String(newPassword), 10);
+
+    const result = await dbService.redeemPasswordResetToken({
+      tokenHash,
+      newPasswordHash,
+      ipAddress: req.ip,
+    });
+
+    if (!result.success) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: 'Your password has been successfully reset. You may now sign in with your new password.',
+    });
+  } catch (err) {
+    console.error('[AccountLedger.com API Error] resetPassword error:', err);
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
+}
+
