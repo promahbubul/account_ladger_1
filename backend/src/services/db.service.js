@@ -65,6 +65,7 @@ class DatabaseService {
       budgets: [],
       auditLogs: [],
       passwordResetTokens: [],
+      emailVerificationCodes: [],
       systemSettings: {
         appName: 'AccountLedger.com',
         maintenanceMode: false,
@@ -116,6 +117,7 @@ class DatabaseService {
           budgets: (parsed.budgets || []).filter((b) => b.userId !== 'user_admin_mahbub'),
           auditLogs: parsed.auditLogs || [],
           passwordResetTokens: parsed.passwordResetTokens || [],
+          emailVerificationCodes: parsed.emailVerificationCodes || [],
           systemSettings: parsed.systemSettings || {
             appName: 'AccountLedger.com',
             maintenanceMode: false,
@@ -340,12 +342,28 @@ class DatabaseService {
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
 
+        CREATE TABLE IF NOT EXISTS email_verification_codes (
+          id VARCHAR(64) PRIMARY KEY,
+          user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          code_hash VARCHAR(128) NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          attempts INT DEFAULT 0 NOT NULL,
+          used_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+
         CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+        CREATE INDEX IF NOT EXISTS idx_email_verification_codes_user_id ON email_verification_codes(user_id);
+        CREATE INDEX IF NOT EXISTS idx_email_verification_codes_hash ON email_verification_codes(code_hash);
 
         -- Ensure schema integrity columns and constraints
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE NOT NULL;
         ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
         ALTER TABLE transactions ADD COLUMN IF NOT EXISTS category_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
+
+        -- Migrate existing verified accounts (Google OAuth verified and system administrators)
+        UPDATE users SET email_verified = TRUE WHERE auth_provider IN ('GOOGLE', 'GOOGLE_LINKED') OR role = 'ADMIN';
 
         -- Unique indexes
         CREATE UNIQUE INDEX IF NOT EXISTS uq_accounts_user_name ON accounts(user_id, LOWER(name));
@@ -416,6 +434,7 @@ class DatabaseService {
       fullName: 'Mahbub Alam',
       role: 'ADMIN',
       isActive: true,
+      emailVerified: true,
       currency: 'BDT',
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
@@ -431,6 +450,7 @@ class DatabaseService {
       fullName: 'System Administrator',
       role: 'ADMIN',
       isActive: true,
+      emailVerified: true,
       currency: 'BDT',
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
@@ -446,6 +466,7 @@ class DatabaseService {
       fullName: 'Standard User',
       role: 'USER',
       isActive: true,
+      emailVerified: true,
       currency: 'BDT',
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
@@ -459,8 +480,8 @@ class DatabaseService {
         const adminCheck = await client.query('SELECT id FROM users WHERE role = $1 LIMIT 1', ['ADMIN']);
         if (adminCheck.rows.length === 0) {
           await client.query(
-            `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, currency, timezone, date_format)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, email_verified, currency, timezone, date_format)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
              ON CONFLICT (email) DO NOTHING`,
             [
               initialAdmin.id,
@@ -470,6 +491,7 @@ class DatabaseService {
               initialAdmin.fullName,
               initialAdmin.role,
               initialAdmin.isActive,
+              true,
               initialAdmin.currency,
               initialAdmin.timezone,
               initialAdmin.dateFormat,
@@ -480,8 +502,8 @@ class DatabaseService {
         const userCheck = await client.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [standardUser.email]);
         if (userCheck.rows.length === 0) {
           await client.query(
-            `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, currency, timezone, date_format)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, email_verified, currency, timezone, date_format)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
              ON CONFLICT (email) DO NOTHING`,
             [
               standardUser.id,
@@ -491,6 +513,7 @@ class DatabaseService {
               standardUser.fullName,
               standardUser.role,
               standardUser.isActive,
+              true,
               standardUser.currency,
               standardUser.timezone,
               standardUser.dateFormat,
@@ -498,6 +521,13 @@ class DatabaseService {
           );
           await this.seedDefaultCategories(standardUser.id);
           await this.seedDefaultAccounts(standardUser.id);
+        } else {
+          // Ensure standard test user is verified in existing postgres database
+          await client.query('UPDATE users SET email_verified = true WHERE email IN ($1, $2, $3)', [
+            standardUser.email,
+            initialAdmin.email,
+            secondaryAdmin.email,
+          ]);
         }
       } catch (err) {
         logger.error('Error seeding initial PostgreSQL state:', err);
@@ -615,7 +645,7 @@ class DatabaseService {
   async getUserById(id) {
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1',
         [id]
       );
       return res.rows[0] || null;
@@ -627,7 +657,7 @@ class DatabaseService {
     const clean = identifier.trim().toLowerCase();
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
         [clean]
       );
       return res.rows[0] || null;
@@ -643,7 +673,7 @@ class DatabaseService {
     const clean = email.trim().toLowerCase();
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(email) = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(email) = $1',
         [clean]
       );
       return res.rows[0] || null;
@@ -655,7 +685,7 @@ class DatabaseService {
     if (!firebaseUid) return null;
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE firebase_uid = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE firebase_uid = $1',
         [firebaseUid]
       );
       return res.rows[0] || null;
@@ -666,8 +696,8 @@ class DatabaseService {
   async createUser(user) {
     if (this.isPostgresConnected && this.pool) {
       await this.pool.query(
-        `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, currency, timezone, date_format, firebase_uid, auth_provider, avatar_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        `INSERT INTO users (id, username, email, password_hash, full_name, role, is_active, email_verified, currency, timezone, date_format, firebase_uid, auth_provider, avatar_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           user.id,
           user.username,
@@ -676,6 +706,7 @@ class DatabaseService {
           user.fullName || null,
           user.role || 'USER',
           user.isActive !== false,
+          user.emailVerified === true,
           user.currency || 'BDT',
           user.timezone || 'Asia/Dhaka',
           user.dateFormat || 'DD MMM YYYY',
@@ -728,6 +759,10 @@ class DatabaseService {
       if (updates.isActive !== undefined) {
         fields.push(`is_active = $${i++}`);
         values.push(updates.isActive);
+      }
+      if (updates.emailVerified !== undefined) {
+        fields.push(`email_verified = $${i++}`);
+        values.push(updates.emailVerified === true);
       }
       if (updates.currency !== undefined) {
         fields.push(`currency = $${i++}`);
@@ -782,6 +817,7 @@ class DatabaseService {
       this.inMemoryData.repayments = this.inMemoryData.repayments.filter((r) => r.userId !== id);
       this.inMemoryData.budgets = this.inMemoryData.budgets.filter((b) => b.userId !== id);
       this.inMemoryData.passwordResetTokens = (this.inMemoryData.passwordResetTokens || []).filter((p) => p.userId !== id);
+      this.inMemoryData.emailVerificationCodes = (this.inMemoryData.emailVerificationCodes || []).filter((c) => c.userId !== id);
       this.persistLocalDb();
       return true;
     }
@@ -983,6 +1019,199 @@ class DatabaseService {
     }
   }
 
+  async createEmailVerificationCode({ userId, codeHash, expiresAt }) {
+    const id = `evc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const expiresAtIso = typeof expiresAt === 'string' ? expiresAt : expiresAt.toISOString();
+
+    if (this.isPostgresConnected && this.pool) {
+      // Invalidate previous active codes for this user
+      await this.pool.query(
+        'UPDATE email_verification_codes SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
+        [userId]
+      );
+
+      await this.pool.query(
+        `INSERT INTO email_verification_codes (id, user_id, code_hash, expires_at, attempts, created_at)
+         VALUES ($1, $2, $3, $4, 0, NOW())`,
+        [id, userId, codeHash, expiresAtIso]
+      );
+      return { id, userId, codeHash, expiresAt: expiresAtIso, attempts: 0 };
+    }
+
+    this.inMemoryData.emailVerificationCodes = this.inMemoryData.emailVerificationCodes || [];
+    this.inMemoryData.emailVerificationCodes.forEach((c) => {
+      if (c.userId === userId && !c.usedAt) {
+        c.usedAt = new Date().toISOString();
+      }
+    });
+
+    const record = {
+      id,
+      userId,
+      codeHash,
+      expiresAt: expiresAtIso,
+      attempts: 0,
+      usedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    this.inMemoryData.emailVerificationCodes.push(record);
+    this.persistLocalDb();
+    return record;
+  }
+
+  async getLatestEmailVerificationCode(userId) {
+    if (this.isPostgresConnected && this.pool) {
+      const res = await this.pool.query(
+        `SELECT id, user_id as "userId", code_hash as "codeHash", expires_at as "expiresAt", attempts, used_at as "usedAt", created_at as "createdAt"
+         FROM email_verification_codes
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [userId]
+      );
+      return res.rows[0] || null;
+    }
+    this.inMemoryData.emailVerificationCodes = this.inMemoryData.emailVerificationCodes || [];
+    const list = this.inMemoryData.emailVerificationCodes
+      .filter((c) => c.userId === userId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return list[0] || null;
+  }
+
+  async verifyEmailCode({ userId, codeHash, ipAddress }) {
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const codeRes = await client.query(
+          `SELECT id, user_id as "userId", code_hash as "codeHash", expires_at as "expiresAt", attempts, used_at as "usedAt"
+           FROM email_verification_codes
+           WHERE user_id = $1
+           ORDER BY created_at DESC
+           LIMIT 1
+           FOR UPDATE`,
+          [userId]
+        );
+
+        if (codeRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'No verification code found. Please request a new code.' };
+        }
+
+        const record = codeRes.rows[0];
+
+        if (record.usedAt) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'This verification code has already been used. Please request a new code or sign in.' };
+        }
+
+        if (new Date(record.expiresAt) < new Date()) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'The verification code has expired. Please request a new code.' };
+        }
+
+        if (record.attempts >= 5) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'Maximum verification attempts exceeded. Please request a new verification code.' };
+        }
+
+        if (record.codeHash !== codeHash) {
+          const newAttempts = record.attempts + 1;
+          await client.query(
+            'UPDATE email_verification_codes SET attempts = $1 WHERE id = $2',
+            [newAttempts, record.id]
+          );
+          await client.query('COMMIT');
+          const remaining = Math.max(0, 5 - newAttempts);
+          return {
+            success: false,
+            error: remaining > 0
+              ? `Invalid verification code. You have ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+              : 'Maximum verification attempts exceeded. Please request a new verification code.',
+            remainingAttempts: remaining,
+          };
+        }
+
+        // Code matches and is valid!
+        await client.query(
+          'UPDATE email_verification_codes SET used_at = NOW() WHERE id = $1',
+          [record.id]
+        );
+        await client.query(
+          'UPDATE users SET email_verified = true, updated_at = NOW() WHERE id = $1',
+          [userId]
+        );
+
+        await client.query('COMMIT');
+        return { success: true };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    // In-memory fallback
+    this.inMemoryData.emailVerificationCodes = this.inMemoryData.emailVerificationCodes || [];
+    const userCodes = this.inMemoryData.emailVerificationCodes
+      .filter((c) => c.userId === userId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    if (userCodes.length === 0) {
+      return { success: false, error: 'No verification code found. Please request a new code.' };
+    }
+
+    const record = userCodes[0];
+    if (record.usedAt) {
+      return { success: false, error: 'This verification code has already been used. Please request a new code or sign in.' };
+    }
+    if (new Date(record.expiresAt) < new Date()) {
+      return { success: false, error: 'The verification code has expired. Please request a new code.' };
+    }
+    if (record.attempts >= 5) {
+      return { success: false, error: 'Maximum verification attempts exceeded. Please request a new verification code.' };
+    }
+
+    if (record.codeHash !== codeHash) {
+      record.attempts += 1;
+      this.persistLocalDb();
+      const remaining = Math.max(0, 5 - record.attempts);
+      return {
+        success: false,
+        error: remaining > 0
+          ? `Invalid verification code. You have ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+          : 'Maximum verification attempts exceeded. Please request a new verification code.',
+        remainingAttempts: remaining,
+      };
+    }
+
+    record.usedAt = new Date().toISOString();
+    const user = this.inMemoryData.users.find((u) => u.id === userId);
+    if (user) {
+      user.emailVerified = true;
+      user.updatedAt = new Date().toISOString();
+    }
+    this.persistLocalDb();
+    return { success: true };
+  }
+
+  async markUserEmailVerified(userId) {
+    if (this.isPostgresConnected && this.pool) {
+      await this.pool.query('UPDATE users SET email_verified = true, updated_at = NOW() WHERE id = $1', [userId]);
+      return true;
+    }
+    const user = this.inMemoryData.users.find((u) => u.id === userId);
+    if (user) {
+      user.emailVerified = true;
+      user.updatedAt = new Date().toISOString();
+      this.persistLocalDb();
+      return true;
+    }
+    return false;
+  }
+
   async getPaginatedUsers(options) {
     const limit = options.limit || 50;
     const direction = options.direction || 'forward';
@@ -990,7 +1219,7 @@ class DatabaseService {
 
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, full_name as "fullName", role, is_active as "isActive", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users ORDER BY created_at DESC'
+        'SELECT id, username, email, full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users ORDER BY created_at DESC'
       );
       users = res.rows;
     }

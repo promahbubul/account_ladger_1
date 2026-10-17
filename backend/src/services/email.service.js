@@ -156,6 +156,39 @@ class EmailService {
     const text = `Welcome, ${name}!\n\nYour ${appName} account has been created successfully.\n\nVisit: ${config.frontendUrl}\n\n${appName}`;
     return this.sendMail({ to, subject, html, text });
   }
+
+  async sendEmailVerificationCode({ to, code, userDisplayName, expirationMinutes = 10 }) {
+    const name = userDisplayName || 'Valued User';
+    const appName = config.appName || 'AccountLedger';
+    const subject = `Your Verification Code: ${code} — ${appName}`;
+
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0d0f12; color: #f3f4f6; border-radius: 8px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0;">${appName}</h1>
+          <p style="color: #9ca3af; font-size: 13px; margin-top: 4px;">Smart Financial Management</p>
+        </div>
+        <div style="background-color: #14171d; border: 1px solid #22252c; padding: 24px; border-radius: 6px;">
+          <h2 style="color: #f3f4f6; font-size: 16px; margin-top: 0;">Hello ${name},</h2>
+          <p style="color: #d1d5db; font-size: 14px; line-height: 1.5;">Thank you for registering with ${appName}. To complete your email verification and activate your account, please enter the following 6-digit verification code:</p>
+          <div style="margin: 28px 0; text-align: center;">
+            <div style="background-color: #1e232d; border: 1px solid #3b82f6; display: inline-block; padding: 14px 28px; border-radius: 6px; letter-spacing: 6px; font-size: 28px; font-weight: 700; color: #60a5fa; font-family: 'Courier New', monospace;">
+              ${code}
+            </div>
+          </div>
+          <p style="color: #9ca3af; font-size: 12px; line-height: 1.5;">This verification code will expire in <strong>${expirationMinutes} minutes</strong>. For your security, never share this code with anyone.</p>
+          <p style="color: #6b7280; font-size: 12px; line-height: 1.5; margin-top: 16px;">If you did not create an account on ${appName}, you can safely ignore this email.</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 11px;">
+          &copy; ${new Date().getFullYear()} ${appName}. All rights reserved.
+        </div>
+      </div>
+    `;
+
+    const text = `Hello ${name},\n\nYour 6-digit email verification code for ${appName} is: ${code}\n\nThis code will expire in ${expirationMinutes} minutes.\n\nIf you did not request this, you can safely ignore this email.\n\n${appName}`;
+
+    return this.sendMail({ to, subject, html, text });
+  }
 }
 
 export const emailService = new EmailService();

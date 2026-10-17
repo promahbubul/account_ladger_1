@@ -163,7 +163,7 @@ test('Registration Flow - Email and Password Only', async (t) => {
     assert.ok(data.error.includes('at least 6 characters'));
   });
 
-  await t.test('4. Successfully registers user with ONLY email and password (no fullName provided)', async () => {
+  await t.test('4. Successfully registers user with ONLY email and password (creates unverified account)', async () => {
     const res = await fetch(`${baseUrl}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -176,7 +176,8 @@ test('Registration Flow - Email and Password Only', async (t) => {
     assert.equal(res.status, 201);
     const data = await res.json();
     assert.equal(data.success, true);
-    assert.ok(data.token, 'Session JWT token must be returned');
+    assert.equal(data.emailVerified, false, 'Account must be created with emailVerified = false');
+    assert.equal(data.token, undefined, 'Session token must NOT be returned on registration before email verification');
     assert.equal(data.user.email, testEmail);
     assert.equal(data.user.role, 'USER');
     assert.equal(data.user.fullName, null, 'fullName should be null when not provided');
@@ -188,6 +189,12 @@ test('Registration Flow - Email and Password Only', async (t) => {
     const userInDb = await dbService.getUserById(createdUserId);
     assert.ok(userInDb, 'User must exist in database');
     assert.equal(userInDb.fullName, null, 'Database column full_name must be null');
+    assert.equal(userInDb.emailVerified, false, 'Database column email_verified must be false');
+
+    // Verify verification code was generated in database
+    const codeRecord = await dbService.getLatestEmailVerificationCode(createdUserId);
+    assert.ok(codeRecord, 'Verification code must be issued in database');
+    assert.ok(codeRecord.codeHash, 'Code hash must exist');
 
     // Verify default accounts and categories seeded
     const accounts = await dbService.getAccounts(createdUserId);
@@ -210,7 +217,26 @@ test('Registration Flow - Email and Password Only', async (t) => {
     assert.ok(data.error.includes('already exists'));
   });
 
-  await t.test('6. Newly registered user logs in successfully with email and password', async () => {
+  await t.test('6. Unverified user login is blocked with 403, then succeeds after email verification', async () => {
+    // Attempt login while unverified -> must be blocked with 403
+    const blockedRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: testEmail,
+        password: testPassword,
+      }),
+    });
+
+    assert.equal(blockedRes.status, 403);
+    const blockedData = await blockedRes.json();
+    assert.equal(blockedData.emailVerified, false);
+    assert.ok(blockedData.error.includes('Email verification required'));
+
+    // Now mark verified
+    await dbService.markUserEmailVerified(createdUserId);
+
+    // Login must now succeed
     const res = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

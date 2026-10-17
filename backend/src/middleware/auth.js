@@ -9,6 +9,7 @@ export function generateToken(user) {
       email: user.email,
       username: user.username,
       role: user.role,
+      emailVerified: user.emailVerified === true,
     },
     config.jwtSecret,
     { expiresIn: '30d' }
@@ -35,6 +36,15 @@ export async function authenticateToken(req, res, next) {
 
     if (!user.isActive) {
       res.status(403).json({ error: 'Account is deactivated. Contact system administrator.' });
+      return;
+    }
+
+    if (!user.emailVerified) {
+      res.status(403).json({
+        error: 'Email verification required.',
+        emailVerified: false,
+        email: user.email,
+      });
       return;
     }
 

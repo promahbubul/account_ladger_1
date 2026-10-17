@@ -40,13 +40,23 @@ test('Password Reset & Forgot Password Complete Lifecycle Tests', async (t) => {
   assert.equal(regRes.status, 201);
   const testUserId = regData.user.id;
   const initialUserRole = regData.user.role;
+  await dbService.markUserEmailVerified(testUserId);
+
+  const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: testEmail, password: initialPassword }),
+  });
+  const loginData = await loginRes.json();
+  const sessionToken = loginData.token;
+  assert.ok(sessionToken);
 
   // Create financial account to ensure reset never alters financial data
   const accRes = await fetch(`${baseUrl}/api/accounts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${regData.token}`,
+      Authorization: `Bearer ${sessionToken}`,
     },
     body: JSON.stringify({ name: 'ResetTest Cash', type: 'CASH', openingBalance: 5000 }),
   });
@@ -235,7 +245,7 @@ test('Password Reset & Forgot Password Complete Lifecycle Tests', async (t) => {
   });
 
   await t.test('12. Reset URL uses configured frontend origin and safe structure', async () => {
-    const recentEmail = emailService.sentEmails.find((e) => e.to === testEmail);
+    const recentEmail = emailService.sentEmails.findLast((e) => e.to === testEmail && e.subject.includes('Reset'));
     assert.ok(recentEmail);
     assert.ok(
       recentEmail.html.includes(config.frontendUrl) || recentEmail.html.includes('http://localhost:5000'),

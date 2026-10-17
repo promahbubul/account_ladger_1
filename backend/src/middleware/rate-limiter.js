@@ -63,3 +63,26 @@ export const resetPasswordRateLimiter = createRateLimiter({
   message: 'Too many password reset attempts. Please wait before trying again.',
   keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
 });
+
+export const resendVerificationRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxAttempts: 10,
+  message: 'Too many verification code requests. Please wait before trying again.',
+  keyGenerator: (req) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const email = req.body && req.body.email ? String(req.body.email).toLowerCase().trim() : '';
+    return email ? `${ip}_${email}` : ip;
+  },
+});
+
+export const verifyEmailRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxAttempts: 20,
+  message: 'Too many verification attempts. Please wait before trying again.',
+  keyGenerator: (req) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const email = req.body && req.body.email ? String(req.body.email).toLowerCase().trim() : '';
+    return email ? `${ip}_${email}` : ip;
+  },
+});
+

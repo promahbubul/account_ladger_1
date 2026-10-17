@@ -31,7 +31,15 @@ test('Transaction Date Sorting, Normalization & Update Lifecycle Tests', async (
     body: JSON.stringify({ email: uniqueEmail, password: 'password123' }),
   });
   const regData = await regRes.json();
-  const token = regData.token;
+  await dbService.markUserEmailVerified(regData.user.id);
+
+  const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: uniqueEmail, password: 'password123' }),
+  });
+  const loginData = await loginRes.json();
+  const token = loginData.token;
   assert.ok(token);
 
   const accRes = await fetch(`${baseUrl}/api/accounts`, {

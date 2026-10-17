@@ -9,6 +9,7 @@ export interface AuthUser {
   fullName: string;
   role: 'ADMIN' | 'USER';
   isActive: boolean;
+  emailVerified: boolean;
   currency: string;
   timezone: string;
   dateFormat: string;
@@ -19,9 +20,11 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (identifier: string, password: string) => Promise<{ success: boolean; error?: string; emailVerified?: boolean; email?: string }>;
   loginWithGoogle: (idToken: string, linkPassword?: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: { email: string; password: string; username?: string; fullName?: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { email: string; password: string; username?: string; fullName?: string }) => Promise<{ success: boolean; error?: string; emailVerified?: boolean; email?: string }>;
+  verifyEmail: (email: string, code: string) => Promise<{ success: boolean; error?: string; remainingAttempts?: number }>;
+  resendVerification: (email: string) => Promise<{ success: boolean; message?: string; error?: string; retryAfter?: number }>;
   updateProfile: (updates: { currency?: string; fullName?: string; timezone?: string; dateFormat?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -84,7 +87,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     verifySession();
   }, []);
 
-  const login = async (identifier: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (
+    identifier: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string; emailVerified?: boolean; email?: string }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -94,7 +100,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const data = await res.json();
       if (!res.ok) {
-        return { success: false, error: data.error || 'Login failed.' };
+        return {
+          success: false,
+          error: data.error || 'Login failed.',
+          emailVerified: data.emailVerified,
+          email: data.email,
+        };
       }
 
       setToken(data.token);
@@ -138,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string;
     username?: string;
     fullName?: string;
-  }): Promise<{ success: boolean; error?: string }> => {
+  }): Promise<{ success: boolean; error?: string; emailVerified?: boolean; email?: string }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
@@ -151,13 +162,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: data.error || 'Registration failed.' };
       }
 
-      setToken(data.token);
-      setUser(data.user);
-      localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-      return { success: true };
+      // Do NOT set auth session token on unverified registration
+      return {
+        success: true,
+        emailVerified: false,
+        email: data.email || formData.email,
+      };
     } catch (err: any) {
       return { success: false, error: err.message || 'Registration request failed.' };
+    }
+  };
+
+  const verifyEmail = async (
+    email: string,
+    code: string
+  ): Promise<{ success: boolean; error?: string; remainingAttempts?: number }> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || 'Verification failed.',
+          remainingAttempts: data.remainingAttempts,
+        };
+      }
+
+      if (data.token && data.user) {
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem(TOKEN_KEY, data.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Verification service error.' };
+    }
+  };
+
+  const resendVerification = async (
+    email: string
+  ): Promise<{ success: boolean; message?: string; error?: string; retryAfter?: number }> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to resend code.',
+          retryAfter: data.retryAfter,
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message,
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Resend request failed.' };
     }
   };
 
@@ -224,6 +297,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         loginWithGoogle,
         register,
+        verifyEmail,
+        resendVerification,
         updateProfile,
         logout,
         refreshUser,

@@ -25,11 +25,13 @@ export const LoginView: React.FC = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+    setUnverifiedEmail(null);
 
     const cleanIdentifier = identifier.trim();
     if (!cleanIdentifier) {
@@ -48,6 +50,9 @@ export const LoginView: React.FC = () => {
 
     if (!res.success) {
       setErrorMessage(res.error || 'Invalid credentials. Please verify your login details.');
+      if (res.emailVerified === false) {
+        setUnverifiedEmail(res.email || cleanIdentifier);
+      }
     }
   };
 
@@ -55,6 +60,7 @@ export const LoginView: React.FC = () => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+    setUnverifiedEmail(null);
 
     const email = regEmail.trim();
 
@@ -83,7 +89,10 @@ export const LoginView: React.FC = () => {
     if (!res.success) {
       setErrorMessage(res.error || 'Registration failed.');
     } else {
-      setSuccessMessage('Account created successfully.');
+      setSuccessMessage('Account created! Redirecting to email verification...');
+      setTimeout(() => {
+        router.push(`/verify-email?email=${encodeURIComponent(res.email || email)}`);
+      }, 500);
     }
   };
 
@@ -160,9 +169,22 @@ export const LoginView: React.FC = () => {
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="mb-4 p-2.5 rounded bg-red-950/40 border border-red-800/60 flex items-start gap-2 text-xs text-red-300">
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-              <span className="leading-snug">{errorMessage}</span>
+            <div className="mb-4 p-2.5 rounded bg-red-950/40 border border-red-800/60 text-xs text-red-300">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <span className="leading-snug">{errorMessage}</span>
+              </div>
+              {unverifiedEmail && (
+                <div className="mt-2 pt-2 border-t border-red-800/40 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`)}
+                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                  >
+                    Enter verification code &rarr;
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

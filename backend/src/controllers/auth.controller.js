@@ -41,6 +41,15 @@ export async function login(req, res) {
       return;
     }
 
+    if (!user.emailVerified) {
+      res.status(403).json({
+        error: 'Email verification required. Please verify your email before accessing your account.',
+        emailVerified: false,
+        email: user.email,
+      });
+      return;
+    }
+
     const token = generateToken(user);
     await dbService.addAuditLog({
       userId: user.id,
@@ -111,6 +120,7 @@ export async function register(req, res) {
       passwordHash,
       role: 'USER',
       isActive: true,
+      emailVerified: false, // STRICT: Mandatory email verification for email/password accounts
       currency: 'BDT',
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
@@ -122,22 +132,47 @@ export async function register(req, res) {
     await dbService.seedDefaultCategories(newUser.id);
     await dbService.seedDefaultAccounts(newUser.id);
 
+    // Generate 6-digit cryptographically secure verification code
+    const verificationCode = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await dbService.createEmailVerificationCode({
+      userId: newUser.id,
+      codeHash,
+      expiresAt,
+    });
+
+    // Send verification code via configured Gmail SMTP
+    try {
+      await emailService.sendEmailVerificationCode({
+        to: newUser.email,
+        code: verificationCode,
+        userDisplayName: newUser.fullName || newUser.username,
+        expirationMinutes: 10,
+      });
+    } catch (mailErr) {
+      console.error('[AccountLedger.com API Warning] Failed to dispatch verification email:', mailErr.message);
+    }
+
     await dbService.addAuditLog({
       userId: newUser.id,
       userEmail: newUser.email,
-      action: 'REGISTER',
+      action: 'REGISTER_UNVERIFIED',
       entityType: 'AUTH',
       entityId: newUser.id,
-      details: `New user self-registered (${newUser.email})`,
+      details: `New user self-registered; 6-digit verification code issued (${newUser.email})`,
       ipAddress: req.ip,
     });
 
-    const token = generateToken(newUser);
     const { passwordHash: _, ...safeUser } = newUser;
 
+    // Critical: Do NOT return a session token for unverified accounts
     res.status(201).json({
       success: true,
-      token,
+      message: 'Account created. Please check your email for the 6-digit verification code.',
+      emailVerified: false,
+      email: newUser.email,
       user: safeUser,
     });
   } catch (err) {
@@ -165,6 +200,10 @@ export async function googleLogin(req, res) {
       if (!user.isActive) {
         res.status(403).json({ error: 'Account is deactivated. Please contact your system administrator.' });
         return;
+      }
+
+      if (!user.emailVerified) {
+        user = await dbService.updateUser(user.id, { emailVerified: true });
       }
 
       // Existing user retains their authorized role (ADMIN or USER)
@@ -210,6 +249,7 @@ export async function googleLogin(req, res) {
           firebaseUid: uid,
           authProvider: 'GOOGLE_LINKED',
           avatarUrl: picture || existingEmailUser.avatarUrl || null,
+          emailVerified: true, // Confirmed verified by Google
         };
         // If user has no name and Google supplies one, populate it without overwriting existing name
         if (!existingEmailUser.fullName && name && String(name).trim()) {
@@ -269,6 +309,7 @@ export async function googleLogin(req, res) {
       avatarUrl: picture || null,
       role: 'USER', // STRICT: Google authentication NEVER assigns ADMIN automatically!
       isActive: true,
+      emailVerified: true, // Google confirmed verified
       currency: 'BDT',
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
@@ -283,8 +324,11 @@ export async function googleLogin(req, res) {
     } catch (createErr) {
       // Safe handling of concurrent registration requests
       if (createErr.code === '23505' || String(createErr.message).includes('unique')) {
-        const existing = (await dbService.getUserByFirebaseUid(uid)) || (await dbService.getUserByEmail(email));
+        let existing = (await dbService.getUserByFirebaseUid(uid)) || (await dbService.getUserByEmail(email));
         if (existing && existing.isActive) {
+          if (!existing.emailVerified) {
+            existing = await dbService.updateUser(existing.id, { emailVerified: true });
+          }
           const token = generateToken(existing);
           const { passwordHash: _, ...safeUser } = existing;
           res.json({ success: true, token, user: safeUser });
@@ -467,4 +511,172 @@ export async function resetPassword(req, res) {
     res.status(500).json({ error: 'Failed to reset password.' });
   }
 }
+
+export async function verifyEmail(req, res) {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      res.status(400).json({ error: 'Email and 6-digit verification code are required.' });
+      return;
+    }
+
+    const cleanEmail = String(email).toLowerCase().trim();
+    const cleanCode = String(code).trim();
+
+    if (!/^\d{6}$/.test(cleanCode)) {
+      res.status(400).json({ error: 'Verification code must be exactly 6 digits.' });
+      return;
+    }
+
+    const user = await dbService.getUserByEmail(cleanEmail);
+    if (!user) {
+      res.status(400).json({ error: 'Invalid verification request.' });
+      return;
+    }
+
+    if (user.emailVerified) {
+      const token = generateToken(user);
+      const { passwordHash: _, ...safeUser } = user;
+      res.json({
+        success: true,
+        message: 'Email is already verified.',
+        alreadyVerified: true,
+        token,
+        user: safeUser,
+      });
+      return;
+    }
+
+    const codeHash = crypto.createHash('sha256').update(cleanCode).digest('hex');
+
+    const verifyResult = await dbService.verifyEmailCode({
+      userId: user.id,
+      codeHash,
+      ipAddress: req.ip,
+    });
+
+    if (!verifyResult.success) {
+      res.status(400).json({
+        error: verifyResult.error,
+        remainingAttempts: verifyResult.remainingAttempts,
+      });
+      return;
+    }
+
+    const updatedUser = await dbService.getUserById(user.id);
+    const token = generateToken(updatedUser);
+    const { passwordHash: _, ...safeUser } = updatedUser;
+
+    await dbService.addAuditLog({
+      userId: updatedUser.id,
+      userEmail: updatedUser.email,
+      action: 'EMAIL_VERIFIED',
+      entityType: 'AUTH',
+      entityId: updatedUser.id,
+      details: 'Email successfully verified with 6-digit code',
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'Email successfully verified.',
+      token,
+      user: safeUser,
+    });
+  } catch (err) {
+    console.error('[AccountLedger.com API Error] verifyEmail error:', err);
+    res.status(500).json({ error: 'Failed to verify email.' });
+  }
+}
+
+export async function resendVerification(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email || !String(email).includes('@')) {
+      res.status(400).json({ error: 'Please enter a valid email address.' });
+      return;
+    }
+
+    const cleanEmail = String(email).toLowerCase().trim();
+    const user = await dbService.getUserByEmail(cleanEmail);
+
+    if (!user) {
+      // Generic message to avoid account enumeration
+      res.json({
+        success: true,
+        message: 'If an unverified account exists for this email, a new verification code has been sent.',
+      });
+      return;
+    }
+
+    if (user.emailVerified) {
+      res.json({
+        success: true,
+        message: 'Your email address is already verified. Please sign in.',
+        alreadyVerified: true,
+      });
+      return;
+    }
+
+    // 60-second cooldown check
+    const latestCode = await dbService.getLatestEmailVerificationCode(user.id);
+    if (latestCode && !latestCode.usedAt) {
+      const now = Date.now();
+      const createdAtTime = new Date(latestCode.createdAt).getTime();
+      const elapsedMs = now - createdAtTime;
+      const cooldownMs = 60 * 1000;
+
+      if (elapsedMs < cooldownMs) {
+        const remainingSeconds = Math.ceil((cooldownMs - elapsedMs) / 1000);
+        res.setHeader('Retry-After', remainingSeconds);
+        res.status(429).json({
+          error: `Please wait ${remainingSeconds} seconds before requesting a new verification code.`,
+          retryAfter: remainingSeconds,
+        });
+        return;
+      }
+    }
+
+    // Generate new 6-digit code
+    const verificationCode = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await dbService.createEmailVerificationCode({
+      userId: user.id,
+      codeHash,
+      expiresAt,
+    });
+
+    try {
+      await emailService.sendEmailVerificationCode({
+        to: user.email,
+        code: verificationCode,
+        userDisplayName: user.fullName || user.username,
+        expirationMinutes: 10,
+      });
+    } catch (mailErr) {
+      console.error('[AccountLedger.com API Warning] Failed to resend verification code:', mailErr.message);
+    }
+
+    await dbService.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'VERIFICATION_CODE_RESENT',
+      entityType: 'AUTH',
+      entityId: user.id,
+      details: 'New verification code requested and sent',
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'A new 6-digit verification code has been sent to your email.',
+    });
+  } catch (err) {
+    console.error('[AccountLedger.com API Error] resendVerification error:', err);
+    res.status(500).json({ error: 'Failed to resend verification code.' });
+  }
+}
+
 

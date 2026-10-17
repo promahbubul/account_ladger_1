@@ -17,6 +17,7 @@ import { ActionModals } from './components/modals/ActionModals';
 import { LoginView } from './components/auth/LoginView';
 import { ForgotPasswordView } from './components/auth/ForgotPasswordView';
 import { ResetPasswordView } from './components/auth/ResetPasswordView';
+import { VerifyEmailView } from './components/auth/VerifyEmailView';
 import { Loan } from './mock/data';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
@@ -99,6 +100,13 @@ function AppContent() {
   // Strict route security guard: enforce role separation & path canonicalization
   useEffect(() => {
     if (!user || isAuthLoading) return;
+    if (user.emailVerified === false) {
+      if (pathname !== '/verify-email') {
+        router.replace('/verify-email');
+      }
+      return;
+    }
+
     const clean = pathname.replace(/\/+$/, '') || '/';
 
     if (isAdmin) {
@@ -131,6 +139,11 @@ function AppContent() {
     );
   }
 
+  // Public & unverified views
+  if (pathname === '/verify-email') {
+    return <VerifyEmailView />;
+  }
+
   if (!user) {
     if (pathname === '/forgot-password') {
       return <ForgotPasswordView />;
@@ -139,6 +152,10 @@ function AppContent() {
       return <ResetPasswordView />;
     }
     return <LoginView />;
+  }
+
+  if (user.emailVerified === false) {
+    return <VerifyEmailView />;
   }
 
   const getPageTitle = (tab: NavTab): string => {

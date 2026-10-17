@@ -7,14 +7,23 @@ import {
   forgotPassword,
   verifyResetToken,
   resetPassword,
+  verifyEmail,
+  resendVerification,
 } from '../controllers/auth.controller.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { forgotPasswordRateLimiter, resetPasswordRateLimiter } from '../middleware/rate-limiter.js';
+import {
+  forgotPasswordRateLimiter,
+  resetPasswordRateLimiter,
+  verifyEmailRateLimiter,
+  resendVerificationRateLimiter,
+} from '../middleware/rate-limiter.js';
 
 export const authRouter = Router();
 
 authRouter.post('/login', login);
 authRouter.post('/register', register);
+authRouter.post('/verify-email', verifyEmailRateLimiter, verifyEmail);
+authRouter.post('/resend-verification', resendVerificationRateLimiter, resendVerification);
 authRouter.post('/google', googleLogin);
 authRouter.post('/google/link', googleLogin);
 authRouter.get('/me', authenticateToken, getMe);
@@ -23,3 +32,4 @@ authRouter.get('/me', authenticateToken, getMe);
 authRouter.post('/forgot-password', forgotPasswordRateLimiter, forgotPassword);
 authRouter.get('/verify-reset-token', verifyResetToken);
 authRouter.post('/reset-password', resetPasswordRateLimiter, resetPassword);
+

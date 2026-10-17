@@ -76,6 +76,7 @@ model User {
   fullName     String?       @map("full_name") @db.VarChar(128)
   role         Role          @default(USER)
   isActive     Boolean       @default(true) @map("is_active")
+  emailVerified Boolean      @default(false) @map("email_verified")
   currency     String        @default("BDT")
   timezone     String        @default("Asia/Dhaka")
   dateFormat   String        @default("DD MMM YYYY") @map("date_format")
@@ -90,6 +91,7 @@ model User {
   expenseBatches ExpenseBatch[]
   auditLogs      AuditLog[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationCodes EmailVerificationCode[]
 
   @@map("users")
 }
@@ -307,4 +309,20 @@ model PasswordResetToken {
   @@index([userId])
   @@index([tokenHash])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationCode {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash") @db.VarChar(128)
+  expiresAt DateTime  @map("expires_at")
+  attempts  Int       @default(0)
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([codeHash])
+  @@map("email_verification_codes")
 }
