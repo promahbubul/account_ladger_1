@@ -4,6 +4,7 @@
   "private": true,
   "description": "AccountLedger.com — Personal Accounting Ledger & Money Manager",
   "scripts": {
+    "build": "npm --prefix frontend run build",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "build:frontend": "npm --prefix frontend run build",
