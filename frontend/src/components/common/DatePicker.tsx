@@ -9,6 +9,7 @@ interface DatePickerProps {
   disabled?: boolean;
   id?: string;
   required?: boolean;
+  label?: string;
 }
 
 const MONTH_NAMES = [

@@ -78,11 +78,14 @@ test('Express API Integration Tests', async (t) => {
     const token = loginData.token;
     assert.ok(token);
 
+    const parentName = `Test Food Parent ${Date.now()}`;
+    const subCatName = `Test Groceries Sub ${Date.now()}`;
+
     // 2. Create main parent category
     const mainCatRes = await fetch(`${baseUrl}/api/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: 'Test Food Parent', type: 'EXPENSE' }),
+      body: JSON.stringify({ name: parentName, type: 'EXPENSE' }),
     });
     assert.equal(mainCatRes.status, 201);
     const mainCatData = await mainCatRes.json();
@@ -94,7 +97,7 @@ test('Express API Integration Tests', async (t) => {
     const subCatRes = await fetch(`${baseUrl}/api/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: 'Test Groceries Sub', type: 'EXPENSE', parentId }),
+      body: JSON.stringify({ name: subCatName, type: 'EXPENSE', parentId }),
     });
     assert.equal(subCatRes.status, 201);
     const subCatData = await subCatRes.json();
@@ -105,7 +108,7 @@ test('Express API Integration Tests', async (t) => {
     const nestedRes = await fetch(`${baseUrl}/api/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: 'Test Invalid Deep Sub', type: 'EXPENSE', parentId: subCatId }),
+      body: JSON.stringify({ name: `Test Invalid Deep Sub ${Date.now()}`, type: 'EXPENSE', parentId: subCatId }),
     });
     assert.equal(nestedRes.status, 400);
 
@@ -134,8 +137,8 @@ test('Express API Integration Tests', async (t) => {
         amount: 250,
         date: '2026-10-15',
         description: 'Test Initial Expense',
-        category: 'Test Food Parent',
-        subcategory: 'Test Groceries Sub',
+        category: parentName,
+        subcategory: subCatName,
       }),
     });
     assert.equal(expRes.status, 201);

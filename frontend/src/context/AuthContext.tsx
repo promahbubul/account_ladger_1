@@ -19,6 +19,7 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
+  login: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: (idToken: string, linkPassword?: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: { email: string; password: string; username?: string; fullName?: string }) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (updates: { currency?: string; fullName?: string; timezone?: string; dateFormat?: string }) => Promise<{ success: boolean; error?: string }>;

@@ -9,6 +9,23 @@ import { config } from '../config/env.js';
 
 const { Pool } = pg;
 
+// Ensure PostgreSQL DATE columns (OID 1082) return as plain YYYY-MM-DD string without timezone day shifting
+if (pg.types && typeof pg.types.setTypeParser === 'function') {
+  pg.types.setTypeParser(1082, (val) => val);
+}
+
+export function formatToISODate(d) {
+  if (!d) return '';
+  if (typeof d === 'string') return d.slice(0, 10);
+  if (d instanceof Date) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return String(d).slice(0, 10);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -1256,13 +1273,13 @@ class DatabaseService {
                destination_account_name as "destinationAccountName", created_at as "createdAt" 
         FROM transactions 
         WHERE ${conditions.join(' AND ')} 
-        ORDER BY date DESC, created_at DESC
+        ORDER BY date DESC, created_at DESC, id DESC
       `;
       const res = await this.pool.query(sql, values);
       txs = res.rows.map((r) => ({
         ...r,
         amount: Number(r.amount),
-        date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
+        date: formatToISODate(r.date),
         createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
       }));
     } else {
@@ -1295,11 +1312,13 @@ class DatabaseService {
     }
 
     return txs.sort((a, b) => {
-      const dateCmp = new Date(b.date).getTime() - new Date(a.date).getTime();
-      if (dateCmp !== 0) return dateCmp;
+      const dateA = formatToISODate(a.date);
+      const dateB = formatToISODate(b.date);
+      if (dateB !== dateA) return dateB.localeCompare(dateA);
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return timeB - timeA;
+      if (timeB !== timeA) return timeB - timeA;
+      return String(b.id || '').localeCompare(String(a.id || ''));
     });
   }
 
@@ -1314,6 +1333,13 @@ class DatabaseService {
       const decoded = decodeCursor(options.cursor);
       if (decoded && decoded.id) {
         cursorIdx = txs.findIndex((t) => t.id === decoded.id);
+        if (cursorIdx === -1 && decoded.timestamp) {
+          const cursorDate = String(decoded.timestamp).slice(0, 10);
+          cursorIdx = txs.findIndex((t) => {
+            const tDate = String(t.date).slice(0, 10);
+            return tDate <= cursorDate;
+          });
+        }
       }
     }
 

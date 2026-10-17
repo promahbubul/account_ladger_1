@@ -8,6 +8,7 @@ import {
 } from '../mock/data';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../services/api';
+import { sortTransactions } from '../lib/sorting';
 
 export interface CategoryBudget {
   categoryName: string;
@@ -221,7 +222,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (txRes.ok) {
         const data = await txRes.json();
-        fetchedTransactions = data.transactions || [];
+        fetchedTransactions = sortTransactions(data.transactions || []);
         setTransactions(fetchedTransactions);
       }
 
@@ -354,7 +355,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { success: false, error: data.error || 'Failed to record income.' };
       }
       const createdTx: Transaction = data.transaction;
-      setTransactions((prev) => [createdTx, ...prev]);
+      setTransactions((prev) => sortTransactions([createdTx, ...prev]));
       setAccounts((prev) =>
         prev.map((a) =>
           a.id === income.accountId ? { ...a, currentBalance: a.currentBalance + income.amount, updatedAt: 'Just now' } : a
@@ -388,7 +389,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { success: false, error: data.error || 'Failed to record expense.' };
       }
       const createdTx: Transaction = data.transaction;
-      const nextTxs = [createdTx, ...transactions];
+      const nextTxs = sortTransactions([createdTx, ...transactions]);
       setTransactions(nextTxs);
       setAccounts((prev) =>
         prev.map((a) =>
@@ -447,7 +448,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
 
     const total = newTxs.reduce((sum, t) => sum + t.amount, 0);
-    const nextTxs = [...newTxs, ...transactions];
+    const nextTxs = sortTransactions([...newTxs, ...transactions]);
     setTransactions(nextTxs);
     setAccounts(prev =>
       prev.map(a =>
@@ -542,7 +543,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
 
-      setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      setTransactions((prev) => {
+        const next = prev.map((t) => (t.id === id ? { ...t, ...updated } : t));
+        const sorted = sortTransactions(next);
+        recalculateBudgetAlerts(budgets, sorted);
+        return sorted;
+      });
       return { success: true, transaction: updated };
     } catch (err: any) {
       console.error('Error editing transaction:', err);

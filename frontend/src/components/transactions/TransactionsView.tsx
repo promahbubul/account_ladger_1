@@ -18,6 +18,7 @@ import { useDateFilter } from '../../context/DateFilterContext';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
 import { useToast } from '../../context/ToastContext';
+import { sortTransactions } from '../../lib/sorting';
 
 export const TransactionsView: React.FC = () => {
   const { accounts, categories, deleteTransaction, editTransaction, authFetch } = useFinance();
@@ -127,7 +128,13 @@ export const TransactionsView: React.FC = () => {
       }
 
       const data = await res.json();
-      setItems(data.items || []);
+      const serverItems = data.items || [];
+      const serverTotal = data.totalCount ?? serverItems.length;
+      if (currentPage > 1 && serverItems.length === 0 && serverTotal > 0) {
+        goToPreviousPage();
+        return;
+      }
+      setItems(sortTransactions(serverItems));
       setTotalCount(data.totalCount ?? (data.items || []).length);
       setNextCursor(data.nextCursor || null);
       setPaginationMeta({
@@ -146,6 +153,25 @@ export const TransactionsView: React.FC = () => {
     fetchTransactions();
   }, [fetchTransactions]);
 
+  // Check if a transaction matches active filters
+  const matchesActiveFilters = useCallback(
+    (tx: Transaction) => {
+      const txDate = (tx.date || '').slice(0, 10);
+      const matchesType = typeFilter === 'ALL' || tx.type === typeFilter;
+      const matchesAcc = accountFilter === 'ALL' || tx.accountId === accountFilter;
+      const matchesDate =
+        (!dateFilter.startDate || txDate >= dateFilter.startDate) &&
+        (!dateFilter.endDate || txDate <= dateFilter.endDate);
+      const sTerm = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !sTerm ||
+        (tx.description && tx.description.toLowerCase().includes(sTerm)) ||
+        (tx.reference && tx.reference.toLowerCase().includes(sTerm));
+      return Boolean(matchesType && matchesAcc && matchesDate && matchesSearch);
+    },
+    [typeFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, searchQuery]
+  );
+
   const confirmDelete = async () => {
     if (!txToDelete) return;
     const deletedId = txToDelete.id;
@@ -154,10 +180,12 @@ export const TransactionsView: React.FC = () => {
       setItems((prev) => prev.filter((t) => t.id !== deletedId));
       setTotalCount((prev) => Math.max(0, prev - 1));
       toast.success('Record deleted successfully');
+      setTxToDelete(null);
+      await fetchTransactions();
     } else {
       toast.error(res.error || 'Failed to delete transaction');
+      setTxToDelete(null);
     }
-    setTxToDelete(null);
   };
 
   const handleOpenEdit = (tx: Transaction) => {
@@ -175,7 +203,7 @@ export const TransactionsView: React.FC = () => {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTx) return;
+    if (!editingTx || isSavingEdit) return;
     setEditErrorMsg(null);
 
     const amountNum = parseFloat(editAmount);
@@ -202,16 +230,31 @@ export const TransactionsView: React.FC = () => {
 
       if (!res.success || !res.transaction) {
         setEditErrorMsg(res.error || 'Failed to update transaction.');
+        toast.error(res.error || 'Failed to save changes');
         return;
       }
 
       const updated = res.transaction;
-      setItems((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+      const matches = matchesActiveFilters(updated);
+
+      if (matches) {
+        setItems((prev) => {
+          const replaced = prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
+          return sortTransactions(replaced);
+        });
+      } else {
+        setItems((prev) => prev.filter((t) => t.id !== updated.id));
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      }
+
       toast.success('Transaction updated successfully');
       setIsEditModalOpen(false);
       setEditingTx(null);
+
+      await fetchTransactions();
     } catch (err: any) {
       setEditErrorMsg(err.message || 'Failed to save changes.');
+      toast.error(err.message || 'Failed to save changes');
     } finally {
       setIsSavingEdit(false);
     }

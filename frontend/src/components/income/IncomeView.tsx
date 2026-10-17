@@ -18,6 +18,7 @@ import { useDateFilter } from '../../context/DateFilterContext';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
 import { useToast } from '../../context/ToastContext';
+import { sortTransactions } from '../../lib/sorting';
 
 interface IncomeViewProps {
   onOpenAddIncomeModal?: () => void;
@@ -173,8 +174,16 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       }
 
       const data = await res.json();
-      setItems(data.items || []);
-      setTotalCount(data.totalCount ?? (data.items || []).length);
+      const serverItems = data.items || [];
+      const serverTotal = data.totalCount ?? serverItems.length;
+
+      if (currentPage > 1 && serverItems.length === 0 && serverTotal > 0) {
+        goToPreviousPage();
+        return;
+      }
+
+      setItems(sortTransactions(serverItems));
+      setTotalCount(serverTotal);
       setNextCursor(data.nextCursor || null);
       setPaginationMeta({
         hasNextPage: Boolean(data.hasNextPage),
@@ -208,6 +217,25 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
     resetPagination();
   };
 
+  // Check if a transaction matches active filters
+  const matchesActiveFilters = useCallback(
+    (tx: Transaction) => {
+      const txDate = (tx.date || '').slice(0, 10);
+      const matchesCat = categoryFilter === 'ALL' || tx.category === categoryFilter;
+      const matchesAcc = accountFilter === 'ALL' || tx.accountId === accountFilter;
+      const matchesDate =
+        (!dateFilter.startDate || txDate >= dateFilter.startDate) &&
+        (!dateFilter.endDate || txDate <= dateFilter.endDate);
+      const sTerm = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !sTerm ||
+        (tx.description && tx.description.toLowerCase().includes(sTerm)) ||
+        (tx.reference && tx.reference.toLowerCase().includes(sTerm));
+      return Boolean(matchesCat && matchesAcc && matchesDate && matchesSearch);
+    },
+    [categoryFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, searchQuery]
+  );
+
   const confirmDelete = async () => {
     if (!txToDelete) return;
     const targetId = txToDelete.id;
@@ -216,11 +244,11 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       toast.error(res.error || 'Failed to delete record');
       return;
     }
-    // Targeted DOM update
     setItems((prev) => prev.filter((t) => t.id !== targetId));
     setTotalCount((prev) => Math.max(0, prev - 1));
     toast.success('Record deleted successfully');
     setTxToDelete(null);
+    await fetchIncome();
   };
 
   const handleSaveIncome = async (e: React.FormEvent) => {
@@ -255,17 +283,8 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       }
 
       const newTx = res.transaction;
-      // Targeted DOM update
-      const matchesCat = categoryFilter === 'ALL' || newTx.category === categoryFilter;
-      const matchesAcc = accountFilter === 'ALL' || newTx.accountId === accountFilter;
-      const matchesDate = (!dateFilter.startDate || newTx.date >= dateFilter.startDate) &&
-                          (!dateFilter.endDate || newTx.date <= dateFilter.endDate);
-      const matchesSearch = !searchQuery.trim() ||
-        newTx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (newTx.reference && newTx.reference.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      if (matchesCat && matchesAcc && matchesDate && matchesSearch) {
-        setItems((prev) => [newTx, ...prev]);
+      if (matchesActiveFilters(newTx)) {
+        setItems((prev) => sortTransactions([newTx, ...prev]));
       }
       setTotalCount((prev) => prev + 1);
 
@@ -275,6 +294,8 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       setFormDesc('');
       setFormRef('');
       setFormSubcat('');
+
+      await fetchIncome();
     } catch (err: any) {
       setFormValidationMsg(err.message || 'Failed to record income.');
       toast.error(err.message || 'Failed to record income.');
@@ -297,10 +318,10 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
     setIsEditModalOpen(true);
   };
 
-  // Save Edit Handler with targeted DOM update
+  // Save Edit Handler with immediate deterministic re-sort and server pagination reconciliation
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTx) return;
+    if (!editingTx || isSavingEdit) return;
     setEditErrorMsg(null);
 
     const amountNum = parseFloat(editAmount);
@@ -332,8 +353,18 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       }
 
       const updated = res.transaction;
-      // Targeted DOM update: update affected row in place
-      setItems((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+      const matches = matchesActiveFilters(updated);
+
+      if (matches) {
+        setItems((prev) => {
+          const replaced = prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
+          return sortTransactions(replaced);
+        });
+      } else {
+        setItems((prev) => prev.filter((t) => t.id !== updated.id));
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      }
+
       if (selectedTx && selectedTx.id === updated.id) {
         setSelectedTx(updated);
       }
@@ -341,6 +372,8 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       toast.success('Income updated successfully');
       setIsEditModalOpen(false);
       setEditingTx(null);
+
+      await fetchIncome();
     } catch (err: any) {
       setEditErrorMsg(err.message || 'Failed to save changes.');
       toast.error(err.message || 'Failed to save changes');

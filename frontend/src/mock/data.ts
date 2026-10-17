@@ -41,6 +41,7 @@ export interface Transaction {
   reference?: string;
   counterparty?: string;
   status: 'COMPLETED' | 'PENDING';
+  createdAt?: string;
 }
 
 export interface Loan {

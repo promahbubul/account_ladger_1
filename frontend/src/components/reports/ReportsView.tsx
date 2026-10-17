@@ -11,7 +11,7 @@ import { TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 
 export const ReportsView: React.FC = () => {
   const { transactions, accounts, budgets, authFetch } = useFinance();
-  const { dateFilter } = useDateFilter();
+  const { dateFilter, formattedRangeLabel } = useDateFilter();
   const [selectedPeriod, setSelectedPeriod] = useState<'MONTH' | 'LAST_MONTH' | 'YTD' | 'ALL'>('MONTH');
   const [reportTransactions, setReportTransactions] = useState<Transaction[]>(transactions);
   const [isLoading, setIsLoading] = useState(false);
@@ -150,10 +150,10 @@ export const ReportsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-gray-100">Reports</h2>
-          {dateFilter.formattedRangeLabel && (
+          {formattedRangeLabel && (
             <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-950/60 border border-blue-800 text-blue-300 rounded text-[11px] font-mono">
               <Calendar className="w-3 h-3" />
-              {dateFilter.formattedRangeLabel}
+              {formattedRangeLabel}
             </span>
           )}
         </div>

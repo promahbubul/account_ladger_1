@@ -15,7 +15,7 @@ import { TableEmptyRow } from '../common/StateViews';
 interface DashboardViewProps {
   onOpenQuickAction: (actionType: 'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk') => void;
   onNavigateTab: (tab: any) => void;
-  selectedPeriod: string;
+  selectedPeriod?: string;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({

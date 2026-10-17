@@ -97,7 +97,7 @@ export async function createIncome(req, res) {
       subcategory: subcategory || null,
       amount: cleanAmount,
       direction: 'INFLOW',
-      date: String(date).slice(0, 10),
+      date: parseDateToISO(date) || String(date).slice(0, 10),
       description: String(description).trim(),
       reference: reference ? String(reference).trim() : null,
       counterparty: counterparty ? String(counterparty).trim() : null,
@@ -143,7 +143,7 @@ export async function createExpense(req, res) {
       subcategory: subcategory || null,
       amount: cleanAmount,
       direction: 'OUTFLOW',
-      date: String(date).slice(0, 10),
+      date: parseDateToISO(date) || String(date).slice(0, 10),
       description: String(description).trim(),
       reference: reference ? String(reference).trim() : null,
       counterparty: counterparty ? String(counterparty).trim() : null,
@@ -206,6 +206,29 @@ export async function createBulkExpense(req, res) {
   }
 }
 
+export function parseDateToISO(input) {
+  if (!input) return null;
+  const str = String(input).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    return str.slice(0, 10);
+  }
+  const dmMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmMatch) {
+    const day = dmMatch[1].padStart(2, '0');
+    const month = dmMatch[2].padStart(2, '0');
+    const year = dmMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return null;
+}
+
 export async function updateTransaction(req, res) {
   try {
     const { id } = req.params;
@@ -233,8 +256,8 @@ export async function updateTransaction(req, res) {
     }
 
     if (date !== undefined) {
-      const dateStr = String(date).trim().slice(0, 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const dateStr = parseDateToISO(date);
+      if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD.' });
         return;
       }
