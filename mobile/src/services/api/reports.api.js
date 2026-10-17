@@ -1,0 +1,24 @@
+import { apiClient } from './client';
+
+export const reportsApi = {
+  getSummary: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.startDate) query.set('startDate', params.startDate);
+    if (params.endDate) query.set('endDate', params.endDate);
+    const qStr = query.toString() ? `?${query.toString()}` : '';
+    return apiClient(`/api/reports/summary${qStr}`);
+  },
+
+  exportData: async () => {
+    return apiClient('/api/reports/export');
+  },
+};
+
+export const userApi = {
+  updateProfile: async (data) => {
+    return apiClient('/api/user/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+};
