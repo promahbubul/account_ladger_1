@@ -196,7 +196,15 @@ test('Express API Integration Tests', async (t) => {
     });
     const { token } = await loginRes.json();
 
-    const accs = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    let accs = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    if (accs.length < 2) {
+      await fetch(`${baseUrl}/api/accounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: 'Secondary Bank Account', type: 'BANK', openingBalance: 10000 }),
+      });
+      accs = (await (await fetch(`${baseUrl}/api/accounts`, { headers: { Authorization: `Bearer ${token}` } })).json()).accounts;
+    }
     assert.ok(accs.length >= 2, 'Need at least 2 accounts for transfer test');
     const src = accs[0];
     const dst = accs[1];

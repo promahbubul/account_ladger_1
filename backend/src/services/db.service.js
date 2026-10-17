@@ -556,85 +556,155 @@ class DatabaseService {
   }
 
   async seedDefaultAccounts(userId) {
-    const starterAccounts = [
-      {
-        id: `acc_cash_${Date.now()}_default`,
-        userId,
-        name: 'Cash Wallet',
-        type: 'CASH',
-        openingBalance: 5000,
-        currentBalance: 5000,
-        currency: 'BDT',
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: `acc_mfs_${Date.now()}_bkash`,
-        userId,
-        name: 'bKash Personal',
-        type: 'MOBILE_BANKING',
-        providerName: 'bKash',
-        accountNumber: '01700000000',
-        openingBalance: 10000,
-        currentBalance: 10000,
-        currency: 'BDT',
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: `acc_bank_${Date.now()}_city`,
-        userId,
-        name: 'City Bank Priority',
-        type: 'BANK',
-        providerName: 'City Bank',
-        accountNumber: '1102938475',
-        openingBalance: 50000,
-        currentBalance: 50000,
-        currency: 'BDT',
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-
-    for (const acc of starterAccounts) {
-      await this.createAccount(acc);
+    // Check if the user already has any account to prevent duplicate Cash creation on retries
+    const existingAccounts = await this.getAccounts(userId);
+    if (existingAccounts && existingAccounts.length > 0) {
+      return existingAccounts;
     }
+
+    let currency = 'BDT';
+    try {
+      const user = await this.getUserById(userId);
+      if (user && user.currency) {
+        currency = user.currency;
+      }
+    } catch {
+      // Fallback to BDT default
+    }
+
+    const cashAccountId = `acc_cash_${userId}_default`;
+    const cashAccount = {
+      id: cashAccountId,
+      userId,
+      name: 'Cash',
+      type: 'CASH',
+      providerName: null,
+      accountNumber: null,
+      openingBalance: 0,
+      currentBalance: 0,
+      currency,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (this.isPostgresConnected && this.pool) {
+      await this.pool.query(
+        `INSERT INTO accounts (id, user_id, name, type, provider_name, account_number, opening_balance, current_balance, currency, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          cashAccount.id,
+          cashAccount.userId,
+          cashAccount.name,
+          cashAccount.type,
+          null,
+          null,
+          0,
+          0,
+          cashAccount.currency,
+          'ACTIVE',
+        ]
+      );
+      return [cashAccount];
+    }
+
+    const exists = this.inMemoryData.accounts.some((a) => a.userId === userId);
+    if (!exists) {
+      this.inMemoryData.accounts.push(cashAccount);
+      this.persistLocalDb();
+    }
+    return [cashAccount];
   }
 
   async seedDefaultCategories(userId) {
+    const existingCategories = await this.getCategories(userId);
+    if (existingCategories && existingCategories.length > 0) {
+      return existingCategories;
+    }
+
     for (const cat of DEFAULT_INCOME_CATEGORIES) {
-      await this.createCategory({
-        id: `cat_inc_${userId}_${cat.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
-        userId,
-        name: cat.name,
-        type: 'INCOME',
-        icon: cat.icon,
-        color: cat.color,
-        subcategories: cat.subcategories,
-        isArchived: false,
-        isSystem: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      const categoryId = `cat_inc_${userId}_${cat.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
+      if (this.isPostgresConnected && this.pool) {
+        await this.pool.query(
+          `INSERT INTO categories (id, user_id, parent_id, name, type, icon, color, subcategories, is_archived, is_system)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (id) DO NOTHING`,
+          [
+            categoryId,
+            userId,
+            null,
+            cat.name,
+            'INCOME',
+            cat.icon,
+            cat.color,
+            JSON.stringify(cat.subcategories || []),
+            false,
+            true,
+          ]
+        );
+      } else {
+        const exists = this.inMemoryData.categories.some((c) => c.id === categoryId);
+        if (!exists) {
+          this.inMemoryData.categories.push({
+            id: categoryId,
+            userId,
+            name: cat.name,
+            type: 'INCOME',
+            icon: cat.icon,
+            color: cat.color,
+            subcategories: cat.subcategories,
+            isArchived: false,
+            isSystem: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
     }
 
     for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
-      await this.createCategory({
-        id: `cat_exp_${userId}_${cat.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
-        userId,
-        name: cat.name,
-        type: 'EXPENSE',
-        icon: cat.icon,
-        color: cat.color,
-        subcategories: cat.subcategories,
-        isArchived: false,
-        isSystem: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      const categoryId = `cat_exp_${userId}_${cat.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
+      if (this.isPostgresConnected && this.pool) {
+        await this.pool.query(
+          `INSERT INTO categories (id, user_id, parent_id, name, type, icon, color, subcategories, is_archived, is_system)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (id) DO NOTHING`,
+          [
+            categoryId,
+            userId,
+            null,
+            cat.name,
+            'EXPENSE',
+            cat.icon,
+            cat.color,
+            JSON.stringify(cat.subcategories || []),
+            false,
+            true,
+          ]
+        );
+      } else {
+        const exists = this.inMemoryData.categories.some((c) => c.id === categoryId);
+        if (!exists) {
+          this.inMemoryData.categories.push({
+            id: categoryId,
+            userId,
+            name: cat.name,
+            type: 'EXPENSE',
+            icon: cat.icon,
+            color: cat.color,
+            subcategories: cat.subcategories,
+            isArchived: false,
+            isSystem: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    if (!this.isPostgresConnected || !this.pool) {
+      this.persistLocalDb();
     }
   }
 
