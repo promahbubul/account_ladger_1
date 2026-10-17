@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { useFinance } from '../../context/FinanceContext';
 import { Loan } from '../../mock/data';

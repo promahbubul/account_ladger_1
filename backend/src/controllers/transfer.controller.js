@@ -1,5 +1,6 @@
 import { dbService } from '../services/db.service.js';
 import { validateLimit } from '../utils/cursor.js';
+import { parseDateToISO } from './transaction.controller.js';
 
 export async function getTransfers(req, res) {
   try {
@@ -66,8 +67,8 @@ export async function getTransfers(req, res) {
 export async function createTransfer(req, res) {
   try {
     const { sourceAccountId, destinationAccountId, amount, transferFee, date, description, reference } = req.body;
-    if (!sourceAccountId || !destinationAccountId || !amount || !date) {
-      res.status(400).json({ error: 'Source account, destination account, amount, and date are required.' });
+    if (!sourceAccountId || !destinationAccountId || !amount) {
+      res.status(400).json({ error: 'Source account, destination account, and amount are required.' });
       return;
     }
 
@@ -93,6 +94,14 @@ export async function createTransfer(req, res) {
 
     const cleanFee = Number(transferFee) || 0;
 
+    let cleanDate = null;
+    if (date) {
+      cleanDate = parseDateToISO(date) || String(date).slice(0, 10);
+    }
+    if (!cleanDate) {
+      cleanDate = new Date().toISOString().slice(0, 10);
+    }
+
     const transfer = {
       id: `trf_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       userId: req.user.id,
@@ -102,7 +111,7 @@ export async function createTransfer(req, res) {
       destinationAccountName: dst.name,
       amount: cleanAmount,
       transferFee: cleanFee,
-      date: String(date).slice(0, 10),
+      date: cleanDate,
       description: description ? String(description).trim() : null,
       reference: reference ? String(reference).trim() : null,
       createdAt: new Date().toISOString(),
