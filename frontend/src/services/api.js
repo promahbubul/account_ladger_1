@@ -49,6 +49,25 @@ export async function apiFetch(endpoint, options = {}) {
   });
 }
 
+export async function parseResponseJson(res) {
+  if (res.status === 204) return {};
+  const contentType = res.headers.get('content-type') || '';
+  const text = await res.text().catch(() => '');
+  if (!contentType.includes('application/json') || text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
+    if (text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
+      throw new Error(
+        'Backend server is not responding (received HTML instead of JSON). Please ensure the backend server is running on port 5001.'
+      );
+    }
+  }
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(text || `Server returned invalid response (status ${res.status}).`);
+  }
+}
+
 // ----------------------------------------------------------------------------
 // API Service Modules
 // ----------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useRouter } from '../../lib/router';
-import { API_BASE_URL } from '../../services/api';
+import { API_BASE_URL, parseResponseJson } from '../../services/api';
 import { Mail, ArrowLeft, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 export const ForgotPasswordView: React.FC = () => {
@@ -37,7 +37,7 @@ export const ForgotPasswordView: React.FC = () => {
         body: JSON.stringify({ email: cleanEmail }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
 
       if (!res.ok) {
         if (res.status === 429) {

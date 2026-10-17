@@ -8,13 +8,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), ['VITE_', 'NEXT_PUBLIC_']);
+  const env = {
+    ...loadEnv(mode, process.cwd(), ['VITE_', 'NEXT_PUBLIC_']),
+    ...loadEnv(mode, __dirname, ['VITE_', 'NEXT_PUBLIC_']),
+  };
   const backendUrl = env.NEXT_PUBLIC_API_URL
     ? env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, '')
     : 'http://localhost:5001';
 
   return {
     plugins: [react(), tailwindcss()],
+    envDir: __dirname,
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     resolve: {
       alias: {
@@ -31,6 +35,21 @@ export default defineConfig(({ mode }) => {
           target: backendUrl,
           changeOrigin: true,
           secure: false,
+          configure: (proxy) => {
+            proxy.on('error', (err, req, res) => {
+              if (res && res.writeHead && !res.headersSent) {
+                res.writeHead(503, {
+                  'Content-Type': 'application/json',
+                });
+                res.end(
+                  JSON.stringify({
+                    error:
+                      'Backend API server is not running on port 5001. Please run `npm run dev:backend` to start the backend server.',
+                  })
+                );
+              }
+            });
+          },
         },
       },
       hmr: process.env.DISABLE_HMR !== 'true',

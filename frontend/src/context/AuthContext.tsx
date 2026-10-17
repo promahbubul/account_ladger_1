@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { API_BASE_URL } from '../services/api';
+import { API_BASE_URL, parseResponseJson } from '../services/api';
 import { signOutFirebase } from '../lib/firebase';
 
 export interface AuthUser {
@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         if (res.ok) {
-          const data = await res.json();
+          const data = await parseResponseJson(res);
           setUser(data.user);
           localStorage.setItem(USER_KEY, JSON.stringify(data.user));
         } else {
@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ identifier, password }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) {
         return {
           success: false,
@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ idToken, linkPassword }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) {
         return { success: false, error: data.error || 'Google authentication failed.' };
       }
@@ -157,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) {
         return { success: false, error: data.error || 'Registration failed.' };
       }
@@ -184,7 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ email, code }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) {
         return {
           success: false,
@@ -216,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ email }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) {
         return {
           success: false,
@@ -251,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify(updates),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) {
         return { success: false, error: data.error || 'Failed to update profile.' };
       }
@@ -279,7 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await parseResponseJson(res);
         setUser(data.user);
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       }

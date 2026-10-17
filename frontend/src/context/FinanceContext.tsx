@@ -7,7 +7,7 @@ import {
   Category,
 } from '../mock/data';
 import { useAuth } from './AuthContext';
-import { API_BASE_URL } from '../services/api';
+import { API_BASE_URL, parseResponseJson } from '../services/api';
 import { sortTransactions } from '../lib/sorting';
 
 export interface CategoryBudget {
@@ -134,7 +134,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
       }
-      return fetch(fullUrl, { ...options, headers });
+      const res = await fetch(fullUrl, { ...options, headers });
+      res.json = () => parseResponseJson(res);
+      return res;
     },
     [token]
   );

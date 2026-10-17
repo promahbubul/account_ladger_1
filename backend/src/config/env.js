@@ -1,4 +1,24 @@
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 1. Try backend/.env (two levels up from src/config)
+const backendEnv = path.resolve(__dirname, '../../.env');
+if (fs.existsSync(backendEnv)) {
+  dotenv.config({ path: backendEnv });
+}
+
+// 2. Try root .env (three levels up)
+const rootEnv = path.resolve(__dirname, '../../../.env');
+if (fs.existsSync(rootEnv)) {
+  dotenv.config({ path: rootEnv });
+}
+
+// 3. Fallback to current working directory .env
 dotenv.config();
 
 export const config = {

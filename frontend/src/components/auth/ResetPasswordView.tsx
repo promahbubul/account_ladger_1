@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from '../../lib/router';
-import { API_BASE_URL } from '../../services/api';
+import { API_BASE_URL, parseResponseJson } from '../../services/api';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ArrowLeft, KeyRound } from 'lucide-react';
 
 export const ResetPasswordView: React.FC = () => {
@@ -35,7 +35,7 @@ export const ResetPasswordView: React.FC = () => {
 
       try {
         const res = await fetch(`${API_BASE_URL}/auth/verify-reset-token?token=${encodeURIComponent(token)}`);
-        const data = await res.json();
+        const data = await parseResponseJson(res);
 
         if (isMounted) {
           if (!res.ok || !data.valid) {
@@ -88,7 +88,7 @@ export const ResetPasswordView: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
 
       if (!res.ok) {
         setErrorMessage(data.error || 'Failed to reset password. The link may have expired.');
