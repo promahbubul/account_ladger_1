@@ -52,7 +52,31 @@ export const formatBDT = (amount: number, showSign: boolean = false, customCurre
   return `${isNegative ? '-' : ''}${currencySymbol}${formattedNumber}`;
 };
 
-export const formatDate = (dateString: string): string => {
-  return dateString;
+export const formatDate = (dateInput?: string | Date | null): string => {
+  if (!dateInput) return '-';
+  const str = String(dateInput).trim();
+  if (!str) return '-';
+
+  // Already formatted as DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    return str;
+  }
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  // Parse general Date / ISO string
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  return str;
 };
 

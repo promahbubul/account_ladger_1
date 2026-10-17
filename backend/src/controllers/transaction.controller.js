@@ -188,8 +188,10 @@ export async function createBulkExpense(req, res) {
         subcategory: item.subcategory || null,
         amount: cleanAmount,
         direction: 'OUTFLOW',
-        date: String(date).slice(0, 10),
-        description: item.description ? String(item.description).trim() : 'Daily Expense',
+        date: parseDateToISO(date) || String(date).slice(0, 10),
+        description: (item.description || item.desc)
+          ? String(item.description || item.desc).trim()
+          : (item.category ? `${item.category} Expense` : 'Daily Expense'),
         reference: null,
         counterparty: null,
         status: 'COMPLETED',

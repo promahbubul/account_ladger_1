@@ -5,6 +5,7 @@ import { Loan } from '../../mock/data';
 import { formatBDT } from '../../lib/formatters';
 import { Trash2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { DatePicker, getDhakaTodayISO } from '../common/DatePicker';
 
 interface ActionModalsProps {
   activeModal: 'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk' | 'repayment' | null;
@@ -24,6 +25,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
     accounts,
     categories,
     loans,
+    addAccount,
     addIncome,
     addExpense,
     addTransfer,
@@ -35,8 +37,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
   const incomeCategories = categories.filter((c) => c.type === 'INCOME');
 
-  const getTodayDate = () =>
-    new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const getTodayDate = () => getDhakaTodayISO();
 
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -249,7 +250,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   };
 
   // Submit Bulk Expenses
-  const handleBulkSubmit = (e: React.FormEvent) => {
+  const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
     const validLines = bulkLines.filter(l => Number(l.amount) > 0);
@@ -258,15 +259,24 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
       return;
     }
 
-    const { overBudgetAlerts } = addBulkExpenses({
+    const res = await addBulkExpenses({
       accountId: bulkAccount || accounts[0]?.id || '',
       date: bulkDate,
       items: validLines.map(l => ({
         category: l.category,
         desc: l.desc.trim() || `${l.category} expense`,
+        description: l.desc.trim() || `${l.category} expense`,
         amount: Number(l.amount),
       })),
     });
+
+    if (res && res.error) {
+      setModalError(res.error);
+      toast.error(res.error);
+      return;
+    }
+
+    const overBudgetAlerts = res?.overBudgetAlerts;
 
     const accName = accounts.find((a) => a.id === bulkAccount)?.name || 'Account';
 
@@ -293,13 +303,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">Date *</label>
-              <input
-                type="text"
-                required
-                value={incomeDate}
-                onChange={(e) => setIncomeDate(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
+              <DatePicker value={incomeDate} onChange={setIncomeDate} />
             </div>
 
             <div>
@@ -392,13 +396,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">Date *</label>
-              <input
-                type="text"
-                required
-                value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
+              <DatePicker value={expenseDate} onChange={setExpenseDate} />
             </div>
 
             <div>
@@ -651,24 +649,13 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
 
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">Start Date *</label>
-              <input
-                type="text"
-                required
-                value={loanStartDate}
-                onChange={(e) => setLoanStartDate(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
+              <DatePicker value={loanStartDate} onChange={setLoanStartDate} />
             </div>
           </div>
 
           <div>
             <label className="block text-xs text-gray-300 font-medium mb-1">Due Date (Optional)</label>
-            <input
-              type="text"
-              value={loanDueDate}
-              onChange={(e) => setLoanDueDate(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
+            <DatePicker value={loanDueDate} onChange={setLoanDueDate} placeholder="Optional due date" />
           </div>
 
           <div>
@@ -756,13 +743,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-300 font-medium mb-1">Date *</label>
-                <input
-                  type="text"
-                  required
-                  value={repaymentDate}
-                  onChange={(e) => setRepaymentDate(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-                />
+                <DatePicker value={repaymentDate} onChange={setRepaymentDate} />
               </div>
 
               <div>
@@ -812,13 +793,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
           <div className="grid grid-cols-2 gap-3 bg-[#111317] border border-[#22252c] p-2.5 rounded">
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">Date *</label>
-              <input
-                type="text"
-                required
-                value={bulkDate}
-                onChange={(e) => setBulkDate(e.target.value)}
-                className="w-full bg-[#16181d] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
+              <DatePicker value={bulkDate} onChange={setBulkDate} />
             </div>
 
             <div>

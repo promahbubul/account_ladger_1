@@ -1,3 +1,4 @@
+import { updateQueryParams } from '../lib/queryState';
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 export type DatePreset = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
@@ -88,15 +89,70 @@ export function calculateRangeForPreset(preset: DatePreset): { startDate: string
   return { startDate: '', endDate: '' };
 }
 
-export const DateFilterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [filter, setFilter] = useState<DateRange>(() => {
+export function parseDateFilterFromQuery(): DateRange {
+  if (typeof window === 'undefined') {
     const { startDate, endDate } = calculateRangeForPreset('month');
+    return { preset: 'month', startDate, endDate };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const presetParam = params.get('datePreset') as DatePreset | null;
+  const startParam = params.get('startDate');
+  const endParam = params.get('endDate');
+
+  if (presetParam === 'custom' && startParam && endParam) {
     return {
-      preset: 'month',
+      preset: 'custom',
+      startDate: startParam,
+      endDate: endParam,
+    };
+  }
+
+  if (startParam && endParam) {
+    return {
+      preset: 'custom',
+      startDate: startParam,
+      endDate: endParam,
+    };
+  }
+
+  if (presetParam && ['all', 'today', 'week', 'month', 'year'].includes(presetParam)) {
+    const { startDate, endDate } = calculateRangeForPreset(presetParam);
+    return {
+      preset: presetParam,
       startDate,
       endDate,
     };
-  });
+  }
+
+  const { startDate, endDate } = calculateRangeForPreset('month');
+  return {
+    preset: 'month',
+    startDate,
+    endDate,
+  };
+}
+
+export const DateFilterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [filter, setFilter] = useState<DateRange>(() => parseDateFilterFromQuery());
+
+  // Listen to popstate (browser back/forward or URL state changes)
+  React.useEffect(() => {
+    const handlePopState = () => {
+      const parsed = parseDateFilterFromQuery();
+      setFilter((prev) => {
+        if (
+          prev.preset === parsed.preset &&
+          prev.startDate === parsed.startDate &&
+          prev.endDate === parsed.endDate
+        ) {
+          return prev;
+        }
+        return parsed;
+      });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const setPreset = useCallback((preset: DatePreset) => {
     if (preset === 'custom') {
@@ -104,6 +160,7 @@ export const DateFilterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         ...prev,
         preset: 'custom',
       }));
+      updateQueryParams({ datePreset: 'custom' });
       return;
     }
     const { startDate, endDate } = calculateRangeForPreset(preset);
@@ -111,6 +168,11 @@ export const DateFilterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       preset,
       startDate,
       endDate,
+    });
+    updateQueryParams({
+      datePreset: preset,
+      startDate: null,
+      endDate: null,
     });
   }, []);
 
@@ -126,6 +188,11 @@ export const DateFilterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       startDate: start,
       endDate: end,
     });
+    updateQueryParams({
+      datePreset: 'custom',
+      startDate: start,
+      endDate: end,
+    });
     return { success: true };
   }, []);
 
@@ -134,6 +201,11 @@ export const DateFilterProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       preset: 'all',
       startDate: '',
       endDate: '',
+    });
+    updateQueryParams({
+      datePreset: 'all',
+      startDate: null,
+      endDate: null,
     });
   }, []);
 

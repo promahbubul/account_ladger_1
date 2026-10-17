@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Menu,
   Plus,
@@ -37,6 +37,14 @@ export const Header: React.FC<HeaderProps> = ({
   const [customStart, setCustomStart] = useState(filter.startDate || '');
   const [customEnd, setCustomEnd] = useState(filter.endDate || '');
   const [dateError, setDateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isCustomDateOpen) {
+      setCustomStart(filter.startDate || '');
+      setCustomEnd(filter.endDate || '');
+      setDateError(null);
+    }
+  }, [isCustomDateOpen, filter.startDate, filter.endDate]);
 
   const totalBalance = accounts.reduce((acc, a) => acc + a.currentBalance, 0);
 

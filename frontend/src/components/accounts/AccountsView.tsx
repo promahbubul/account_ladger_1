@@ -9,7 +9,8 @@ import {
   ArchiveRestore,
   Trash2,
 } from 'lucide-react';
-import { formatBDT } from '../../lib/formatters';
+import { formatBDT, formatDate } from '../../lib/formatters';
+import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Account } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -674,8 +675,8 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                       .filter(t => t.accountId === viewAccount.id || t.destinationAccountId === viewAccount.id)
                       .map((tx) => (
                         <tr key={tx.id} className="hover:bg-[#1a1d24]">
-                          <td className="py-2 px-3 text-gray-400 font-mono text-[11px]">{tx.date}</td>
-                          <td className="py-2 px-3 text-gray-200">{tx.description}</td>
+                          <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">{formatDate(tx.date)}</td>
+                          <td className="py-2 px-3 text-gray-200">{tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : '-'))}</td>
                           <td className="py-2 px-3 text-gray-400 text-[10px]">{tx.type}</td>
                           <td className="py-2 px-3 text-right font-mono font-medium text-gray-100">
                             {formatBDT(tx.amount)}

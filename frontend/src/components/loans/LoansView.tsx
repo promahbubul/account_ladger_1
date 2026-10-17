@@ -6,7 +6,8 @@ import {
   Trash2,
   History,
 } from 'lucide-react';
-import { formatBDT } from '../../lib/formatters';
+import { formatBDT, formatDate } from '../../lib/formatters';
+import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Loan, LoanRepayment } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -65,7 +66,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
   const [isLoansLoading, setIsLoansLoading] = useState<boolean>(false);
   const [loanError, setLoanError] = useState<string | null>(null);
 
-  const loanPagination = useCursorPagination({ initialPageSize: 50 });
+  const loanPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'loanPage', pageSizeKey: 'loanPageSize' });
 
   // Repayments pagination state
   const [repItems, setRepItems] = useState<LoanRepayment[]>([]);
@@ -74,7 +75,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
   const [isRepsLoading, setIsRepsLoading] = useState<boolean>(false);
   const [repError, setRepError] = useState<string | null>(null);
 
-  const repPagination = useCursorPagination({ initialPageSize: 50 });
+  const repPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'repPage', pageSizeKey: 'repPageSize' });
 
   // Fetch loans
   const fetchLoans = useCallback(async () => {
@@ -433,10 +434,10 @@ export const LoansView: React.FC<LoansViewProps> = ({
                           {formatBDT(loan.outstandingPrincipal)}
                         </td>
                         <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                          {loan.startDate}
+                          {formatDate(loan.startDate)}
                         </td>
                         <td className="py-2.5 px-3 text-gray-500 font-mono text-[11px] whitespace-nowrap">
-                          {loan.dueDate || '-'}
+                          {loan.dueDate ? formatDate(loan.dueDate) : '-'}
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <span
@@ -559,7 +560,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                     repItems.map((rep) => (
                       <tr key={rep.id} className="hover:bg-[#1a1d24]">
                         <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                          {rep.date}
+                          {formatDate(rep.date)}
                         </td>
                         <td className="py-2.5 px-3 font-medium text-gray-200">
                           {rep.counterpartyName}
@@ -872,7 +873,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                       .filter(r => r.loanId === viewHistoryLoan.id)
                       .map((rep) => (
                         <tr key={rep.id} className="hover:bg-[#1a1d24]">
-                          <td className="py-2 px-3 text-gray-400 font-mono text-[11px]">{rep.date}</td>
+                          <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">{formatDate(rep.date)}</td>
                           <td className="py-2 px-3 text-gray-300">{rep.accountName}</td>
                           <td className="py-2 px-3 text-gray-400">{rep.notes || '-'}</td>
                           <td className="py-2 px-3 text-right font-mono font-medium text-emerald-400">

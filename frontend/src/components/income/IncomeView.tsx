@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -8,7 +8,8 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { formatBDT } from '../../lib/formatters';
+import { formatBDT, formatDate } from '../../lib/formatters';
+import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -487,7 +488,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                 items.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
                     <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                      {tx.date}
+                      {formatDate(tx.date)}
                     </td>
                     <td className="py-2.5 px-3 font-medium text-gray-200">
                       {tx.description}
@@ -864,7 +865,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
             <div className="grid grid-cols-2 gap-2 bg-[#111317] border border-[#22252c] p-3 rounded">
               <div>
                 <span className="text-gray-400">Date</span>
-                <p className="font-mono text-gray-200">{selectedTx.date}</p>
+                <p className="font-mono text-gray-200">{formatDate(selectedTx.date)}</p>
               </div>
               <div>
                 <span className="text-gray-400">Amount</span>

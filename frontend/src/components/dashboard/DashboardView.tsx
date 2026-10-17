@@ -7,10 +7,11 @@ import {
   FileSpreadsheet,
   AlertTriangle,
 } from 'lucide-react';
-import { formatBDT } from '../../lib/formatters';
+import { formatBDT, formatDate } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { useDateFilter } from '../../context/DateFilterContext';
 import { TableEmptyRow } from '../common/StateViews';
+import { normalizeToISODate } from '../common/DatePicker';
 
 interface DashboardViewProps {
   onOpenQuickAction: (actionType: 'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk') => void;
@@ -28,8 +29,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const filteredTransactions = React.useMemo(() => {
     return transactions.filter(t => {
-      if (dateFilter.startDate && t.date < dateFilter.startDate) return false;
-      if (dateFilter.endDate && t.date > dateFilter.endDate) return false;
+      const txDate = normalizeToISODate(t.date);
+      if (!txDate) return false;
+      if (dateFilter.startDate && txDate < dateFilter.startDate) return false;
+      if (dateFilter.endDate && txDate > dateFilter.endDate) return false;
       return true;
     });
   }, [transactions, dateFilter.startDate, dateFilter.endDate]);
@@ -241,9 +244,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Table 2: Recent Transactions */}
         <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex flex-col">
           <div className="p-3 border-b border-[#22252c] bg-[#121417] flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
-              Recent Transactions
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                Recent Transactions
+              </h3>
+              {filteredTransactions.length > 0 && (
+                <span className="text-[10px] text-gray-400 font-mono">
+                  ({Math.min(6, filteredTransactions.length)} of {filteredTransactions.length})
+                </span>
+              )}
+            </div>
             <button
               onClick={() => onNavigateTab('transactions')}
               className="text-[11px] text-blue-400 hover:text-blue-300"
@@ -272,10 +282,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   filteredTransactions.slice(0, 6).map((tx) => (
                     <tr key={tx.id} className="hover:bg-[#1a1d24]">
                       <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                        {tx.date}
+                        {formatDate(tx.date)}
                       </td>
                       <td className="py-2 px-3 text-gray-300 truncate max-w-[150px]">
-                        {tx.description}
+                        {tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : 'Transaction'))}
                       </td>
                       <td className="py-2 px-3 text-gray-400 truncate max-w-[120px]">
                         {tx.accountName}

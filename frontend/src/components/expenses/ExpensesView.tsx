@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Plus,
   FileSpreadsheet,
@@ -10,7 +10,8 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { formatBDT } from '../../lib/formatters';
+import { formatBDT, formatDate } from '../../lib/formatters';
+import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -21,6 +22,7 @@ import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateVi
 import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
 import { useToast } from '../../context/ToastContext';
 import { sortTransactions } from '../../lib/sorting';
+import { useRouter, useSearchParams } from '../../lib/router';
 
 interface ExpensesViewProps {
   onOpenSingleExpenseModal?: () => void;
@@ -33,6 +35,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const {
     accounts,
     categories,
+    addAccount,
     addExpense,
     editTransaction,
     addBulkExpenses,
@@ -42,7 +45,56 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const { filter: dateFilter } = useDateFilter();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<'RECORDS' | 'BULK_ENTRY'>('RECORDS');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const activeTab = urlTab === 'bulk' ? 'BULK_ENTRY' : 'RECORDS';
+  const setActiveTab = (tab: 'RECORDS' | 'BULK_ENTRY') => {
+    router.replace(tab === 'BULK_ENTRY' ? '/expenses?tab=bulk' : '/expenses?tab=records');
+  };
+
+  // Quick Add Account Modal State
+  const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
+  const [quickAccName, setQuickAccName] = useState('');
+  const [quickAccType, setQuickAccType] = useState<'BANK' | 'CASH' | 'MOBILE_BANKING'>('BANK');
+  const [quickAccBalance, setQuickAccBalance] = useState('0');
+  const [isSavingQuickAccount, setIsSavingQuickAccount] = useState(false);
+  const [quickAccountError, setQuickAccountError] = useState<string | null>(null);
+
+  const handleCreateQuickAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setQuickAccountError(null);
+    if (!quickAccName.trim()) {
+      setQuickAccountError('Account name is required.');
+      return;
+    }
+    setIsSavingQuickAccount(true);
+    try {
+      const initialBal = parseFloat(quickAccBalance) || 0;
+      const res = await addAccount({
+        name: quickAccName.trim(),
+        type: quickAccType,
+        openingBalance: initialBal,
+        currentBalance: initialBal,
+        currency: 'BDT',
+        status: 'ACTIVE',
+      });
+      if (res.success && res.account) {
+        setBulkAccount(res.account.id);
+        setSingleAccount(res.account.id);
+        toast.success(`Account "${res.account.name}" created and selected!`);
+        setIsAddAccountModalOpen(false);
+        setQuickAccName('');
+        setQuickAccBalance('0');
+      } else {
+        setQuickAccountError(res.error || 'Failed to create account.');
+      }
+    } catch (err: any) {
+      setQuickAccountError(err.message || 'Error creating account');
+    } finally {
+      setIsSavingQuickAccount(false);
+    }
+  };
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -311,19 +363,35 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       return;
     }
 
-    await addBulkExpenses({
+    const res = await addBulkExpenses({
       accountId: bulkAccount,
       date: bulkDate,
       items: validRows.map((r) => ({
         category: r.category,
         amount: Number(r.amount),
         desc: r.desc.trim(),
+        description: r.desc.trim(),
       })),
     });
 
+    if (res && res.success === false) {
+      setFormValidationMsg(res.error || 'Failed to record bulk expenses.');
+      toast.error(res.error || 'Failed to record bulk expenses.');
+      return;
+    }
+
     const accName = accounts.find((a) => a.id === bulkAccount)?.name || 'Account';
     onSuccessNotification(`Recorded ${validRows.length} daily expenses totaling ${formatBDT(bulkGrandTotal)} from ${accName}.`);
-    setActiveTab('RECORDS');
+    toast.success(`Recorded ${validRows.length} daily expenses totaling ${formatBDT(bulkGrandTotal)}.`);
+
+    // Reset rows to clean blank state so user can immediately enter another batch
+    setBulkRows([
+      { id: '1', category: 'Food & Dining', desc: '', amount: 0 },
+      { id: '2', category: 'Transportation', desc: '', amount: 0 },
+      { id: '3', category: 'Housing & Utilities', desc: '', amount: 0 },
+      { id: '4', category: 'Miscellaneous', desc: '', amount: 0 },
+    ]);
+    setBulkDate(getDhakaTodayISO());
     resetPagination();
     fetchExpenses();
   };
@@ -390,7 +458,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     setEditAccount(tx.accountId);
     setEditCat(tx.category || mainExpenseCategories[0]?.name || 'Miscellaneous');
     setEditSubcat(tx.subcategory || '');
-    setEditDesc(tx.description);
+    setEditDesc(tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : '')));
     setEditRef(tx.reference || '');
     setEditErrorMsg(null);
     setIsEditModalOpen(true);
@@ -607,10 +675,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                     items.map((tx) => (
                       <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
                         <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                          {tx.date}
+                          {formatDate(tx.date)}
                         </td>
                         <td className="py-2.5 px-3 font-medium text-gray-200">
-                          {tx.description}
+                          {tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : 'Expense'))}
                         </td>
                         <td className="py-2.5 px-3 text-gray-400">
                           <div className="flex flex-col gap-0.5">
@@ -703,9 +771,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs text-gray-300 font-medium mb-1">
-                  Payment Account *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs text-gray-300 font-medium">
+                    Payment Account *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddAccountModalOpen(true)}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                  >
+                    + Add Bank / Account
+                  </button>
+                </div>
                 <select
                   value={bulkAccount}
                   onChange={(e) => setBulkAccount(e.target.value)}
@@ -1104,7 +1181,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             <div className="grid grid-cols-2 gap-2 bg-[#111317] border border-[#22252c] p-3 rounded">
               <div>
                 <span className="text-gray-500 text-[10px] uppercase font-mono block">Date</span>
-                <span className="font-semibold text-gray-200">{selectedTx.date}</span>
+                <span className="font-semibold text-gray-200">{formatDate(selectedTx.date)}</span>
               </div>
               <div>
                 <span className="text-gray-500 text-[10px] uppercase font-mono block">Amount</span>
@@ -1125,7 +1202,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
             <div>
               <span className="text-gray-500 text-[10px] uppercase font-mono block mb-1">Description</span>
-              <p className="p-2.5 bg-[#111317] border border-[#22252c] rounded text-gray-300">{selectedTx.description}</p>
+              <p className="p-2.5 bg-[#111317] border border-[#22252c] rounded text-gray-300">
+                {selectedTx.description && selectedTx.description !== 'Daily Expense' ? selectedTx.description : ((selectedTx as any).desc || (selectedTx.category ? `${selectedTx.category} Expense` : 'Expense'))}
+              </p>
             </div>
 
             {selectedTx.reference && (
@@ -1157,6 +1236,82 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         confirmLabel="Delete"
         isDestructive={true}
       />
+
+      {/* Quick Add Account Modal */}
+      <Modal
+        isOpen={isAddAccountModalOpen}
+        onClose={() => {
+          setIsAddAccountModalOpen(false);
+          setQuickAccountError(null);
+        }}
+        title="Add New Account"
+      >
+        <form onSubmit={handleCreateQuickAccount} className="space-y-3 text-xs">
+          {quickAccountError && (
+            <div className="p-2.5 bg-red-950/40 border border-red-800 text-red-300 rounded flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{quickAccountError}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-gray-400 mb-1 font-medium">Account Name *</label>
+            <input
+              type="text"
+              required
+              value={quickAccName}
+              onChange={(e) => setQuickAccName(e.target.value)}
+              placeholder="e.g. City Bank Salary, bKash Personal"
+              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-gray-400 mb-1 font-medium">Account Type</label>
+              <select
+                value={quickAccType}
+                onChange={(e) => setQuickAccType(e.target.value as any)}
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="BANK">Bank Account</option>
+                <option value="MOBILE_BANKING">Mobile Banking (bKash/Nagad)</option>
+                <option value="CASH">Cash in Hand</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-gray-400 mb-1 font-medium">Opening Balance (৳)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={quickAccBalance}
+                onChange={(e) => setQuickAccBalance(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#22252c]">
+            <button
+              type="button"
+              onClick={() => setIsAddAccountModalOpen(false)}
+              className="px-3 py-1.5 bg-[#1e2129] hover:bg-[#262a34] text-gray-300 rounded text-xs transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingQuickAccount}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium text-xs flex items-center gap-1.5 transition-colors"
+            >
+              {isSavingQuickAccount && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSavingQuickAccount ? 'Creating...' : 'Create & Select'}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { formatDate } from '../../lib/formatters';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../services/api';
@@ -132,7 +133,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [userError, setUserError] = useState<string | null>(null);
 
-  const userPagination = useCursorPagination({ initialPageSize: 50 });
+  const userPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'userPage', pageSizeKey: 'userPageSize' });
 
   // Audit logs pagination state
   const [logItems, setLogItems] = useState<AuditLog[]>([]);
@@ -141,7 +142,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
 
-  const logPagination = useCursorPagination({ initialPageSize: 50 });
+  const logPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'logPage', pageSizeKey: 'logPageSize' });
 
   const fetchStatsAndSettings = useCallback(async () => {
     if (!token) return;
@@ -698,7 +699,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                           </td>
                           <td className="py-2.5 px-3 font-mono text-gray-400">{u.currency}</td>
                           <td className="py-2.5 px-3 text-gray-400 text-[11px] whitespace-nowrap">
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}
+                            {u.createdAt ? formatDate(u.createdAt) : '-'}
                           </td>
                           <td className="py-2.5 px-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
@@ -820,7 +821,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     logItems.map((log) => (
                       <tr key={log.id} className="hover:bg-[#1a1d24] transition-colors">
                         <td className="py-2.5 px-3 font-mono text-[11px] text-gray-400 whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString()}
+                          {formatDate(log.createdAt)}
                         </td>
                         <td className="py-2.5 px-3">
                           <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${

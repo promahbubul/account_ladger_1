@@ -62,8 +62,8 @@ interface FinanceContextType {
   addBulkExpenses: (bulk: {
     accountId: string;
     date: string;
-    items: { category: string; desc: string; amount: number; subcategory?: string }[];
-  }) => { overBudgetAlerts?: BudgetAlert[] };
+    items: { category: string; desc?: string; description?: string; amount: number; subcategory?: string }[];
+  }) => Promise<{ success: boolean; error?: string; overBudgetAlerts?: BudgetAlert[] }>;
   deleteTransaction: (id: string) => Promise<{ success: boolean; error?: string }>;
   editTransaction: (id: string, updates: Partial<Transaction>) => Promise<{ success: boolean; transaction?: Transaction; error?: string }>;
   addTransfer: (transfer: {
@@ -429,13 +429,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // BULK EXPENSES
-  const addBulkExpenses = (bulk: {
+  const addBulkExpenses = async (bulk: {
     accountId: string;
     date: string;
-    items: { category: string; desc: string; amount: number; subcategory?: string }[];
-  }): { overBudgetAlerts?: BudgetAlert[] } => {
+    items: { category: string; desc?: string; description?: string; amount: number; subcategory?: string }[];
+  }): Promise<{ success: boolean; error?: string; overBudgetAlerts?: BudgetAlert[] }> => {
     const acc = accounts.find(a => a.id === bulk.accountId);
-    const newTxs: Transaction[] = bulk.items.map((item, idx) => ({
+    const normalizedItems = bulk.items.map(item => ({
+      ...item,
+      desc: (item.desc || item.description || '').trim(),
+      description: (item.description || item.desc || '').trim(),
+    }));
+
+    const newTxs: Transaction[] = normalizedItems.map((item, idx) => ({
       id: `tx_${Date.now()}_${idx}`,
       date: bulk.date,
       type: 'EXPENSE',
@@ -445,7 +451,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       accountName: acc?.name || 'Account',
       amount: item.amount,
       direction: 'OUTFLOW',
-      description: item.desc,
+      description: item.description || item.desc || 'Daily Expense',
       status: 'COMPLETED',
     }));
 
@@ -462,13 +468,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     recalculateBudgetAlerts(budgets, nextTxs);
 
-    authFetch('/api/transactions/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bulk),
-    }).catch(err => console.error('Error saving bulk expenses:', err));
-
-    return {};
+    try {
+      const res = await authFetch('/api/transactions/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: bulk.accountId,
+          date: bulk.date,
+          items: normalizedItems,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to record bulk expenses.' };
+      }
+      return { success: true };
+    } catch (err) {
+      console.error('Error saving bulk expenses:', err);
+      return { success: false, error: err.message || 'Error saving bulk expenses' };
+    }
   };
 
   // TRANSACTIONS
