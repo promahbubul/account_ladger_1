@@ -232,28 +232,22 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
-        <div>
-          <h2 className="text-base font-semibold text-gray-100">Accounts & Wallets</h2>
-          <p className="text-xs text-gray-400">Manage financial accounts, balances, and institutions</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onOpenTransferModal()}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Transfer Funds</span>
-          </button>
-          <button
-            onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Account</span>
-          </button>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 flex-shrink-0">
+        <button
+          onClick={() => onOpenTransferModal()}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+        >
+          <ArrowRightLeft className="w-3.5 h-3.5" />
+          <span>Transfer Funds</span>
+        </button>
+        <button
+          onClick={() => setIsAddOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Account</span>
+        </button>
       </div>
 
       {/* Search & Filter Toolbar */}
@@ -264,7 +258,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search account name, bank, number..."
+            placeholder="Search accounts..."
             className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>

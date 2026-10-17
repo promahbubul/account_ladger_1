@@ -568,7 +568,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </h3>
             <div className="text-xs text-gray-400 space-y-1">
               <p>Connection: <strong className="text-gray-200">{stats?.status?.connectedToNeon ? 'Neon Serverless Cloud Connected' : 'Local Fallback'}</strong></p>
-              <p>Storage File: <span className="font-mono text-gray-300">{stats?.status?.storageFile || 'hisabflow_db.json'}</span></p>
+              <p>Storage File: <span className="font-mono text-gray-300">{stats?.status?.storageFile || 'accountladger_db.json'}</span></p>
               <p>Total Ledger Rows in DB: <strong className="text-gray-200">{stats?.status?.transactionCount ?? 0}</strong></p>
             </div>
           </div>
@@ -586,7 +586,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 type="text"
                 value={userSearchQuery}
                 onChange={(e) => handleUserSearchChange(e.target.value)}
-                placeholder="Search users by name, username, or email..."
+                placeholder="Search users..."
                 className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
@@ -773,7 +773,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 type="text"
                 value={logSearchQuery}
                 onChange={(e) => handleLogSearchChange(e.target.value)}
-                placeholder="Search audit logs by action, user, or IP..."
+                placeholder="Search logs..."
                 className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
@@ -1037,7 +1037,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               required
               value={createForm.email}
               onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-              placeholder="e.g. user@hisabflow.com"
+              placeholder="name@example.com"
               className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>

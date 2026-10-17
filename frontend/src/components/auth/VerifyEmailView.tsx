@@ -194,7 +194,6 @@ export const VerifyEmailView: React.FC = () => {
             </div>
             <div>
               <h2 className="text-sm font-semibold text-white">Verify Your Email</h2>
-              <p className="text-[11px] text-gray-400">Mandatory security activation</p>
             </div>
           </div>
 

@@ -87,12 +87,11 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
   return (
     <div className="space-y-4 w-full min-w-0">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-gray-100">Budgets</h2>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 flex-shrink-0">
         <button
           onClick={handleOpenNew}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Set Budget</span>

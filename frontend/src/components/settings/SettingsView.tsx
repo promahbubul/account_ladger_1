@@ -45,7 +45,7 @@ export const SettingsView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `hisabflow_backup_${Date.now()}.json`;
+    link.download = `accountladger_backup_${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -96,11 +96,6 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full min-w-0">
-      {/* Page Header */}
-      <div>
-        <h2 className="text-base font-semibold text-gray-100">Settings</h2>
-      </div>
-
       {/* Status banner */}
       {importStatus && (
         <div
@@ -119,17 +114,12 @@ export const SettingsView: React.FC = () => {
 
       {/* Database Connection */}
       <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="space-y-1">
-          <div className="font-medium text-gray-200 flex items-center gap-2">
-            <Server className="w-4 h-4 text-emerald-400" />
-            <span>Database Connection</span>
-            <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800">
-              Active
-            </span>
-          </div>
-          <p className="text-[11px] text-gray-400">
-            Relational persistence with SSL connection via DATABASE_URL and DIRECT_URL.
-          </p>
+        <div className="font-medium text-gray-200 flex items-center gap-2">
+          <Server className="w-4 h-4 text-emerald-400" />
+          <span>Database Connection</span>
+          <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800">
+            Active
+          </span>
         </div>
         <button
           onClick={handleSyncDatabase}
@@ -166,14 +156,9 @@ export const SettingsView: React.FC = () => {
       {/* Currency & Preferences */}
       <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 space-y-3 text-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="space-y-0.5">
-            <div className="font-medium text-gray-200 flex items-center gap-2">
-              <Coins className="w-4 h-4 text-amber-400" />
-              <span>Currency & Preferences</span>
-            </div>
-            <p className="text-[11px] text-gray-400">
-              Default currency is Bangladeshi Taka (BDT ৳). You can update your currency at any time.
-            </p>
+          <div className="font-medium text-gray-200 flex items-center gap-2">
+            <Coins className="w-4 h-4 text-amber-400" />
+            <span>Currency & Preferences</span>
           </div>
           <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#1b1e25] text-amber-300 border border-[#2b2f3a] self-start sm:self-auto">
             Current: {user?.currency || 'BDT'}
@@ -208,12 +193,7 @@ export const SettingsView: React.FC = () => {
 
       {/* Backup Export */}
       <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div>
-          <div className="font-medium text-gray-200">Export Backup</div>
-          <p className="text-[11px] text-gray-400 mt-0.5">
-            Download complete financial data as a JSON file.
-          </p>
-        </div>
+        <div className="font-medium text-gray-200">Export Backup</div>
         <button
           onClick={handleDownloadBackup}
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center gap-1.5 transition-colors self-start sm:self-auto font-medium"
@@ -225,9 +205,7 @@ export const SettingsView: React.FC = () => {
 
       {/* Backup Import */}
       <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 space-y-3 text-xs">
-        <div>
-          <div className="font-medium text-gray-200">Restore Backup</div>
-        </div>
+        <div className="font-medium text-gray-200">Restore Backup</div>
 
         <div className="flex items-center gap-2">
           <label className="cursor-pointer px-3 py-1.5 bg-[#1b1e25] hover:bg-[#232833] border border-[#2c313e] text-gray-200 rounded flex items-center gap-1.5 transition-colors">
@@ -247,7 +225,7 @@ export const SettingsView: React.FC = () => {
             rows={3}
             value={importJsonText}
             onChange={(e) => setImportJsonText(e.target.value)}
-            placeholder="Or paste backup JSON content directly here..."
+            placeholder="Paste backup JSON content here..."
             className="w-full bg-[#111317] border border-[#262932] rounded p-2 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
           />
           <div className="flex justify-end">

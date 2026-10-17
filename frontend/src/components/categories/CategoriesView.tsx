@@ -278,12 +278,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
-        <div>
-          <h2 className="text-base font-semibold text-gray-100">Hierarchical Categories</h2>
-          <p className="text-xs text-gray-400">Manage income and expense categories with parent and subcategory hierarchies</p>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 flex-shrink-0">
         <button
           onClick={() => {
             setIsAddCatOpen(true);
@@ -316,7 +312,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search categories or subcategories..."
+            placeholder="Search categories..."
             className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>

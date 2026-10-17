@@ -145,7 +145,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-400" />
-          <span>+ Record Income</span>
+          <span>Income</span>
         </button>
 
         <button
@@ -153,7 +153,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />
-          <span>+ Add Expense</span>
+          <span>Expense</span>
         </button>
 
         <button
@@ -161,7 +161,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
-          <span>Daily Bulk Entry</span>
+          <span>Daily Expenses</span>
         </button>
 
         <button
@@ -169,7 +169,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowLeftRight className="w-3.5 h-3.5 text-blue-400" />
-          <span>Internal Transfer</span>
+          <span>Transfer</span>
         </button>
 
         <button
@@ -177,7 +177,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors col-span-2 sm:col-span-1"
         >
           <HandCoins className="w-3.5 h-3.5 text-amber-400" />
-          <span>Record Loan</span>
+          <span>Loan</span>
         </button>
       </div>
 

@@ -203,12 +203,8 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
-        <div>
-          <h2 className="text-base font-semibold text-gray-100">Transfers Ledger</h2>
-          <p className="text-xs text-gray-400">Move funds between accounts and audit movement</p>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 flex-shrink-0">
         <button
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
@@ -226,7 +222,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search transfers or reference..."
+            placeholder="Search transfers..."
             className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>

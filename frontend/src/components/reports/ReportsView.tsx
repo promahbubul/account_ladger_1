@@ -146,12 +146,11 @@ export const ReportsView: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full min-w-0">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-gray-100">Reports</h2>
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+        <div>
           {formattedRangeLabel && (
-            <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-950/60 border border-blue-800 text-blue-300 rounded text-[11px] font-mono">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-950/60 border border-blue-800 text-blue-300 rounded text-[11px] font-mono">
               <Calendar className="w-3 h-3" />
               {formattedRangeLabel}
             </span>

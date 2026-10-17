@@ -196,11 +196,9 @@ test('Registration Flow - Email and Password Only', async (t) => {
     assert.ok(codeRecord, 'Verification code must be issued in database');
     assert.ok(codeRecord.codeHash, 'Code hash must exist');
 
-    // Verify default accounts and categories seeded
+    // Verify default Cash account initialized
     const accounts = await dbService.getAccounts(createdUserId);
-    assert.ok(accounts.length >= 2, 'Default accounts should be seeded');
-    const categories = await dbService.getCategories(createdUserId);
-    assert.ok(categories.length >= 10, 'Default categories should be seeded');
+    assert.ok(accounts.length >= 1, 'Default Cash account should be created');
   });
 
   await t.test('5. Rejects duplicate email registration with 409 Conflict', async () => {

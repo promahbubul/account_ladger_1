@@ -239,7 +239,7 @@ export const LoginView: React.FC = () => {
           <div className="relative flex items-center justify-center mb-4">
             <div className="border-t border-[#22252c] w-full"></div>
             <span className="bg-[#14171d] px-2 text-[10px] text-gray-400 uppercase tracking-wider">
-              or with password
+              or
             </span>
             <div className="border-t border-[#22252c] w-full"></div>
           </div>
@@ -256,7 +256,6 @@ export const LoginView: React.FC = () => {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Username or email"
                   className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
@@ -281,7 +280,6 @@ export const LoginView: React.FC = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Password"
                     className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <button

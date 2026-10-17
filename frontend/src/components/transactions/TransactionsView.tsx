@@ -322,15 +322,11 @@ export const TransactionsView: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
-        <div>
-          <h2 className="text-base font-semibold text-gray-100">Transaction History</h2>
-          <p className="text-xs text-gray-400">Comprehensive ledger of all inflows, outflows, transfers, and loans</p>
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 flex-shrink-0">
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 border border-[#2a2e39] rounded text-xs transition-colors self-start sm:self-auto"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 border border-[#2a2e39] rounded text-xs transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Export CSV</span>

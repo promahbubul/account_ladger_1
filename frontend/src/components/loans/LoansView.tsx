@@ -283,44 +283,40 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
-        <div>
-          <h2 className="text-base font-semibold text-gray-100">Loans & Debt Tracker</h2>
-          <p className="text-xs text-gray-400">Track receivables, debts, and installment repayments</p>
+      {/* Tabs & Actions */}
+      <div className="flex items-center justify-between border-b border-[#22252c] text-xs flex-shrink-0 gap-2">
+        <div className="flex">
+          <button
+            onClick={() => setActiveTab('LOANS')}
+            className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === 'LOANS'
+                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Loans
+          </button>
+          <button
+            onClick={() => setActiveTab('REPAYMENTS')}
+            className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+              activeTab === 'REPAYMENTS'
+                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Repayments</span>
+          </button>
         </div>
-        <button
-          onClick={() => setIsAddLoanOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium self-start sm:self-auto transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Record Loan</span>
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-[#22252c] text-xs flex-shrink-0">
-        <button
-          onClick={() => setActiveTab('LOANS')}
-          className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
-            activeTab === 'LOANS'
-              ? 'border-blue-500 text-blue-400 bg-[#16181d]'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Loans
-        </button>
-        <button
-          onClick={() => setActiveTab('REPAYMENTS')}
-          className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'REPAYMENTS'
-              ? 'border-blue-500 text-blue-400 bg-[#16181d]'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          <History className="w-3.5 h-3.5" />
-          <span>Repayments</span>
-        </button>
+        <div className="pb-1 sm:pb-0">
+          <button
+            onClick={() => setIsAddLoanOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Record Loan</span>
+          </button>
+        </div>
       </div>
 
       {activeTab === 'LOANS' ? (
@@ -333,7 +329,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleLoanSearchChange(e.target.value)}
-                placeholder="Search counterparty name or contact..."
+                placeholder="Search loans..."
                 className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
@@ -518,7 +514,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 type="text"
                 value={repSearchQuery}
                 onChange={(e) => handleRepSearchChange(e.target.value)}
-                placeholder="Search repayment counterparty or notes..."
+                placeholder="Search repayments..."
                 className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>

@@ -159,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <form onSubmit={handleApplyCustom} className="space-y-2.5">
                         <div>
                           <label className="block text-[11px] text-gray-400 mb-1">
-                            Start Date (Asia/Dhaka)
+                            Start Date
                           </label>
                           <input
                             type="date"
@@ -172,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                         <div>
                           <label className="block text-[11px] text-gray-400 mb-1">
-                            End Date (Asia/Dhaka)
+                            End Date
                           </label>
                           <input
                             type="date"

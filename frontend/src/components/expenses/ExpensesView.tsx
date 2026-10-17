@@ -480,20 +480,32 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 flex-shrink-0">
-        <div>
-          <h2 className="text-base font-semibold text-gray-100">Expenses</h2>
-          <p className="text-xs text-gray-400">Track and categorize expenditures with hierarchical categorization</p>
-        </div>
-        <div className="flex items-center gap-2">
+      {/* Tabs & Actions */}
+      <div className="flex items-center justify-between border-b border-[#22252c] text-xs flex-shrink-0 gap-2">
+        <div className="flex">
           <button
-            onClick={() => setActiveTab(activeTab === 'RECORDS' ? 'BULK_ENTRY' : 'RECORDS')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+            onClick={() => setActiveTab('RECORDS')}
+            className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === 'RECORDS'
+                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Expenses
+          </button>
+          <button
+            onClick={() => setActiveTab('BULK_ENTRY')}
+            className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+              activeTab === 'BULK_ENTRY'
+                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>{activeTab === 'RECORDS' ? 'Daily Bulk Entry' : 'View Records'}</span>
+            <span>Daily Bulk Entry</span>
           </button>
+        </div>
+        <div className="pb-1 sm:pb-0">
           <button
             onClick={() => {
               setIsAddExpenseOpen(true);
@@ -507,31 +519,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-[#22252c] text-xs flex-shrink-0">
-        <button
-          onClick={() => setActiveTab('RECORDS')}
-          className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
-            activeTab === 'RECORDS'
-              ? 'border-blue-500 text-blue-400 bg-[#16181d]'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Expense Records
-        </button>
-        <button
-          onClick={() => setActiveTab('BULK_ENTRY')}
-          className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
-            activeTab === 'BULK_ENTRY'
-              ? 'border-blue-500 text-blue-400 bg-[#16181d]'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" />
-          <span>Daily Bulk Entry</span>
-        </button>
-      </div>
-
       {activeTab === 'RECORDS' ? (
         <>
           {/* Search & Filter Toolbar */}
@@ -542,7 +529,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search expense records..."
+                placeholder="Search expenses..."
                 className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>

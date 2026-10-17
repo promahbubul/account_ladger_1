@@ -69,7 +69,6 @@ export const ForgotPasswordView: React.FC = () => {
             className="w-12 h-12 object-contain mx-auto mb-3"
           />
           <h1 className="text-xl font-bold tracking-tight text-white">Account Ladger</h1>
-          <p className="text-xs text-gray-400 mt-1">Reset your account password</p>
         </div>
 
         {/* Card */}
