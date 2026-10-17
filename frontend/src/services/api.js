@@ -55,8 +55,13 @@ export async function parseResponseJson(res) {
   const text = await res.text().catch(() => '');
   if (!contentType.includes('application/json') || text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
     if (text.trim().startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
       throw new Error(
-        'Backend server is not responding (received HTML instead of JSON). Please ensure the backend server is running on port 5001.'
+        isLocalhost
+          ? 'Backend server is not responding (received HTML instead of JSON). Please ensure your local backend server is running on port 5001.'
+          : 'Backend API server is temporarily unreachable or restarting (received HTML instead of JSON). Please ensure the backend application is running and try again in a few moments.'
       );
     }
   }
