@@ -53,6 +53,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   // Transfer form
   const [fromAccId, setFromAccId] = useState(accounts[0]?.id || '');
   const [toAccId, setToAccId] = useState(accounts[1]?.id || '');
+  const [transferDate, setTransferDate] = useState(getDhakaTodayISO());
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
   const [refNum, setRefNum] = useState('');
@@ -152,7 +153,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
       sourceAccountId: fromAccId,
       destinationAccountId: toAccId,
       amount: amountNum,
-      date: new Date().toISOString().slice(0, 10),
+      date: transferDate || getDhakaTodayISO(),
       description: desc.trim() || undefined,
       reference: refNum.trim() || undefined,
     });
@@ -418,19 +419,28 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs text-gray-300 font-medium mb-1">
-              Transfer Amount (৳ BDT) *
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Transfer Date *
+              </label>
+              <DatePicker value={transferDate} onChange={setTransferDate} />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">
+                Transfer Amount (৳ BDT) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              />
+            </div>
           </div>
 
           <div>

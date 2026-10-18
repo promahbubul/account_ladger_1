@@ -60,9 +60,27 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   // Transfer form state
   const [sourceAccId, setSourceAccId] = useState(accounts[0]?.id || '');
   const [destAccId, setDestAccId] = useState(accounts[1]?.id || '');
+  const [transferDate, setTransferDate] = useState(getTodayDate());
   const [transferAmount, setTransferAmount] = useState('');
   const [transferDesc, setTransferDesc] = useState('');
   const [transferRef, setTransferRef] = useState('');
+
+  useEffect(() => {
+    if (activeModal === 'transfer') {
+      const activeAccounts = accounts.filter((a) => a.status === 'ACTIVE');
+      if (activeAccounts.length > 0) {
+        if (!sourceAccId || !activeAccounts.some((a) => a.id === sourceAccId)) {
+          setSourceAccId(activeAccounts[0].id);
+        }
+        if (!destAccId || destAccId === sourceAccId || !activeAccounts.some((a) => a.id === destAccId)) {
+          const second = activeAccounts.find((a) => a.id !== (sourceAccId || activeAccounts[0].id));
+          if (second) setDestAccId(second.id);
+        }
+      }
+      setTransferDate(getTodayDate());
+      setModalError(null);
+    }
+  }, [activeModal, accounts]);
 
   // Loan form state
   const [loanType, setLoanType] = useState<'LENT' | 'BORROWED'>('LENT');
@@ -174,6 +192,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
       sourceAccountId: sourceAccId,
       destinationAccountId: destAccId,
       amount: amountNum,
+      date: transferDate || getTodayDate(),
       description: transferDesc.trim() || undefined,
       reference: transferRef.trim() || undefined,
     });
@@ -520,16 +539,24 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs text-gray-300 font-medium mb-1">Transfer Amount (৳ BDT) *</label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={transferAmount}
-              onChange={(e) => setTransferAmount(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">Transfer Date *</label>
+              <DatePicker value={transferDate} onChange={setTransferDate} />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 font-medium mb-1">Transfer Amount (৳ BDT) *</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              />
+            </div>
           </div>
 
           <div>
