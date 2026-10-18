@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
@@ -107,9 +107,11 @@ export const LoginScreen = ({ navigation }) => {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <View style={styles.logoCircle}>
-            <Ionicons name="wallet" size={32} color={COLORS.primary} />
-          </View>
+          <Image
+            source={require('../../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.appName}>AccountLedger</Text>
           <Text style={styles.tagline}>Personal Accounting & Money Manager</Text>
         </View>
@@ -203,15 +205,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xxl,
   },
-  logoCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.surfaceGhost,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 64,
+    height: 64,
     marginBottom: SPACING.sm,
   },
   appName: {
