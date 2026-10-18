@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Google Sign-In - AccountLedger</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0B0D10;
+      color: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: #14181F;
+      border: 1px solid #232B38;
+      border-radius: 16px;
+      padding: 32px 24px;
+      max-width: 380px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+    .logo {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #94A3B8;
+      margin-bottom: 24px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top-color: #3B82F6;
+      animation: spin 0.8s linear infinite;
+      margin: 16px 0;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .status {
+      font-size: 14px;
+      color: #CBD5E1;
+      margin-top: 8px;
+    }
+    .btn {
+      background: #FFFFFF;
+      color: #0F172A;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 12px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .error-box {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #F87171;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      margin-top: 16px;
+      width: 100%;
+      word-break: break-word;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <div class="card">
+    <img src="/logo.png" alt="AccountLedger Logo" class="logo">
+    <h1 class="title">AccountLedger</h1>
+    <p class="subtitle">Secure Google Authentication</p>
+
+    <div id="loadingSection">
+      <div class="spinner"></div>
+      <p id="statusText" class="status">Connecting to Google...</p>
+    </div>
+
+    <div id="actionSection" style="display: none; width: 100%;">
+      <button id="googleBtn" class="btn" onclick="startGoogleAuth()">
+        <svg width="18" height="18" viewBox="0 0 18 18">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+        </svg>
+        Continue with Google
+      </button>
+    </div>
+
+    <div id="errorBox" class="error-box" style="display: none;"></div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCcaQTcmWBNr7gFVHVOrWqZdvJJ61KzEqc",
+      authDomain: "account-ladger01.firebaseapp.com",
+      projectId: "account-ladger01",
+      storageBucket: "account-ladger01.firebasestorage.app",
+      messagingSenderId: "170169573200",
+      appId: "1:170169573200:web:80be6390580613bf085655"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    function returnToApp(idToken) {
+      document.getElementById('statusText').innerText = "Returning to AccountLedger App...";
+      window.location.href = "accountledger://auth?idToken=" + encodeURIComponent(idToken);
+    }
+
+    // Check if returning from redirect
+    auth.getRedirectResult().then(result => {
+      if (result && result.user) {
+        document.getElementById('statusText').innerText = "Verifying authentication...";
+        result.user.getIdToken(true).then(token => {
+          returnToApp(token);
+        }).catch(err => showError(err.message));
+      } else {
+        // Automatically start sign-in redirect
+        startGoogleAuth();
+      }
+    }).catch(err => {
+      showError(err.message || "Google authentication failed.");
+    });
+
+    function startGoogleAuth() {
+      document.getElementById('errorBox').style.display = 'none';
+      document.getElementById('loadingSection').style.display = 'block';
+      document.getElementById('actionSection').style.display = 'none';
+      document.getElementById('statusText').innerText = "Redirecting to Google...";
+      auth.signInWithRedirect(provider).catch(err => {
+        showError(err.message || "Could not launch Google Sign-In.");
+      });
+    }
+
+    function showError(msg) {
+      document.getElementById('loadingSection').style.display = 'none';
+      document.getElementById('actionSection').style.display = 'block';
+      const box = document.getElementById('errorBox');
+      box.innerText = msg;
+      box.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
