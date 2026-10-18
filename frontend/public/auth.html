@@ -15,44 +15,48 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 24px;
+      padding: 24px 16px;
       text-align: center;
     }
     .card {
       background: #14181F;
       border: 1px solid #232B38;
-      border-radius: 16px;
-      padding: 32px 24px;
-      max-width: 380px;
+      border-radius: 20px;
+      padding: 36px 24px;
+      max-width: 400px;
       width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     }
     .logo {
-      width: 64px;
-      height: 64px;
-      margin-bottom: 16px;
+      width: 68px;
+      height: 68px;
+      margin-bottom: 18px;
+      border-radius: 14px;
     }
     .title {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
+      letter-spacing: -0.3px;
       margin-bottom: 6px;
+      color: #F8FAFC;
     }
     .subtitle {
       font-size: 14px;
       color: #94A3B8;
-      margin-bottom: 24px;
+      margin-bottom: 28px;
+      line-height: 1.4;
     }
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255, 255, 255, 0.1);
+      width: 44px;
+      height: 44px;
+      border: 3.5px solid rgba(255, 255, 255, 0.1);
       border-radius: 50%;
       border-top-color: #3B82F6;
       animation: spin 0.8s linear infinite;
-      margin: 16px 0;
+      margin: 20px auto;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -60,14 +64,15 @@
     .status {
       font-size: 14px;
       color: #CBD5E1;
-      margin-top: 8px;
+      margin-top: 10px;
+      line-height: 1.5;
     }
     .btn {
       background: #FFFFFF;
       color: #0F172A;
       border: none;
-      border-radius: 10px;
-      padding: 14px 20px;
+      border-radius: 12px;
+      padding: 15px 22px;
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
@@ -76,20 +81,54 @@
       justify-content: center;
       gap: 12px;
       width: 100%;
-      transition: background 0.2s, transform 0.1s;
-      margin-top: 12px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
-    .btn:active { transform: scale(0.98); }
+    .btn:hover {
+      background: #F1F5F9;
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-success {
+      background: #10B981;
+      color: #FFFFFF;
+      font-weight: 600;
+      margin-top: 14px;
+    }
+    .btn-success:hover {
+      background: #059669;
+    }
     .error-box {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      color: #F87171;
-      border-radius: 8px;
-      padding: 12px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #FCA5A5;
+      border-radius: 10px;
+      padding: 12px 14px;
       font-size: 13px;
+      margin-top: 20px;
+      width: 100%;
+      line-height: 1.4;
+      text-align: left;
+      word-break: break-word;
+    }
+    .success-box {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6EE7B7;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 14px;
       margin-top: 16px;
       width: 100%;
-      word-break: break-word;
+      line-height: 1.4;
+    }
+    .footer-note {
+      font-size: 12px;
+      color: #64748B;
+      margin-top: 24px;
     }
   </style>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -99,16 +138,12 @@
   <div class="card">
     <img src="/logo.png" alt="AccountLedger Logo" class="logo">
     <h1 class="title">AccountLedger</h1>
-    <p class="subtitle">Secure Google Authentication</p>
+    <p class="subtitle">Fast & Secure Google Authentication</p>
 
-    <div id="loadingSection">
-      <div class="spinner"></div>
-      <p id="statusText" class="status">Connecting to Google...</p>
-    </div>
-
-    <div id="actionSection" style="display: none; width: 100%;">
-      <button id="googleBtn" class="btn" onclick="startGoogleAuth()">
-        <svg width="18" height="18" viewBox="0 0 18 18">
+    <!-- Initial Action Section -->
+    <div id="actionSection" style="width: 100%;">
+      <button id="googleBtn" class="btn" onclick="startGoogleSignIn()">
+        <svg width="20" height="20" viewBox="0 0 18 18">
           <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"/>
           <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
           <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
@@ -118,7 +153,27 @@
       </button>
     </div>
 
+    <!-- Loading / Processing Section -->
+    <div id="loadingSection" style="display: none; width: 100%;">
+      <div class="spinner"></div>
+      <p id="statusText" class="status">Connecting to Google...</p>
+    </div>
+
+    <!-- Success / Return Section -->
+    <div id="successSection" style="display: none; width: 100%;">
+      <div class="success-box">
+        <strong>Login successful!</strong>
+        <p style="margin-top: 6px; font-size: 13px;">Returning to your AccountLedger app...</p>
+      </div>
+      <a id="returnBtn" class="btn btn-success" href="#">
+        Open AccountLedger App
+      </a>
+    </div>
+
+    <!-- Error Box -->
     <div id="errorBox" class="error-box" style="display: none;"></div>
+
+    <p class="footer-note">End-to-end encrypted financial management</p>
   </div>
 
   <script>
@@ -137,33 +192,16 @@
     provider.setCustomParameters({ prompt: 'select_account' });
 
     function returnToApp(idToken) {
-      document.getElementById('statusText').innerText = "Returning to AccountLedger App...";
-      window.location.href = "accountledger://auth?idToken=" + encodeURIComponent(idToken);
-    }
-
-    // Check if returning from redirect
-    auth.getRedirectResult().then(result => {
-      if (result && result.user) {
-        document.getElementById('statusText').innerText = "Verifying authentication...";
-        result.user.getIdToken(true).then(token => {
-          returnToApp(token);
-        }).catch(err => showError(err.message));
-      } else {
-        // Automatically start sign-in redirect
-        startGoogleAuth();
-      }
-    }).catch(err => {
-      showError(err.message || "Google authentication failed.");
-    });
-
-    function startGoogleAuth() {
-      document.getElementById('errorBox').style.display = 'none';
-      document.getElementById('loadingSection').style.display = 'block';
+      document.getElementById('loadingSection').style.display = 'none';
       document.getElementById('actionSection').style.display = 'none';
-      document.getElementById('statusText').innerText = "Redirecting to Google...";
-      auth.signInWithRedirect(provider).catch(err => {
-        showError(err.message || "Could not launch Google Sign-In.");
-      });
+      document.getElementById('errorBox').style.display = 'none';
+      document.getElementById('successSection').style.display = 'block';
+
+      const returnUrl = "accountledger://auth?idToken=" + encodeURIComponent(idToken);
+      document.getElementById('returnBtn').href = returnUrl;
+
+      // Automatically launch the app
+      window.location.href = returnUrl;
     }
 
     function showError(msg) {
@@ -172,6 +210,71 @@
       const box = document.getElementById('errorBox');
       box.innerText = msg;
       box.style.display = 'block';
+    }
+
+    function setLoading(isLoading, message) {
+      if (isLoading) {
+        document.getElementById('actionSection').style.display = 'none';
+        document.getElementById('errorBox').style.display = 'none';
+        document.getElementById('loadingSection').style.display = 'block';
+        if (message) document.getElementById('statusText').innerText = message;
+      } else {
+        document.getElementById('loadingSection').style.display = 'none';
+        document.getElementById('actionSection').style.display = 'block';
+      }
+    }
+
+    async function startGoogleSignIn() {
+      setLoading(true, "Opening Google Sign-In...");
+      try {
+        // Use popup mode to avoid cross-domain redirect storage partitioning issues
+        const result = await auth.signInWithPopup(provider);
+        if (result && result.user) {
+          setLoading(true, "Finalizing authentication...");
+          const token = await result.user.getIdToken(true);
+          returnToApp(token);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.warn("Popup error:", error.code, error.message);
+        if (error.code === 'auth/popup-blocked') {
+          // Fallback to redirect only if browser specifically blocked popups
+          try {
+            sessionStorage.setItem('pending_redirect_login', 'true');
+            setLoading(true, "Redirecting to Google...");
+            await auth.signInWithRedirect(provider);
+          } catch (redirErr) {
+            showError("Could not launch Google Sign-In: " + redirErr.message);
+          }
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          setLoading(false);
+          showError("Google sign-in window was closed. Please tap 'Continue with Google' to try again.");
+        } else if (error.code === 'auth/network-request-failed') {
+          setLoading(false);
+          showError("Network connection error. Please check your internet connection.");
+        } else {
+          setLoading(false);
+          showError(error.message || "Google authentication failed.");
+        }
+      }
+    }
+
+    // Check if returning from an explicit redirect fallback ONLY
+    if (sessionStorage.getItem('pending_redirect_login') === 'true') {
+      sessionStorage.removeItem('pending_redirect_login');
+      setLoading(true, "Verifying Google account...");
+      auth.getRedirectResult().then(result => {
+        if (result && result.user) {
+          result.user.getIdToken(true).then(token => {
+            returnToApp(token);
+          }).catch(err => showError(err.message));
+        } else {
+          setLoading(false);
+        }
+      }).catch(err => {
+        showError(err.message || "Authentication could not be completed.");
+      });
     }
   </script>
 </body>

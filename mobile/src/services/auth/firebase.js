@@ -105,12 +105,23 @@ async function signInWithGoogleNative() {
     throw new Error('Google sign-in could not be completed.');
   }
 
-  // Parse id_token / idToken from redirect URL hash or query string
-  const urlParts = authResult.url.split('#');
-  const fragment = urlParts.length > 1 ? urlParts[1] : authResult.url.split('?')[1] || '';
-  const parsedParams = new URLSearchParams(fragment);
-  const idToken = parsedParams.get('idToken') || parsedParams.get('id_token');
-  const accessToken = parsedParams.get('access_token');
+  // Robust token extraction supporting both query parameters and URL fragments
+  const rawUrl = authResult.url;
+  let idToken = null;
+  let accessToken = null;
+
+  if (rawUrl.includes('?')) {
+    const queryStr = rawUrl.split('?')[1].split('#')[0];
+    const qParams = new URLSearchParams(queryStr);
+    idToken = qParams.get('idToken') || qParams.get('id_token') || idToken;
+    accessToken = qParams.get('access_token') || accessToken;
+  }
+  if (rawUrl.includes('#')) {
+    const hashStr = rawUrl.split('#')[1];
+    const hParams = new URLSearchParams(hashStr);
+    idToken = hParams.get('idToken') || hParams.get('id_token') || idToken;
+    accessToken = hParams.get('access_token') || accessToken;
+  }
 
   if (!idToken) {
     throw new Error('Did not receive an identity token from Google authentication.');
@@ -119,15 +130,16 @@ async function signInWithGoogleNative() {
   let firebaseIdToken = idToken;
   let user = null;
 
-  try {
-    // If raw Google credential was returned, exchange for Firebase session token
-    const credential = GoogleAuthProvider.credential(idToken, accessToken || undefined);
-    const userCredential = await signInWithCredential(firebaseAuth, credential);
-    firebaseIdToken = await userCredential.user.getIdToken();
-    user = userCredential.user;
-  } catch (err) {
-    // Token from web bridge is already a verified Firebase ID token
-    console.log('[Firebase Auth] Using verified ID token for backend authentication');
+  // If raw Google OAuth credential was returned with access_token, exchange for Firebase session token
+  if (accessToken) {
+    try {
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+      const userCredential = await signInWithCredential(firebaseAuth, credential);
+      firebaseIdToken = await userCredential.user.getIdToken();
+      user = userCredential.user;
+    } catch (err) {
+      console.warn('[Firebase Auth] Credential exchange error:', err.message);
+    }
   }
 
   return {
