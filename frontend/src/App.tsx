@@ -18,6 +18,7 @@ import { LoginView } from './components/auth/LoginView';
 import { ForgotPasswordView } from './components/auth/ForgotPasswordView';
 import { ResetPasswordView } from './components/auth/ResetPasswordView';
 import { VerifyEmailView } from './components/auth/VerifyEmailView';
+import { LandingPageView } from './components/landing/LandingPageView';
 import { Loan } from './mock/data';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
@@ -109,6 +110,10 @@ function AppContent() {
 
     const clean = pathname.replace(/\/+$/, '') || '/';
 
+    if (clean === '/download' || clean === '/landing') {
+      return;
+    }
+
     if (isAdmin) {
       if (!clean.startsWith('/admin')) {
         router.replace('/admin');
@@ -139,6 +144,11 @@ function AppContent() {
     );
   }
 
+  // Public Landing / Download Hub
+  if (pathname === '/download' || pathname === '/landing') {
+    return <LandingPageView />;
+  }
+
   // Public & unverified views
   if (pathname === '/verify-email') {
     return <VerifyEmailView />;
@@ -151,7 +161,10 @@ function AppContent() {
     if (pathname === '/reset-password') {
       return <ResetPasswordView />;
     }
-    return <LoginView />;
+    if (pathname === '/login' || pathname === '/register') {
+      return <LoginView />;
+    }
+    return <LandingPageView />;
   }
 
   if (user.emailVerified === false) {

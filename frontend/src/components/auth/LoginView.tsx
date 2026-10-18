@@ -121,6 +121,17 @@ export const LoginView: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0d0f12] text-gray-100 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
+        {/* Back to Home / Download Mobile App */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            className="text-xs text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
+          >
+            <span>&larr; Back to Website &amp; Download App</span>
+          </button>
+        </div>
+
         {/* Brand */}
         <div className="text-center mb-6">
           <img
