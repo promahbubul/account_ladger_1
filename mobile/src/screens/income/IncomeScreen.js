@@ -37,6 +37,8 @@ export const IncomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header
         title="Income"
+        showBack
+        onBack={() => navigation.goBack()}
         showDateFilter={true}
         rightAction={
           <Button

@@ -1,24 +1,66 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Modal } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
+import { Input } from '../../components/common/Input';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { accountsApi } from '../../services/api/accounts.api';
 
 export const AccountDetailScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
-  const account = route.params?.account;
+  const initialAccount = route.params?.account;
 
+  const [account, setAccount] = useState(initialAccount);
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [archiveVisible, setArchiveVisible] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Edit fields
+  const [name, setName] = useState(initialAccount?.name || '');
+  const [providerName, setProviderName] = useState(initialAccount?.providerName || '');
+  const [accountNumber, setAccountNumber] = useState(initialAccount?.accountNumber || '');
 
   if (!account) return null;
+
+  const handleUpdate = async () => {
+    if (!name.trim()) {
+      Alert.alert('Validation Error', 'Account name cannot be empty.');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const updated = await accountsApi.updateAccount(account.id, {
+        name: name.trim(),
+        providerName: providerName.trim() || null,
+        accountNumber: accountNumber.trim() || null,
+      });
+
+      const newAccount = updated?.account || {
+        ...account,
+        name: name.trim(),
+        providerName: providerName.trim() || null,
+        accountNumber: accountNumber.trim() || null,
+      };
+
+      setAccount(newAccount);
+      queryClient.invalidateQueries({ queryKey: ['accountsList'] });
+      queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
+      setEditVisible(false);
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to update account.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   const handleDelete = async () => {
     setLoading(true);
@@ -40,6 +82,7 @@ export const AccountDetailScreen = ({ route, navigation }) => {
     try {
       await accountsApi.archiveAccount(account.id);
       queryClient.invalidateQueries({ queryKey: ['accountsList'] });
+      queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
       setArchiveVisible(false);
       navigation.goBack();
     } catch (err) {
@@ -54,15 +97,19 @@ export const AccountDetailScreen = ({ route, navigation }) => {
       <Header title={account.name} showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Card>
+        {/* Hero Balance Section */}
+        <View style={styles.heroSection}>
           <View style={styles.badgeRow}>
             <Badge label={account.type} variant="primary" />
             <Badge label={account.status || 'ACTIVE'} variant={account.status === 'ARCHIVED' ? 'warning' : 'success'} />
           </View>
 
-          <Text style={styles.balanceLabel}>Current Balance</Text>
+          <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
           <Text style={styles.balanceVal}>{formatCurrency(account.currentBalance, account.currency)}</Text>
+        </View>
 
+        {/* Details Section */}
+        <View style={styles.detailsSection}>
           <View style={styles.infoRow}>
             <Text style={styles.infoKey}>Opening Balance</Text>
             <Text style={styles.infoVal}>{formatCurrency(account.openingBalance, account.currency)}</Text>
@@ -86,13 +133,27 @@ export const AccountDetailScreen = ({ route, navigation }) => {
             <Text style={styles.infoKey}>Created At</Text>
             <Text style={styles.infoVal}>{formatDate(account.createdAt)}</Text>
           </View>
-        </Card>
+        </View>
 
         <View style={styles.actionButtons}>
           <Button
             title="Transfer Funds"
             variant="secondary"
+            icon={<Ionicons name="swap-horizontal" size={18} color={COLORS.text} />}
             onPress={() => navigation.navigate('CreateTransfer', { sourceAccountId: account.id })}
+            style={styles.mb}
+          />
+
+          <Button
+            title="Edit Details"
+            variant="outline"
+            icon={<Ionicons name="create-outline" size={18} color={COLORS.text} />}
+            onPress={() => {
+              setName(account.name || '');
+              setProviderName(account.providerName || '');
+              setAccountNumber(account.accountNumber || '');
+              setEditVisible(true);
+            }}
             style={styles.mb}
           />
 
@@ -110,6 +171,51 @@ export const AccountDetailScreen = ({ route, navigation }) => {
           />
         </View>
       </ScrollView>
+
+      {/* Edit Modal */}
+      <Modal visible={editVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Account Details</Text>
+
+            <Input
+              label="Account Name *"
+              placeholder="e.g. City Bank Primary"
+              value={name}
+              onChangeText={setName}
+            />
+
+            <Input
+              label="Provider / Bank"
+              placeholder="e.g. City Bank PLC"
+              value={providerName}
+              onChangeText={setProviderName}
+            />
+
+            <Input
+              label="Account Number (Optional)"
+              placeholder="e.g. 1102938475"
+              value={accountNumber}
+              onChangeText={setAccountNumber}
+            />
+
+            <View style={styles.modalBtnRow}>
+              <Button
+                title="Cancel"
+                variant="outline"
+                onPress={() => setEditVisible(false)}
+                style={styles.modalBtn}
+              />
+              <Button
+                title="Save Changes"
+                onPress={handleUpdate}
+                loading={editLoading}
+                style={styles.modalBtn}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <ConfirmModal
         visible={deleteVisible}
@@ -140,6 +246,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+  },
+  heroSection: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -147,21 +259,29 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   balanceLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    letterSpacing: 0.6,
   },
   balanceVal: {
-    fontSize: FONT_SIZE.title,
+    fontSize: FONT_SIZE.hero,
     fontWeight: '800',
     color: COLORS.text,
+    letterSpacing: -0.5,
     marginVertical: SPACING.xs,
+  },
+  detailsSection: {
+    marginBottom: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderHairline,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderHairline,
   },
   infoKey: {
     fontSize: FONT_SIZE.xs,
@@ -173,9 +293,36 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   actionButtons: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
   mb: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  modalCard: {
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.lg,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  modalBtn: {
+    flex: 1,
   },
 });

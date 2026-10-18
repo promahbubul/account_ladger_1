@@ -37,6 +37,8 @@ export const ExpensesScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header
         title="Expenses"
+        showBack
+        onBack={() => navigation.goBack()}
         showDateFilter={true}
         rightAction={
           <View style={{ flexDirection: 'row', gap: 6 }}>

@@ -141,20 +141,33 @@ export const BulkExpenseScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryLabel}>Total Items: {items.length}</Text>
-          <Text style={styles.summaryTotal}>Total: {formatCurrency(totalSum)}</Text>
+        {/* Running Batch Summary */}
+        <View style={styles.summaryBar}>
+          <View>
+            <Text style={styles.summaryLabel}>RUNNING TOTAL</Text>
+            <Text style={styles.summaryTotal}>{formatCurrency(totalSum)}</Text>
+          </View>
+          <View style={styles.itemCountBadge}>
+            <Text style={styles.itemCountText}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
+          </View>
         </View>
 
-        <Text style={styles.sectionHeading}>Items</Text>
+        <View style={styles.sectionHeadingRow}>
+          <Text style={styles.sectionHeading}>EXPENSE ENTRIES</Text>
+        </View>
 
         {items.map((it, idx) => (
-          <Card key={it.id} style={styles.itemCard}>
+          <View key={it.id} style={styles.itemRow}>
             <View style={styles.itemHeader}>
-              <Text style={styles.itemNum}>#{idx + 1}</Text>
+              <View style={styles.itemIndexPill}>
+                <Text style={styles.itemIndexText}>#{idx + 1}</Text>
+              </View>
               {items.length > 1 ? (
-                <TouchableOpacity onPress={() => removeItem(it.id)}>
-                  <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
+                <TouchableOpacity
+                  onPress={() => removeItem(it.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -168,7 +181,7 @@ export const BulkExpenseScreen = ({ navigation }) => {
                   style={{ marginBottom: 0 }}
                 />
               </View>
-              <View style={{ width: 120 }}>
+              <View style={{ width: 125 }}>
                 <Input
                   label="Amount (BDT) *"
                   placeholder="0.00"
@@ -188,7 +201,7 @@ export const BulkExpenseScreen = ({ navigation }) => {
               onChangeText={(val) => updateItem(it.id, 'description', val)}
               style={{ marginTop: SPACING.sm, marginBottom: 0 }}
             />
-          </Card>
+          </View>
         ))}
 
         <Button
@@ -200,7 +213,7 @@ export const BulkExpenseScreen = ({ navigation }) => {
         />
 
         <Button
-          title={`Submit All (${formatCurrency(totalSum)})`}
+          title={`Save All Expenses (${formatCurrency(totalSum)})`}
           variant="danger"
           onPress={handleSubmit}
           loading={loading}
@@ -236,12 +249,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   smallChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: RADIUS.md,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.surfaceGhost,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderHairline,
   },
   smallChipActive: {
     backgroundColor: COLORS.primary,
@@ -249,41 +262,64 @@ const styles = StyleSheet.create({
   },
   smallChipText: {
     fontSize: FONT_SIZE.xs - 1,
-    color: COLORS.text,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
   },
   smallChipTextActive: {
     color: '#FFF',
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  summaryBox: {
+  summaryBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceElevated,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.lg,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    marginBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderHairline,
   },
   summaryLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    letterSpacing: 0.6,
   },
   summaryTotal: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.title,
+    fontWeight: '800',
     color: COLORS.danger,
+    letterSpacing: -0.5,
+    marginTop: 2,
+  },
+  itemCountBadge: {
+    backgroundColor: COLORS.surfaceGhost,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+  },
+  itemCountText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  sectionHeadingRow: {
+    marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
   },
   sectionHeading: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: 11,
     fontWeight: '700',
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
+    color: COLORS.textMuted,
+    letterSpacing: 0.6,
   },
-  itemCard: {
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
+  itemRow: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderHairline,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -291,8 +327,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xs,
   },
-  itemNum: {
-    fontSize: FONT_SIZE.xs,
+  itemIndexPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.surfaceGhost,
+  },
+  itemIndexText: {
+    fontSize: FONT_SIZE.xs - 1,
     fontWeight: '700',
     color: COLORS.textMuted,
   },

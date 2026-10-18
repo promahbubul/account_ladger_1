@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
   },
   primary: {
     backgroundColor: COLORS.primary,
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderSubtle,
   },
   danger: {
     backgroundColor: COLORS.danger,
@@ -71,13 +71,13 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: COLORS.borderSubtle,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   size_sm: {
-    paddingVertical: SPACING.xs + 2,
+    paddingVertical: SPACING.xs + 3,
     paddingHorizontal: SPACING.md,
   },
   size_md: {
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   size_lg: {
-    paddingVertical: SPACING.lg - 2,
+    paddingVertical: SPACING.md + 4,
     paddingHorizontal: SPACING.xl,
   },
   disabled: {
@@ -93,6 +93,7 @@ const styles = StyleSheet.create({
   },
   textBase: {
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
   text_primary: {
     color: '#FFFFFF',

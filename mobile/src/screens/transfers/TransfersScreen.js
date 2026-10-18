@@ -30,6 +30,8 @@ export const TransfersScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header
         title="Transfers"
+        showBack
+        onBack={() => navigation.goBack()}
         showDateFilter={false}
         rightAction={
           <Button

@@ -52,6 +52,7 @@ export const AddIncomeScreen = ({ navigation }) => {
   }, [incomeCategories, categoryName]);
 
   const handleAdd = async () => {
+    if (loading) return;
     setError('');
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -62,21 +63,23 @@ export const AddIncomeScreen = ({ navigation }) => {
       setError('Please select a destination account.');
       return;
     }
-    if (!description.trim()) {
-      setError('Description is required.');
+    if (!date.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+      setError('Please provide a valid date in YYYY-MM-DD format.');
       return;
     }
+
+    const finalDescription = description.trim() || (categoryName ? `${categoryName} Income` : 'Income');
 
     setLoading(true);
     try {
       await transactionsApi.createIncome({
-        date,
+        date: date.trim(),
         amount: numAmount,
         accountId,
         categoryId: categoryId || undefined,
         category: categoryName || 'Other Income',
         subcategory: subcatName || undefined,
-        description: description.trim(),
+        description: finalDescription,
         reference: reference.trim() || undefined,
       });
 
@@ -84,6 +87,7 @@ export const AddIncomeScreen = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['transactionsList'] });
       queryClient.invalidateQueries({ queryKey: ['reportsSummary'] });
       queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['accountsList'] });
       queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
 
       navigation.goBack();
@@ -155,7 +159,7 @@ export const AddIncomeScreen = ({ navigation }) => {
         </ScrollView>
 
         <Input
-          label="Description *"
+          label="Description (Optional)"
           placeholder="e.g. Monthly Salary, Freelance project"
           value={description}
           onChangeText={setDescription}
@@ -204,11 +208,11 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.surfaceElevated,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.surfaceGhost,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderHairline,
   },
   chipActive: {
     backgroundColor: COLORS.primary,
@@ -216,14 +220,15 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
+    color: COLORS.textSecondary,
     fontWeight: '500',
   },
   chipTextActive: {
     color: '#FFF',
-    fontWeight: '700',
+    fontWeight: '600',
   },
   submitBtn: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.xxl,
   },
 });

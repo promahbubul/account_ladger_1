@@ -6,7 +6,7 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { useAuth } from '../../context/AuthContext';
-import { userApi } from '../../services/api/reports.api';
+import { userApi } from '../../services/api/user.api';
 
 export const ProfileScreen = ({ navigation }) => {
   const { user, updateUser } = useAuth();

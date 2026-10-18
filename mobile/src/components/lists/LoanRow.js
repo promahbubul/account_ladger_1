@@ -13,97 +13,101 @@ export const LoanRow = ({ loan, onPress }) => {
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
-      style={styles.card}
+      style={styles.row}
     >
-      <View style={styles.topRow}>
+      <View style={styles.leftCol}>
+        <View style={[styles.iconBox, { backgroundColor: isLent ? COLORS.primaryLight : COLORS.warningLight }]}>
+          <Ionicons
+            name={isLent ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline'}
+            size={20}
+            color={isLent ? COLORS.primary : COLORS.warning}
+          />
+        </View>
         <View style={styles.personCol}>
           <Text style={styles.counterparty}>{loan.counterpartyName}</Text>
-          {loan.counterpartyContact ? (
-            <Text style={styles.contact}>{loan.counterpartyContact}</Text>
-          ) : null}
-        </View>
-        <View style={styles.badgeRow}>
-          <Badge
-            label={isLent ? 'Lent (Receivable)' : 'Borrowed (Payable)'}
-            variant={isLent ? 'primary' : 'warning'}
-            style={{ marginRight: 4 }}
-          />
-          <Badge
-            label={isSettled ? 'Settled' : 'Active'}
-            variant={isSettled ? 'success' : 'default'}
-          />
+          <View style={styles.subRow}>
+            <Text style={styles.typeLabel}>{isLent ? 'Lent' : 'Borrowed'}</Text>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.date}>{formatDate(loan.startDate)}</Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.detailsRow}>
-        <View>
-          <Text style={styles.label}>Outstanding</Text>
-          <Text style={[styles.amount, { color: isLent ? COLORS.primary : COLORS.warning }]}>
-            {formatCurrency(loan.outstandingPrincipal)}
-          </Text>
-        </View>
-
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={styles.label}>Principal: {formatCurrency(loan.principalAmount)}</Text>
-          <Text style={styles.date}>Date: {formatDate(loan.startDate)}</Text>
-        </View>
+      <View style={styles.rightCol}>
+        <Text style={[styles.amount, { color: isLent ? COLORS.primary : COLORS.warning }]}>
+          {formatCurrency(loan.outstandingPrincipal)}
+        </Text>
+        <Badge
+          label={isSettled ? 'Settled' : 'Active'}
+          variant={isSettled ? 'success' : 'default'}
+          style={styles.statusBadge}
+        />
       </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  topRow: {
+  row: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderHairline,
+    backgroundColor: 'transparent',
+  },
+  leftCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: SPACING.md,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
   },
   personCol: {
     flex: 1,
   },
   counterparty: {
     fontSize: FONT_SIZE.sm,
-    fontWeight: '700',
+    fontWeight: '600',
     color: COLORS.text,
   },
-  contact: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
-    marginTop: 1,
-  },
-  badgeRow: {
+  subRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
   },
-  detailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingTop: SPACING.xs,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  label: {
+  typeLabel: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
-    marginBottom: 2,
+    fontWeight: '500',
   },
-  amount: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '700',
+  bullet: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    marginHorizontal: 4,
   },
   date: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
-    marginTop: 2,
+  },
+  rightCol: {
+    alignItems: 'flex-end',
+  },
+  amount: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  statusBadge: {
+    marginTop: 4,
   },
 });

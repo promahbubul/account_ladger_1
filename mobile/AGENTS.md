@@ -25,9 +25,13 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- This project uses **React Navigation v7** (Stack & Bottom Tab Navigators), NOT Expo Router.
+- Navigators live under `src/navigation/`:
+  - `RootNavigator.js`: Top-level conditional routing (`AuthNavigator`, `AppNavigator`, `AdminNavigator`).
+  - `AppNavigator.js`: Primary Bottom Tab (`DashboardTab`, `TransactionsTab`, `AccountsTab`, `LoansTab`, `ReportsTab`, `SettingsTab`) and Native Stack screens.
+  - `AuthNavigator.js`: Stack for authentication (`Login`, `Register`, `VerifyEmail`, `ForgotPassword`, `ResetPassword`).
+  - `AdminNavigator.js`: Stack for system administration (`AdminDashboard`, `AdminUsers`, `AdminLogs`, `AdminSettings`, `Profile`).
+- Screen components reside in `src/screens/<feature>/`.
 
 ## Building with EAS
 

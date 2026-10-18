@@ -68,10 +68,10 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.xl,
     padding: SPACING.xl,
   },
   headerRow: {

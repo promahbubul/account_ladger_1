@@ -141,18 +141,18 @@ const styles = StyleSheet.create({
   },
   typeSelector: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceGhost,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 3,
+    borderColor: COLORS.borderHairline,
+    padding: 4,
     marginBottom: SPACING.lg,
   },
   typeOption: {
     flex: 1,
     paddingVertical: SPACING.sm,
     alignItems: 'center',
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.full,
   },
   typeOptionActive: {
     backgroundColor: COLORS.primary,
@@ -160,10 +160,11 @@ const styles = StyleSheet.create({
   typeOptionText: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   typeOptionTextActive: {
     color: '#FFF',
+    fontWeight: '600',
   },
   submitBtn: {
     marginTop: SPACING.md,

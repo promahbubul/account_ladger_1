@@ -12,9 +12,9 @@ export const Badge = ({ label, variant = 'default', style, textStyle }) => {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: RADIUS.xs,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
     alignSelf: 'flex-start',
   },
   default: {

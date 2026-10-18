@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,17 +6,50 @@ import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { useAuth } from '../../context/AuthContext';
+import { signInWithGoogleFirebase, checkRedirectAuthResult } from '../../services/auth/firebase';
 
 export const LoginScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { login, setPendingVerificationEmail } = useAuth();
+  const { login, googleLogin, setPendingVerificationEmail } = useAuth();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Handle returning from a redirect authentication flow on Web
+  useEffect(() => {
+    let isMounted = true;
+    checkRedirectAuthResult()
+      .then((resAuth) => {
+        if (isMounted && resAuth?.idToken) {
+          setGoogleLoading(true);
+          googleLogin(resAuth.idToken)
+            .then((res) => {
+              if (isMounted && !res?.success) {
+                setError(res?.error || 'Google login failed.');
+              }
+            })
+            .catch((err) => {
+              if (isMounted) setError(err.message || 'Google authentication failed.');
+            })
+            .finally(() => {
+              if (isMounted) setGoogleLoading(false);
+            });
+        }
+      })
+      .catch((err) => {
+        if (isMounted) setError(err.message || 'Redirect authentication failed.');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [googleLogin]);
+
   const handleLogin = async () => {
+    if (loading || googleLoading) return;
     setError('');
     if (!identifier.trim() || !password) {
       setError('Please provide username/email and password.');
@@ -40,6 +73,32 @@ export const LoginScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
+
+  const handleGoogleLogin = async () => {
+    if (loading || googleLoading) return;
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const resAuth = await signInWithGoogleFirebase();
+      if (resAuth?.redirecting) {
+        // Redirection in progress (Web), keep loading state active
+        return;
+      }
+      if (!resAuth?.idToken) {
+        throw new Error('Google authentication was cancelled or returned no credentials.');
+      }
+      const res = await googleLogin(resAuth.idToken);
+      if (!res.success) {
+        setError(res.error || 'Google login failed.');
+      }
+    } catch (err) {
+      setError(err.message || 'Google authentication could not be completed.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const isBusy = loading || googleLoading;
 
   return (
     <KeyboardAvoidingView
@@ -72,6 +131,7 @@ export const LoginScreen = ({ navigation }) => {
             value={identifier}
             onChangeText={setIdentifier}
             autoCapitalize="none"
+            editable={!isBusy}
             leftIcon={<Ionicons name="person-outline" size={18} color={COLORS.textSecondary} />}
           />
 
@@ -81,11 +141,13 @@ export const LoginScreen = ({ navigation }) => {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            editable={!isBusy}
             leftIcon={<Ionicons name="lock-closed-outline" size={18} color={COLORS.textSecondary} />}
           />
 
           <TouchableOpacity
             style={styles.forgotBtn}
+            disabled={isBusy}
             onPress={() => navigation.navigate('ForgotPassword')}
           >
             <Text style={styles.forgotText}>Forgot password?</Text>
@@ -95,12 +157,29 @@ export const LoginScreen = ({ navigation }) => {
             title="Sign In"
             onPress={handleLogin}
             loading={loading}
+            disabled={isBusy}
             style={styles.loginBtn}
+          />
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button
+            title="Continue with Google"
+            variant="outline"
+            icon={<Ionicons name="logo-google" size={18} color={COLORS.text} />}
+            onPress={handleGoogleLogin}
+            loading={googleLoading}
+            disabled={isBusy}
+            style={styles.googleBtn}
           />
 
           <View style={styles.signupRow}>
             <Text style={styles.noAccountText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <TouchableOpacity disabled={isBusy} onPress={() => navigation.navigate('Register')}>
               <Text style={styles.signupLink}>Create account</Text>
             </TouchableOpacity>
           </View>
@@ -128,9 +207,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: COLORS.surfaceGhost,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderHairline,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.sm,
@@ -139,7 +218,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
     color: COLORS.text,
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
   },
   tagline: {
     fontSize: FONT_SIZE.xs,
@@ -147,16 +226,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   formCard: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.xl,
+    backgroundColor: 'transparent',
   },
   welcomeText: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '700',
     color: COLORS.text,
+    letterSpacing: -0.3,
   },
   instructionText: {
     fontSize: FONT_SIZE.xs,
@@ -169,7 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.dangerLight,
     borderWidth: 1,
-    borderColor: COLORS.danger,
+    borderColor: 'rgba(244, 63, 94, 0.3)',
     borderRadius: RADIUS.md,
     padding: SPACING.sm,
     marginBottom: SPACING.md,
@@ -190,6 +266,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loginBtn: {
+    marginBottom: SPACING.md,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.borderHairline,
+  },
+  dividerText: {
+    marginHorizontal: SPACING.md,
+    fontSize: FONT_SIZE.xs - 2,
+    color: COLORS.textMuted,
+    fontWeight: '700',
+  },
+  googleBtn: {
     marginBottom: SPACING.lg,
   },
   signupRow: {

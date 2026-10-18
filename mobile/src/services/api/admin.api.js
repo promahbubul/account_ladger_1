@@ -13,7 +13,13 @@ export const adminApi = {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.page) query.set('page', String(params.page));
-    if (params.limit) query.set('limit', String(params.limit));
+    const validLimits = [50, 70, 100];
+    const requestedLimit = Number(params.limit);
+    if (requestedLimit && validLimits.includes(requestedLimit)) {
+      query.set('limit', String(requestedLimit));
+    } else if (params.limit) {
+      query.set('limit', '50');
+    }
     const qStr = query.toString() ? `?${query.toString()}` : '';
     return apiClient(`/api/admin/users${qStr}`);
   },
@@ -55,7 +61,13 @@ export const adminApi = {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.page) query.set('page', String(params.page));
-    if (params.limit) query.set('limit', String(params.limit));
+    const validLimits = [50, 70, 100];
+    const requestedLimit = Number(params.limit);
+    if (requestedLimit && validLimits.includes(requestedLimit)) {
+      query.set('limit', String(requestedLimit));
+    } else if (params.limit) {
+      query.set('limit', '50');
+    }
     const qStr = query.toString() ? `?${query.toString()}` : '';
     return apiClient(`/api/admin/audit-logs${qStr}`);
   },

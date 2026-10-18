@@ -8,105 +8,109 @@ import { Badge } from '../common/Badge';
 export const AccountRow = ({ account, onPress }) => {
   const isBank = account.type === 'BANK';
   const isCash = account.type === 'CASH';
-  const isMobile = account.type === 'MOBILE_BANKING';
 
-  const iconName = isBank ? 'business-outline' : isCash ? 'cash-outline' : 'phone-portrait-outline';
+  const iconName = isBank ? 'business' : isCash ? 'cash' : 'phone-portrait';
   const badgeVariant = isBank ? 'primary' : isCash ? 'success' : 'purple';
-  const typeLabel = isBank ? 'Bank' : isCash ? 'Cash' : 'Mobile Banking';
+  const typeLabel = isBank ? 'Bank' : isCash ? 'Cash' : 'Mobile';
 
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
-      style={styles.card}
+      style={styles.row}
     >
-      <View style={styles.topRow}>
-        <View style={styles.titleRow}>
-          <View style={styles.iconBox}>
-            <Ionicons name={iconName} size={18} color={COLORS.primary} />
-          </View>
-          <View>
-            <Text style={styles.name}>{account.name}</Text>
+      <View style={styles.leftCol}>
+        <View style={[styles.iconBox, { backgroundColor: isBank ? COLORS.primaryLight : isCash ? COLORS.successLight : COLORS.purpleLight }]}>
+          <Ionicons
+            name={iconName}
+            size={18}
+            color={isBank ? COLORS.primary : isCash ? COLORS.success : COLORS.purple}
+          />
+        </View>
+        <View style={styles.infoCol}>
+          <Text style={styles.name} numberOfLines={1}>{account.name}</Text>
+          <View style={styles.metaRow}>
             {account.providerName ? (
-              <Text style={styles.provider}>{account.providerName}</Text>
+              <Text style={styles.provider} numberOfLines={1}>{account.providerName}</Text>
+            ) : null}
+            {account.accountNumber ? (
+              <Text style={styles.accountNumber} numberOfLines={1}>
+                {account.providerName ? ' • ' : ''}#{account.accountNumber.slice(-4)}
+              </Text>
+            ) : null}
+            {!account.providerName && !account.accountNumber ? (
+              <Text style={styles.provider}>{typeLabel} Account</Text>
             ) : null}
           </View>
         </View>
-        <Badge label={typeLabel} variant={badgeVariant} />
       </View>
 
-      <View style={styles.balanceRow}>
-        <Text style={styles.balanceLabel}>Current Balance</Text>
+      <View style={styles.rightCol}>
         <Text style={[styles.balanceValue, account.currentBalance < 0 && { color: COLORS.danger }]}>
           {formatCurrency(account.currentBalance, account.currency)}
         </Text>
+        <Badge label={typeLabel} variant={badgeVariant} style={styles.typeBadge} />
       </View>
-
-      {account.accountNumber ? (
-        <Text style={styles.accountNumber}>A/C: {account.accountNumber}</Text>
-      ) : null}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  topRow: {
+  row: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderHairline,
+    backgroundColor: 'transparent',
   },
-  titleRow: {
+  leftCol: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: SPACING.md,
   },
   iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surfaceElevated,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.sm,
+    marginRight: SPACING.md,
+  },
+  infoCol: {
+    flex: 1,
   },
   name: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
     color: COLORS.text,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   provider: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
   },
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: SPACING.xs,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    marginTop: SPACING.xs,
-  },
-  balanceLabel: {
+  accountNumber: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
+  },
+  rightCol: {
+    alignItems: 'flex-end',
   },
   balanceValue: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
     color: COLORS.text,
+    letterSpacing: -0.2,
   },
-  accountNumber: {
-    fontSize: FONT_SIZE.xs - 1,
-    color: COLORS.textMuted,
+  typeBadge: {
     marginTop: 4,
   },
 });

@@ -68,13 +68,13 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: COLORS.borderHairline,
+    backgroundColor: 'transparent',
   },
   iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: RADIUS.md,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -91,17 +91,17 @@ const styles = StyleSheet.create({
   subRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 3,
   },
   accountName: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
-    maxWidth: 120,
+    maxWidth: 130,
   },
   bullet: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
-    marginHorizontal: 4,
+    marginHorizontal: 5,
   },
   date: {
     fontSize: FONT_SIZE.xs,
@@ -111,8 +111,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   amount: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   subcat: {
     fontSize: FONT_SIZE.xs - 1,

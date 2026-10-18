@@ -29,7 +29,7 @@ export const DashboardScreen = ({ navigation }) => {
 
   const recentTxQuery = useQuery({
     queryKey: ['recentTransactions', startDate, endDate],
-    queryFn: () => transactionsApi.getTransactions({ limit: 5, startDate, endDate }),
+    queryFn: () => transactionsApi.getTransactions({ limit: 50, startDate, endDate }),
   });
 
   const refreshing = summaryQuery.isRefetching || accountsQuery.isRefetching || recentTxQuery.isRefetching;
@@ -49,7 +49,7 @@ export const DashboardScreen = ({ navigation }) => {
   };
 
   const accounts = accountsQuery.data?.accounts || [];
-  const recentTransactions = recentTxQuery.data?.items || [];
+  const recentTransactions = (recentTxQuery.data?.items || []).slice(0, 5);
 
   return (
     <View style={styles.container}>
@@ -59,70 +59,80 @@ export const DashboardScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
-        {/* Net Worth Card */}
-        <Card style={styles.netWorthCard}>
-          <Text style={styles.cardSubtitle}>TOTAL BALANCE (NET WORTH)</Text>
-          <Text style={styles.netWorthAmount}>{formatCurrency(summary.netWorth)}</Text>
+        {/* Unboxed Hero Balance Header */}
+        <View style={styles.balanceHeroSection}>
+          <Text style={styles.balanceLabel}>TOTAL BALANCE</Text>
+          <Text style={styles.balanceAmount}>{formatCurrency(summary.netWorth)}</Text>
 
-          <View style={styles.kpiRow}>
-            <View style={styles.kpiItem}>
-              <View style={styles.kpiHeader}>
-                <Ionicons name="arrow-down-circle" size={14} color={COLORS.success} />
-                <Text style={styles.kpiLabel}>Income</Text>
-              </View>
-              <Text style={[styles.kpiValue, { color: COLORS.success }]}>
-                {formatCurrency(summary.totalIncome)}
+          <View style={styles.flowMetricsRow}>
+            <TouchableOpacity
+              style={styles.flowMetricItem}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('IncomeScreen')}
+            >
+              <View style={[styles.flowDot, { backgroundColor: COLORS.success }]} />
+              <Text style={styles.flowMetricLabel}>Income</Text>
+              <Text style={[styles.flowMetricValue, { color: COLORS.success }]}>
+                +{formatCurrency(summary.totalIncome)}
               </Text>
-            </View>
+              <Ionicons name="chevron-forward" size={11} color={COLORS.textMuted} />
+            </TouchableOpacity>
 
-            <View style={styles.kpiDivider} />
+            <View style={styles.flowMetricDivider} />
 
-            <View style={styles.kpiItem}>
-              <View style={styles.kpiHeader}>
-                <Ionicons name="arrow-up-circle" size={14} color={COLORS.danger} />
-                <Text style={styles.kpiLabel}>Expenses</Text>
-              </View>
-              <Text style={[styles.kpiValue, { color: COLORS.danger }]}>
-                {formatCurrency(summary.totalExpense)}
+            <TouchableOpacity
+              style={styles.flowMetricItem}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('ExpensesScreen')}
+            >
+              <View style={[styles.flowDot, { backgroundColor: COLORS.danger }]} />
+              <Text style={styles.flowMetricLabel}>Expense</Text>
+              <Text style={[styles.flowMetricValue, { color: COLORS.danger }]}>
+                -{formatCurrency(summary.totalExpense)}
               </Text>
-            </View>
+              <Ionicons name="chevron-forward" size={11} color={COLORS.textMuted} />
+            </TouchableOpacity>
           </View>
-        </Card>
+        </View>
 
         {/* Quick Actions Bar */}
         <View style={styles.quickActionsRow}>
           <TouchableOpacity
             style={styles.actionBtn}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('AddIncome')}
           >
             <View style={[styles.actionIconBox, { backgroundColor: COLORS.successLight }]}>
-              <Ionicons name="add" size={20} color={COLORS.success} />
+              <Ionicons name="add" size={22} color={COLORS.success} />
             </View>
             <Text style={styles.actionText}>Income</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionBtn}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('AddExpense')}
           >
             <View style={[styles.actionIconBox, { backgroundColor: COLORS.dangerLight }]}>
-              <Ionicons name="remove" size={20} color={COLORS.danger} />
+              <Ionicons name="remove" size={22} color={COLORS.danger} />
             </View>
             <Text style={styles.actionText}>Expense</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionBtn}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('BulkExpense')}
           >
             <View style={[styles.actionIconBox, { backgroundColor: COLORS.purpleLight }]}>
               <Ionicons name="layers-outline" size={20} color={COLORS.purple} />
             </View>
-            <Text style={styles.actionText}>Bulk</Text>
+            <Text style={styles.actionText}>Daily Bulk</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionBtn}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('CreateTransfer')}
           >
             <View style={[styles.actionIconBox, { backgroundColor: COLORS.warningLight }]}>
@@ -142,20 +152,21 @@ export const DashboardScreen = ({ navigation }) => {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalAccounts}>
           {accounts.length === 0 ? (
-            <Card style={styles.accountCardEmpty}>
+            <View style={styles.accountCardEmpty}>
               <Text style={styles.emptyText}>No accounts found</Text>
-            </Card>
+            </View>
           ) : (
             accounts.map((acc) => (
-              <Card
+              <TouchableOpacity
                 key={acc.id}
                 style={styles.accountMiniCard}
+                activeOpacity={0.7}
                 onPress={() => navigation.navigate('AccountDetail', { account: acc })}
               >
                 <Text style={styles.miniAccName} numberOfLines={1}>{acc.name}</Text>
                 <Text style={styles.miniAccBalance}>{formatCurrency(acc.currentBalance, acc.currency)}</Text>
                 <Text style={styles.miniAccType}>{acc.type}</Text>
-              </Card>
+              </TouchableOpacity>
             ))
           )}
         </ScrollView>
@@ -163,13 +174,13 @@ export const DashboardScreen = ({ navigation }) => {
         {/* Receivables & Payables Summary */}
         {(summary.totalReceivables > 0 || summary.totalPayables > 0) ? (
           <View style={styles.loanSummaryRow}>
-            <View style={[styles.loanBox, { backgroundColor: COLORS.surfaceElevated }]}>
+            <View style={styles.loanBox}>
               <Text style={styles.loanBoxLabel}>Lent (Receivable)</Text>
               <Text style={[styles.loanBoxVal, { color: COLORS.primary }]}>
                 {formatCurrency(summary.totalReceivables)}
               </Text>
             </View>
-            <View style={[styles.loanBox, { backgroundColor: COLORS.surfaceElevated }]}>
+            <View style={styles.loanBox}>
               <Text style={styles.loanBoxLabel}>Borrowed (Payable)</Text>
               <Text style={[styles.loanBoxVal, { color: COLORS.warning }]}>
                 {formatCurrency(summary.totalPayables)}
@@ -213,60 +224,67 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xxl,
   },
-  netWorthCard: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
+  balanceHeroSection: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    marginBottom: SPACING.sm,
   },
-  cardSubtitle: {
-    fontSize: FONT_SIZE.xs - 1,
+  balanceLabel: {
+    fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
-  netWorthAmount: {
-    fontSize: FONT_SIZE.title,
+  balanceAmount: {
+    fontSize: FONT_SIZE.hero,
     fontWeight: '800',
     color: COLORS.text,
-    marginVertical: SPACING.sm,
+    letterSpacing: -0.6,
+    marginVertical: 4,
   },
-  kpiRow: {
+  flowMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    marginTop: SPACING.xs,
+    backgroundColor: COLORS.surfaceGhost,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    borderRadius: RADIUS.full,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    marginTop: SPACING.sm,
   },
-  kpiItem: {
-    flex: 1,
-  },
-  kpiHeader: {
+  flowMetricItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 2,
+    gap: 5,
   },
-  kpiLabel: {
+  flowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  flowMetricLabel: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
+    fontWeight: '500',
   },
-  kpiValue: {
-    fontSize: FONT_SIZE.md,
+  flowMetricValue: {
+    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
   },
-  kpiDivider: {
+  flowMetricDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: COLORS.border,
-    marginHorizontal: SPACING.md,
+    height: 14,
+    backgroundColor: COLORS.borderHairline,
+    marginHorizontal: SPACING.sm + 2,
   },
   quickActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SPACING.xl,
+    marginVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xs,
   },
   actionBtn: {
     alignItems: 'center',
@@ -275,7 +293,7 @@ const styles = StyleSheet.create({
   actionIconBox: {
     width: 48,
     height: 48,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -283,18 +301,21 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.textSecondary,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: SPACING.md,
     marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
   },
   sectionTitle: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
     color: COLORS.text,
+    letterSpacing: -0.2,
   },
   seeAllText: {
     fontSize: FONT_SIZE.xs,
@@ -303,12 +324,15 @@ const styles = StyleSheet.create({
   },
   horizontalAccounts: {
     gap: SPACING.sm,
-    paddingBottom: SPACING.lg,
+    paddingVertical: SPACING.xs,
   },
   accountMiniCard: {
-    width: 140,
+    width: 136,
     padding: SPACING.md,
-    marginBottom: 0,
+    backgroundColor: COLORS.surfaceGhost,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    borderRadius: RADIUS.lg,
   },
   miniAccName: {
     fontSize: FONT_SIZE.xs,
@@ -320,6 +344,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
     marginVertical: 4,
+    letterSpacing: -0.2,
   },
   miniAccType: {
     fontSize: FONT_SIZE.xs - 2,
@@ -328,36 +353,34 @@ const styles = StyleSheet.create({
   },
   accountCardEmpty: {
     padding: SPACING.md,
-    width: 200,
+    width: 180,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loanSummaryRow: {
     flexDirection: 'row',
     gap: SPACING.sm,
-    marginBottom: SPACING.lg,
+    marginVertical: SPACING.sm,
   },
   loanBox: {
     flex: 1,
     padding: SPACING.md,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.surfaceGhost,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderHairline,
   },
   loanBoxLabel: {
     fontSize: FONT_SIZE.xs - 1,
     color: COLORS.textSecondary,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   loanBoxVal: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '700',
   },
   recentList: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
+    marginTop: SPACING.xs,
   },
   emptyRecentBox: {
     padding: SPACING.xl,

@@ -25,50 +25,70 @@ import { CategoriesScreen } from '../screens/categories/CategoriesScreen';
 import { CreateCategoryScreen } from '../screens/categories/CreateCategoryScreen';
 import { BudgetsScreen } from '../screens/settings/BudgetsScreen';
 import { ReportsScreen } from '../screens/reports/ReportsScreen';
-import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { MoreScreen } from '../screens/more/MoreScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const TabNavigator = () => {
+export const MainTabNavigator = () => {
   return (
     <Tab.Navigator
+      initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
+          borderTopColor: COLORS.borderHairline,
           borderTopWidth: 1,
-          height: 60,
+          height: 62,
           paddingBottom: 8,
           paddingTop: 6,
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: {
-          fontSize: FONT_SIZE.xs - 2,
+          fontSize: 10,
           fontWeight: '600',
+          letterSpacing: 0.1,
         },
         tabBarIcon: ({ color, size, focused }) => {
           let iconName;
-          if (route.name === 'DashboardTab') iconName = focused ? 'home' : 'home-outline';
+          if (route.name === 'HomeTab') iconName = focused ? 'home' : 'home-outline';
           else if (route.name === 'TransactionsTab') iconName = focused ? 'receipt' : 'receipt-outline';
           else if (route.name === 'AccountsTab') iconName = focused ? 'wallet' : 'wallet-outline';
-          else if (route.name === 'LoansTab') iconName = focused ? 'cash' : 'cash-outline';
           else if (route.name === 'ReportsTab') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
-          else if (route.name === 'SettingsTab') iconName = focused ? 'settings' : 'settings-outline';
+          else if (route.name === 'MoreTab') iconName = focused ? 'grid' : 'grid-outline';
 
-          return <Ionicons name={iconName} size={20} color={color} />;
+          return <Ionicons name={iconName} size={21} color={color} />;
         },
       })}
     >
-      <Tab.Screen name="DashboardTab" component={DashboardScreen} options={{ tabBarLabel: 'Dashboard' }} />
-      <Tab.Screen name="TransactionsTab" component={TransactionsScreen} options={{ tabBarLabel: 'Ledger' }} />
-      <Tab.Screen name="AccountsTab" component={AccountsScreen} options={{ tabBarLabel: 'Accounts' }} />
-      <Tab.Screen name="LoansTab" component={LoansScreen} options={{ tabBarLabel: 'Loans' }} />
-      <Tab.Screen name="ReportsTab" component={ReportsScreen} options={{ tabBarLabel: 'Reports' }} />
-      <Tab.Screen name="SettingsTab" component={SettingsScreen} options={{ tabBarLabel: 'Settings' }} />
+      <Tab.Screen
+        name="HomeTab"
+        component={DashboardScreen}
+        options={{ tabBarLabel: 'Home' }}
+      />
+      <Tab.Screen
+        name="TransactionsTab"
+        component={TransactionsScreen}
+        options={{ tabBarLabel: 'Transactions' }}
+      />
+      <Tab.Screen
+        name="AccountsTab"
+        component={AccountsScreen}
+        options={{ tabBarLabel: 'Accounts' }}
+      />
+      <Tab.Screen
+        name="ReportsTab"
+        component={ReportsScreen}
+        options={{ tabBarLabel: 'Reports' }}
+      />
+      <Tab.Screen
+        name="MoreTab"
+        component={MoreScreen}
+        options={{ tabBarLabel: 'More' }}
+      />
     </Tab.Navigator>
   );
 };
@@ -81,20 +101,23 @@ export const AppNavigator = () => {
         animation: 'slide_from_right',
       }}
     >
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="AddIncome" component={AddIncomeScreen} />
       <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
       <Stack.Screen name="BulkExpense" component={BulkExpenseScreen} />
-      <Stack.Screen name="CreateTransfer" component={CreateTransferScreen} />
       <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+      <Stack.Screen name="IncomeScreen" component={IncomeScreen} />
+      <Stack.Screen name="ExpensesScreen" component={ExpensesScreen} />
       <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
       <Stack.Screen name="AccountDetail" component={AccountDetailScreen} />
-      <Stack.Screen name="CreateLoan" component={CreateLoanScreen} />
-      <Stack.Screen name="AddRepayment" component={AddRepaymentScreen} />
+      <Stack.Screen name="CreateTransfer" component={CreateTransferScreen} />
+      <Stack.Screen name="TransfersScreen" component={TransfersScreen} />
       <Stack.Screen name="CategoriesScreen" component={CategoriesScreen} />
       <Stack.Screen name="CreateCategory" component={CreateCategoryScreen} />
+      <Stack.Screen name="LoansScreen" component={LoansScreen} />
+      <Stack.Screen name="CreateLoan" component={CreateLoanScreen} />
+      <Stack.Screen name="AddRepayment" component={AddRepaymentScreen} />
       <Stack.Screen name="BudgetsScreen" component={BudgetsScreen} />
-      <Stack.Screen name="TransfersScreen" component={TransfersScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );

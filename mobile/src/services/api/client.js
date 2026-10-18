@@ -43,10 +43,14 @@ export const apiClient = async (endpoint, options = {}) => {
     const data = isJson ? await response.json().catch(() => ({})) : await response.text();
 
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        if (data?.error && data.error.includes('Email verification required')) {
-          throw new ApiError(data.error, response.status, data);
-        }
+      const isAuthEndpoint = endpoint.includes('/auth/login') ||
+                             endpoint.includes('/auth/register') ||
+                             endpoint.includes('/auth/verify-email') ||
+                             endpoint.includes('/auth/forgot-password') ||
+                             endpoint.includes('/auth/reset-password') ||
+                             endpoint.includes('/auth/resend-verification');
+
+      if ((response.status === 401 || response.status === 403) && !isAuthEndpoint) {
         if (response.status === 401) {
           await clearAuthSession();
           if (onUnauthorizedCallback) onUnauthorizedCallback();

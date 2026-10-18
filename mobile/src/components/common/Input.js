@@ -31,7 +31,7 @@ export const Input = ({
           isFocused && styles.focused,
           Boolean(error) && styles.errorBorder,
           !editable && styles.disabled,
-          multiline && { minHeight: 80, alignItems: 'flex-start' },
+          multiline && { minHeight: 88, alignItems: 'flex-start' },
         ]}
       >
         {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
@@ -53,6 +53,7 @@ export const Input = ({
         {secureTextEntry ? (
           <TouchableOpacity
             style={styles.eyeBtn}
+            activeOpacity={0.7}
             onPress={() => setIsPasswordVisible(!isPasswordVisible)}
           >
             <Ionicons
@@ -74,27 +75,30 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '500',
+    fontWeight: '600',
     color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
+    marginBottom: 6,
+    letterSpacing: 0.2,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
+    minHeight: 48,
   },
   focused: {
     borderColor: COLORS.primary,
+    backgroundColor: COLORS.surfaceSelected,
   },
   errorBorder: {
     borderColor: COLORS.danger,
   },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   leftIcon: {
     marginRight: SPACING.sm,
@@ -103,14 +107,15 @@ const styles = StyleSheet.create({
     flex: 1,
     color: COLORS.text,
     fontSize: FONT_SIZE.sm,
-    paddingVertical: SPACING.md - 2,
+    paddingVertical: SPACING.sm,
   },
   eyeBtn: {
     padding: SPACING.xs,
+    marginLeft: SPACING.xs,
   },
   errorText: {
     fontSize: FONT_SIZE.xs - 1,
     color: COLORS.danger,
-    marginTop: SPACING.xs,
+    marginTop: 4,
   },
 });

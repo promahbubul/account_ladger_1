@@ -50,6 +50,27 @@ export const TransactionsScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header title="Transactions" showDateFilter={true} />
 
+      {/* Prominent Quick Actions for Transactions */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.incomeBtn]}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('AddIncome')}
+        >
+          <Ionicons name="add-circle" size={18} color={COLORS.success} />
+          <Text style={[styles.actionBtnText, { color: COLORS.success }]}>Add Income</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.expenseBtn]}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('AddExpense')}
+        >
+          <Ionicons name="remove-circle" size={18} color={COLORS.danger} />
+          <Text style={[styles.actionBtnText, { color: COLORS.danger }]}>Add Expense</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.searchBox}>
         <Input
           placeholder="Search transactions..."
@@ -128,6 +149,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  actionRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    gap: SPACING.sm,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: RADIUS.full,
+  },
+  incomeBtn: {
+    backgroundColor: COLORS.successLight,
+  },
+  expenseBtn: {
+    backgroundColor: COLORS.dangerLight,
+  },
+  actionBtnText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
   searchBox: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
@@ -140,12 +186,12 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   filterChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: COLORS.surfaceGhost,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderHairline,
   },
   filterChipActive: {
     backgroundColor: COLORS.primary,
@@ -165,9 +211,7 @@ const styles = StyleSheet.create({
   loadMoreBtn: {
     padding: SPACING.md,
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    backgroundColor: 'transparent',
   },
   loadMoreText: {
     fontSize: FONT_SIZE.xs,

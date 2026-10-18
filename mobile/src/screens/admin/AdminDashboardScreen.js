@@ -1,15 +1,19 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { adminApi } from '../../services/api/admin.api';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminDashboardScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
+  const { logout, user } = useAuth();
+  const [logoutVisible, setLogoutVisible] = useState(false);
 
   const statsQuery = useQuery({
     queryKey: ['adminStats'],
@@ -42,7 +46,19 @@ export const AdminDashboardScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Header title="System Dashboard" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
+      <Header
+        title="System Dashboard"
+        showBack={false}
+        showDateFilter={false}
+        rightAction={
+          <TouchableOpacity
+            style={styles.headerProfileBtn}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Ionicons name="person-circle-outline" size={26} color={COLORS.primary} />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -89,20 +105,70 @@ export const AdminDashboardScreen = ({ navigation }) => {
 
         <Text style={styles.sectionHeader}>System Navigation</Text>
         <Card style={{ padding: 0, overflow: 'hidden' }}>
-          <View style={styles.navRow}>
-            <Text style={styles.navText} onPress={() => navigation.navigate('AdminUsers')}>Manage Registered Users</Text>
+          <TouchableOpacity
+            style={styles.navRow}
+            onPress={() => navigation.navigate('AdminUsers')}
+          >
+            <View style={styles.navLeft}>
+              <Ionicons name="people-outline" size={18} color={COLORS.purple} />
+              <Text style={styles.navText}>Manage Registered Users</Text>
+            </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-          </View>
-          <View style={styles.navRow}>
-            <Text style={styles.navText} onPress={() => navigation.navigate('AdminLogs')}>System Audit Logs</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navRow}
+            onPress={() => navigation.navigate('AdminLogs')}
+          >
+            <View style={styles.navLeft}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.warning} />
+              <Text style={styles.navText}>System Audit Logs</Text>
+            </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-          </View>
-          <View style={[styles.navRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.navText} onPress={() => navigation.navigate('AdminSettings')}>Global System Settings</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navRow}
+            onPress={() => navigation.navigate('AdminSettings')}
+          >
+            <View style={styles.navLeft}>
+              <Ionicons name="settings-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.navText}>Global System Settings</Text>
+            </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
-          </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navRow}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <View style={styles.navLeft}>
+              <Ionicons name="person-outline" size={18} color={COLORS.text} />
+              <Text style={styles.navText}>Profile & Preferences</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navRow, { borderBottomWidth: 0 }]}
+            onPress={() => setLogoutVisible(true)}
+          >
+            <View style={styles.navLeft}>
+              <Ionicons name="log-out-outline" size={18} color={COLORS.danger} />
+              <Text style={[styles.navText, { color: COLORS.danger }]}>Sign Out</Text>
+            </View>
+          </TouchableOpacity>
         </Card>
       </ScrollView>
+
+      <ConfirmModal
+        visible={logoutVisible}
+        title="Sign Out"
+        message="Are you sure you want to sign out of the administrator panel?"
+        confirmText="Sign Out"
+        onConfirm={logout}
+        onCancel={() => setLogoutVisible(false)}
+      />
     </View>
   );
 };
@@ -171,9 +237,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  navLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   navText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
     color: COLORS.text,
+  },
+  headerProfileBtn: {
+    padding: 2,
   },
 });

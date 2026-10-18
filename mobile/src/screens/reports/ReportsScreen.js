@@ -65,32 +65,38 @@ export const ReportsScreen = () => {
       >
         <Text style={styles.periodLabel}>REPORT FOR: {formattedRangeLabel.toUpperCase()}</Text>
 
-        {/* Net Savings & Flow */}
-        <Card style={styles.savingsCard}>
+        {/* Unboxed Net Savings & Flow */}
+        <View style={styles.savingsHero}>
           <Text style={styles.kpiTitle}>NET CASH FLOW (SAVINGS)</Text>
           <Text style={[styles.kpiValue, { color: data.netSavings >= 0 ? COLORS.success : COLORS.danger }]}>
             {formatCurrency(data.netSavings)}
           </Text>
 
-          <View style={styles.flowRow}>
-            <View style={styles.flowCol}>
-              <Text style={styles.flowKey}>Total Inflow</Text>
+          <View style={styles.flowMetricsRow}>
+            <View style={styles.flowMetricItem}>
+              <View style={[styles.flowDot, { backgroundColor: COLORS.success }]} />
+              <Text style={styles.flowKey}>Inflow</Text>
               <Text style={[styles.flowVal, { color: COLORS.success }]}>{formatCurrency(data.totalIncome)}</Text>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.flowCol}>
-              <Text style={styles.flowKey}>Total Outflow</Text>
+
+            <View style={styles.flowDivider} />
+
+            <View style={styles.flowMetricItem}>
+              <View style={[styles.flowDot, { backgroundColor: COLORS.danger }]} />
+              <Text style={styles.flowKey}>Outflow</Text>
               <Text style={[styles.flowVal, { color: COLORS.danger }]}>{formatCurrency(data.totalExpense)}</Text>
             </View>
           </View>
-        </Card>
+        </View>
 
         {/* Account Assets Breakdown */}
-        <Text style={styles.sectionHeader}>Assets by Account Type</Text>
-        <Card>
+        <Text style={styles.sectionHeader}>ASSETS BY ACCOUNT TYPE</Text>
+        <View style={styles.breakdownSection}>
           <View style={styles.breakdownRow}>
             <View style={styles.assetHeader}>
-              <Ionicons name="cash-outline" size={16} color={COLORS.success} />
+              <View style={[styles.iconBox, { backgroundColor: COLORS.successLight }]}>
+                <Ionicons name="cash-outline" size={16} color={COLORS.success} />
+              </View>
               <Text style={styles.assetName}>Cash on Hand</Text>
             </View>
             <Text style={styles.assetVal}>{formatCurrency(data.totalCash)}</Text>
@@ -98,7 +104,9 @@ export const ReportsScreen = () => {
 
           <View style={styles.breakdownRow}>
             <View style={styles.assetHeader}>
-              <Ionicons name="business-outline" size={16} color={COLORS.primary} />
+              <View style={[styles.iconBox, { backgroundColor: COLORS.primaryLight }]}>
+                <Ionicons name="business-outline" size={16} color={COLORS.primary} />
+              </View>
               <Text style={styles.assetName}>Bank Accounts</Text>
             </View>
             <Text style={styles.assetVal}>{formatCurrency(data.totalBank)}</Text>
@@ -106,7 +114,9 @@ export const ReportsScreen = () => {
 
           <View style={styles.breakdownRow}>
             <View style={styles.assetHeader}>
-              <Ionicons name="phone-portrait-outline" size={16} color={COLORS.purple} />
+              <View style={[styles.iconBox, { backgroundColor: COLORS.purpleLight }]}>
+                <Ionicons name="phone-portrait-outline" size={16} color={COLORS.purple} />
+              </View>
               <Text style={styles.assetName}>Mobile Banking</Text>
             </View>
             <Text style={styles.assetVal}>{formatCurrency(data.totalMobile)}</Text>
@@ -118,20 +128,31 @@ export const ReportsScreen = () => {
               {formatCurrency(data.netWorth)}
             </Text>
           </View>
-        </Card>
+        </View>
 
         {/* Lending Balance */}
-        <Text style={styles.sectionHeader}>Loans Balance</Text>
-        <Card>
+        <Text style={styles.sectionHeader}>LOANS & OBLIGATIONS</Text>
+        <View style={styles.breakdownSection}>
           <View style={styles.breakdownRow}>
-            <Text style={styles.assetName}>Receivables (Money Lent)</Text>
+            <View style={styles.assetHeader}>
+              <View style={[styles.iconBox, { backgroundColor: COLORS.primaryLight }]}>
+                <Ionicons name="arrow-up-circle-outline" size={16} color={COLORS.primary} />
+              </View>
+              <Text style={styles.assetName}>Receivables (Money Lent)</Text>
+            </View>
             <Text style={[styles.assetVal, { color: COLORS.primary }]}>{formatCurrency(data.totalReceivables)}</Text>
           </View>
+
           <View style={[styles.breakdownRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.assetName}>Payables (Money Borrowed)</Text>
+            <View style={styles.assetHeader}>
+              <View style={[styles.iconBox, { backgroundColor: COLORS.warningLight }]}>
+                <Ionicons name="arrow-down-circle-outline" size={16} color={COLORS.warning} />
+              </View>
+              <Text style={styles.assetName}>Payables (Money Borrowed)</Text>
+            </View>
             <Text style={[styles.assetVal, { color: COLORS.warning }]}>{formatCurrency(data.totalPayables)}</Text>
           </View>
-        </Card>
+        </View>
 
         {/* Backup / Export */}
         <Button
@@ -153,83 +174,108 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xxl,
   },
-  periodLabel: {
-    fontSize: FONT_SIZE.xs - 1,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: SPACING.sm,
-  },
-  savingsCard: {
+  savingsHero: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
     marginBottom: SPACING.lg,
   },
   kpiTitle: {
-    fontSize: FONT_SIZE.xs - 1,
-    color: COLORS.textSecondary,
+    fontSize: 11,
     fontWeight: '700',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
   },
   kpiValue: {
-    fontSize: FONT_SIZE.title,
+    fontSize: FONT_SIZE.hero,
     fontWeight: '800',
-    marginVertical: SPACING.sm,
+    letterSpacing: -0.6,
+    marginVertical: 4,
   },
-  flowRow: {
+  flowMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    marginTop: SPACING.xs,
+    backgroundColor: COLORS.surfaceGhost,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    borderRadius: RADIUS.full,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    marginTop: SPACING.sm,
   },
-  flowCol: {
-    flex: 1,
+  flowMetricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  flowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   flowKey: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
-    marginBottom: 2,
+    fontWeight: '500',
   },
   flowVal: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
   },
-  divider: {
+  flowDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: COLORS.border,
+    height: 14,
+    backgroundColor: COLORS.borderHairline,
     marginHorizontal: SPACING.md,
   },
   sectionHeader: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: 11,
     fontWeight: '700',
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
+    color: COLORS.textMuted,
+    letterSpacing: 0.6,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.xs,
+  },
+  breakdownSection: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderHairline,
+    marginBottom: SPACING.lg,
   },
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.borderHairline,
   },
   assetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
+  },
+  iconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   assetName: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: FONT_SIZE.xs + 1,
     color: COLORS.text,
+    fontWeight: '500',
   },
   assetVal: {
     fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
   },
   exportBtn: {
-    marginTop: SPACING.sm,
+    marginTop: SPACING.md,
     marginBottom: SPACING.xxl,
   },
 });

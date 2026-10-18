@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs,
   },
   listContent: {
-    padding: SPACING.lg,
+    paddingVertical: SPACING.xs,
     flexGrow: 1,
   },
 });

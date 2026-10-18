@@ -5,6 +5,7 @@ import { AuthNavigator } from './AuthNavigator';
 import { AppNavigator } from './AppNavigator';
 import { AdminNavigator } from './AdminNavigator';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { navigationRef } from './navigationRef';
 
 export const RootNavigator = () => {
   const { isAuthenticated, isAdmin, isLoading } = useAuth();
@@ -14,7 +15,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {!isAuthenticated ? (
         <AuthNavigator />
       ) : isAdmin ? (

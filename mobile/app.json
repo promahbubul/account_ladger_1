@@ -2,23 +2,18 @@
   "expo": {
     "name": "AccountLedger",
     "slug": "accountledger",
+    "scheme": "accountledger",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B0D10"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.accountledger.mobile"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#0B0D10"
       },
       "package": "com.accountledger.mobile"
@@ -27,7 +22,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0B0D10"
+        }
+      ],
+      "expo-web-browser"
     ]
   }
 }

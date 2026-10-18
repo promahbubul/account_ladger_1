@@ -100,9 +100,9 @@ export const Header = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.borderHairline,
     paddingBottom: SPACING.sm,
     paddingHorizontal: SPACING.lg,
   },
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 40,
+    minHeight: 44,
   },
   leftCol: {
     flexDirection: 'row',
@@ -125,6 +125,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
     color: COLORS.text,
+    letterSpacing: -0.3,
   },
   rightCol: {
     flexDirection: 'row',
@@ -133,9 +134,9 @@ const styles = StyleSheet.create({
   filterBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: COLORS.surfaceGhost,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderHairline,
     borderRadius: RADIUS.full,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -143,13 +144,13 @@ const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
+    color: COLORS.textSecondary,
     fontWeight: '500',
-    maxWidth: 100,
+    maxWidth: 110,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.xl,
@@ -157,16 +158,18 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.xl,
     padding: SPACING.md,
   },
   modalHeading: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: SPACING.sm,
     paddingHorizontal: SPACING.sm,
   },
@@ -179,7 +182,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
   },
   presetRowSelected: {
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: COLORS.surfaceGhost,
   },
   presetText: {
     fontSize: FONT_SIZE.sm,

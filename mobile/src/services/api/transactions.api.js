@@ -11,7 +11,15 @@ export const transactionsApi = {
     if (params.search) query.set('search', params.search);
     if (params.cursor) query.set('cursor', params.cursor);
     if (params.page && params.page > 1) query.set('page', String(params.page));
-    if (params.limit) query.set('limit', String(params.limit));
+    
+    const validLimits = [50, 70, 100];
+    const requestedLimit = Number(params.limit);
+    if (requestedLimit && validLimits.includes(requestedLimit)) {
+      query.set('limit', String(requestedLimit));
+    } else if (params.limit) {
+      query.set('limit', '50');
+    }
+
     if (params.all) query.set('all', 'true');
 
     const qStr = query.toString() ? `?${query.toString()}` : '';

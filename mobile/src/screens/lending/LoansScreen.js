@@ -43,6 +43,8 @@ export const LoansScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header
         title="Lending & Borrowing"
+        showBack
+        onBack={() => navigation.goBack()}
         showDateFilter={false}
         rightAction={
           <Button
@@ -54,19 +56,21 @@ export const LoansScreen = ({ navigation }) => {
         }
       />
 
-      <View style={styles.tabsRow}>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'LOANS' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('LOANS')}
-        >
-          <Text style={[styles.tabText, activeTab === 'LOANS' && styles.tabTextActive]}>Loans</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'REPAYMENTS' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('REPAYMENTS')}
-        >
-          <Text style={[styles.tabText, activeTab === 'REPAYMENTS' && styles.tabTextActive]}>Repayments</Text>
-        </TouchableOpacity>
+      <View style={styles.segmentedContainer}>
+        <View style={styles.segmentedControl}>
+          <TouchableOpacity
+            style={[styles.segmentBtn, activeTab === 'LOANS' && styles.segmentBtnActive]}
+            onPress={() => setActiveTab('LOANS')}
+          >
+            <Text style={[styles.segmentText, activeTab === 'LOANS' && styles.segmentTextActive]}>Loans</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.segmentBtn, activeTab === 'REPAYMENTS' && styles.segmentBtnActive]}
+            onPress={() => setActiveTab('REPAYMENTS')}
+          >
+            <Text style={[styles.segmentText, activeTab === 'REPAYMENTS' && styles.segmentTextActive]}>Repayments</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.searchBox}>
@@ -168,33 +172,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  tabBtn: {
-    flex: 1,
+  segmentedContainer: {
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceGhost,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    padding: 3,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 7,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderRadius: RADIUS.full,
   },
-  tabBtnActive: {
-    borderBottomColor: COLORS.primary,
+  segmentBtnActive: {
+    backgroundColor: COLORS.primary,
   },
-  tabText: {
-    fontSize: FONT_SIZE.sm,
+  segmentText: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  tabTextActive: {
-    color: COLORS.primary,
+  segmentTextActive: {
+    color: '#FFF',
+    fontWeight: '600',
   },
   searchBox: {
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
     paddingBottom: SPACING.xs,
   },
   filterPills: {
@@ -204,12 +213,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   pill: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    backgroundColor: COLORS.surfaceElevated,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.surfaceGhost,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderHairline,
   },
   pillActive: {
     backgroundColor: COLORS.primary,
@@ -218,25 +227,23 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: FONT_SIZE.xs - 1,
     color: COLORS.textSecondary,
+    fontWeight: '500',
   },
   pillTextActive: {
     color: '#FFF',
-    fontWeight: '700',
+    fontWeight: '600',
   },
   listContent: {
-    padding: SPACING.lg,
     flexGrow: 1,
   },
   repaymentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderHairline,
   },
   repCounterparty: {
     fontSize: FONT_SIZE.sm,
@@ -249,8 +256,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   repAmount: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
     color: COLORS.success,
+    letterSpacing: -0.2,
   },
 });

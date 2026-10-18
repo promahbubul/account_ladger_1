@@ -30,6 +30,8 @@ export const CategoriesScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header
         title="Categories"
+        showBack
+        onBack={() => navigation.goBack()}
         showDateFilter={false}
         rightAction={
           <Button
@@ -41,19 +43,21 @@ export const CategoriesScreen = ({ navigation }) => {
         }
       />
 
-      <View style={styles.tabsRow}>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'EXPENSE' && styles.tabBtnActive]}
-          onPress={() => setTab('EXPENSE')}
-        >
-          <Text style={[styles.tabText, tab === 'EXPENSE' && styles.tabTextActive]}>Expenses</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'INCOME' && styles.tabBtnActive]}
-          onPress={() => setTab('INCOME')}
-        >
-          <Text style={[styles.tabText, tab === 'INCOME' && styles.tabTextActive]}>Income</Text>
-        </TouchableOpacity>
+      <View style={styles.segmentedContainer}>
+        <View style={styles.segmentedControl}>
+          <TouchableOpacity
+            style={[styles.segmentBtn, tab === 'EXPENSE' && styles.segmentBtnActive]}
+            onPress={() => setTab('EXPENSE')}
+          >
+            <Text style={[styles.segmentText, tab === 'EXPENSE' && styles.segmentTextActive]}>Expenses</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.segmentBtn, tab === 'INCOME' && styles.segmentBtnActive]}
+            onPress={() => setTab('INCOME')}
+          >
+            <Text style={[styles.segmentText, tab === 'INCOME' && styles.segmentTextActive]}>Income</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {categoriesQuery.isLoading ? (
@@ -63,27 +67,29 @@ export const CategoriesScreen = ({ navigation }) => {
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.categoryCard}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.catName}>{item.name}</Text>
-                <Badge
-                  label={item.type}
-                  variant={item.type === 'INCOME' ? 'success' : 'danger'}
-                />
+            <View style={styles.categoryRow}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.iconBox, { backgroundColor: item.type === 'INCOME' ? COLORS.successLight : COLORS.dangerLight }]}>
+                  <Ionicons
+                    name="pricetag-outline"
+                    size={16}
+                    color={item.type === 'INCOME' ? COLORS.success : COLORS.danger}
+                  />
+                </View>
+                <View style={styles.infoCol}>
+                  <Text style={styles.catName}>{item.name}</Text>
+                  {item.subcategories && item.subcategories.length > 0 ? (
+                    <Text style={styles.subcatsText} numberOfLines={1}>
+                      {item.subcategories.join(' • ')}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
 
-              {item.subcategories && item.subcategories.length > 0 ? (
-                <View style={styles.subcatsContainer}>
-                  <Text style={styles.subcatLabel}>Subcategories:</Text>
-                  <View style={styles.subcatsList}>
-                    {item.subcategories.map((sub, sIdx) => (
-                      <View key={sIdx} style={styles.subcatBadge}>
-                        <Text style={styles.subcatText}>{sub}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
+              <Badge
+                label={item.type}
+                variant={item.type === 'INCOME' ? 'success' : 'danger'}
+              />
             </View>
           )}
           contentContainerStyle={styles.listContent}
@@ -113,76 +119,73 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  tabBtn: {
-    flex: 1,
+  segmentedContainer: {
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceGhost,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.borderHairline,
+    padding: 3,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 7,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderRadius: RADIUS.full,
   },
-  tabBtnActive: {
-    borderBottomColor: COLORS.primary,
+  segmentBtnActive: {
+    backgroundColor: COLORS.primary,
   },
-  tabText: {
-    fontSize: FONT_SIZE.sm,
+  segmentText: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  segmentTextActive: {
+    color: '#FFF',
     fontWeight: '600',
   },
-  tabTextActive: {
-    color: COLORS.primary,
-  },
   listContent: {
-    padding: SPACING.lg,
     flexGrow: 1,
   },
-  categoryCard: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  cardHeader: {
+  categoryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderHairline,
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: SPACING.md,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  infoCol: {
+    flex: 1,
   },
   catName: {
     fontSize: FONT_SIZE.sm,
-    fontWeight: '700',
+    fontWeight: '600',
     color: COLORS.text,
   },
-  subcatsContainer: {
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.xs,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  subcatLabel: {
-    fontSize: FONT_SIZE.xs - 1,
+  subcatsText: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
-    marginBottom: 4,
-  },
-  subcatsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  subcatBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: RADIUS.xs,
-  },
-  subcatText: {
-    fontSize: FONT_SIZE.xs - 1,
-    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 });
