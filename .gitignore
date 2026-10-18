@@ -27,3 +27,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.zip
+ 
+# Local data and mobile env
+backend/data/
+mobile/.env
