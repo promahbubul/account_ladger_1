@@ -55,7 +55,8 @@ export async function checkRedirectAuthResult() {
  * Never triggers popup blocked errors.
  */
 async function signInWithGoogleNative() {
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const defaultWebClientId = '170169573200-81p7gq2ftufuoddisdjp26acet2ntk4i.apps.googleusercontent.com';
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || defaultWebClientId;
   const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || webClientId;
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || webClientId;
 
@@ -63,7 +64,7 @@ async function signInWithGoogleNative() {
     android: androidClientId,
     ios: iosClientId,
     default: webClientId,
-  });
+  }) || defaultWebClientId;
 
   if (!clientId) {
     throw new Error(

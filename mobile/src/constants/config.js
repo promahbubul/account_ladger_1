@@ -4,9 +4,13 @@ import { Platform } from 'react-native';
 const getDevApiUrl = () => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
 
-  // Production URL always takes precedence
-  if (envUrl && envUrl.startsWith('https://')) {
-    return envUrl;
+  // Explicit remote API URL takes precedence (HTTP or HTTPS)
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+    const sanitized = envUrl.trim().replace(/\/+$/, '');
+    // If it points to an external remote server or specified endpoint
+    if (!sanitized.includes('localhost') && !sanitized.includes('127.0.0.1')) {
+      return sanitized;
+    }
   }
 
   // Web environment
@@ -24,6 +28,14 @@ const getDevApiUrl = () => {
     if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
       return `http://${ip}:5001`;
     }
+  }
+
+  // If localhost was explicitly supplied for emulator/dev
+  if (envUrl && (envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:5001';
+    }
+    return 'http://localhost:5001';
   }
 
   // Android emulator
