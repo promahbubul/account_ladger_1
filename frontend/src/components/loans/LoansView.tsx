@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
+  Loader2,
   Search,
   Eye,
   Trash2,
@@ -38,6 +39,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
   // Modals
   const [isAddLoanOpen, setIsAddLoanOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [repaymentTargetLoan, setRepaymentTargetLoan] = useState<Loan | null>(null);
   const [viewHistoryLoan, setViewHistoryLoan] = useState<Loan | null>(null);
   const [loanToDelete, setLoanToDelete] = useState<Loan | null>(null);
@@ -185,86 +187,120 @@ export const LoansView: React.FC<LoansViewProps> = ({
     e.preventDefault();
     setErrorMessage(null);
     const amountNum = parseFloat(principal);
-    if (isNaN(amountNum) || amountNum <= 0) return;
-    if (!counterparty.trim()) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid principal amount.');
+      return;
+    }
+    if (!counterparty.trim()) {
+      toast.error('Please enter person or party name.');
+      return;
+    }
 
-    const res = await addLoan({
-      type: loanType,
-      counterpartyName: counterparty.trim(),
-      counterpartyContact: contact.trim() || undefined,
-      principalAmount: amountNum,
-      accountId: accountId || accounts[0]?.id || '',
-      startDate,
-      dueDate: dueDate.trim() || undefined,
-      notes: notes.trim() || undefined,
-    });
+    setIsSubmitting(true);
+    const toastId = toast.loading('Recording loan transaction...');
+    try {
+      const res = await addLoan({
+        type: loanType,
+        counterpartyName: counterparty.trim(),
+        counterpartyContact: contact.trim() || undefined,
+        principalAmount: amountNum,
+        accountId: accountId || accounts[0]?.id || '',
+        startDate,
+        dueDate: dueDate.trim() || undefined,
+        notes: notes.trim() || undefined,
+      });
 
-    if (res.success && res.loan) {
-      const created = res.loan;
-      const matchesType = typeFilter === 'ALL' || typeFilter === created.type;
-      const matchesStatus = statusFilter === 'ALL' || statusFilter === 'ACTIVE';
-      if (matchesType && matchesStatus) {
-        setLoanItems((prev) => [created, ...prev]);
+      if (res.success && res.loan) {
+        const created = res.loan;
+        const matchesType = typeFilter === 'ALL' || typeFilter === created.type;
+        const matchesStatus = statusFilter === 'ALL' || statusFilter === 'ACTIVE';
+        if (matchesType && matchesStatus) {
+          setLoanItems((prev) => [created, ...prev]);
+        }
+        setLoanTotalCount((prev) => prev + 1);
+        toast.updateToast(toastId, {
+          type: 'success',
+          message:
+            loanType === 'LENT'
+              ? `Lent ${formatBDT(amountNum)} to ${counterparty}`
+              : `Borrowed ${formatBDT(amountNum)} from ${counterparty}`,
+        });
+        setIsAddLoanOpen(false);
+        setPrincipal('');
+        setCounterparty('');
+        setContact('');
+        setDueDate('');
+        setNotes('');
+      } else {
+        const err = res.error || 'Failed to save loan.';
+        setErrorMessage(err);
+        toast.updateToast(toastId, { type: 'error', message: err });
       }
-      setLoanTotalCount((prev) => prev + 1);
-      toast.success(
-        loanType === 'LENT'
-          ? `Lent ${formatBDT(amountNum)} to ${counterparty}`
-          : `Borrowed ${formatBDT(amountNum)} from ${counterparty}`
-      );
-      setIsAddLoanOpen(false);
-      setPrincipal('');
-      setCounterparty('');
-      setContact('');
-      setDueDate('');
-      setNotes('');
-    } else {
-      setErrorMessage(res.error || 'Failed to save loan.');
-      toast.error(res.error || 'Failed to save loan');
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error while recording loan';
+      setErrorMessage(errMsg);
+      toast.updateToast(toastId, { type: 'error', message: errMsg });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleExecuteRepayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!repaymentTargetLoan) return;
+    if (!repaymentTargetLoan) {
+      toast.error('No loan selected for repayment.');
+      return;
+    }
 
     const amountNum = parseFloat(repAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid repayment amount.');
+      return;
+    }
 
-    const res = await recordRepayment({
-      loanId: repaymentTargetLoan.id,
-      accountId: repAccount || accounts[0]?.id || '',
-      amount: amountNum,
-      date: repDate,
-      notes: repNotes.trim() || undefined,
-    });
+    setIsSubmitting(true);
+    const toastId = toast.loading('Recording installment...');
+    try {
+      const res = await recordRepayment({
+        loanId: repaymentTargetLoan.id,
+        accountId: repAccount || accounts[0]?.id || '',
+        amount: amountNum,
+        date: repDate,
+        notes: repNotes.trim() || undefined,
+      });
 
-    if (res.success && res.repayment) {
-      const recorded = res.repayment;
-      setLoanItems((prev) =>
-        prev.map((l) => {
-          if (l.id === repaymentTargetLoan.id) {
-            const nextOutstanding = Math.max(0, l.outstandingPrincipal - amountNum);
-            return {
-              ...l,
-              outstandingPrincipal: nextOutstanding,
-              status: nextOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID',
-            };
-          }
-          return l;
-        })
-      );
-      setRepItems((prev) => [recorded, ...prev]);
-      setRepTotalCount((prev) => prev + 1);
+      if (res.success && res.repayment) {
+        const recorded = res.repayment;
+        setLoanItems((prev) =>
+          prev.map((l) => {
+            if (l.id === repaymentTargetLoan.id) {
+              const nextOutstanding = Math.max(0, l.outstandingPrincipal - amountNum);
+              return {
+                ...l,
+                outstandingPrincipal: nextOutstanding,
+                status: nextOutstanding <= 0 ? 'SETTLED' : 'PARTIALLY_REPAID',
+              };
+            }
+            return l;
+          })
+        );
+        setRepItems((prev) => [recorded, ...prev]);
+        setRepTotalCount((prev) => prev + 1);
 
-      toast.success(
-        `Recorded ${formatBDT(amountNum)} installment for ${repaymentTargetLoan.counterpartyName}`
-      );
-      setRepaymentTargetLoan(null);
-      setRepAmount('');
-      setRepNotes('');
-    } else {
-      toast.error(res.error || 'Failed to record repayment');
+        toast.updateToast(toastId, {
+          type: 'success',
+          message: `Recorded ${formatBDT(amountNum)} installment for ${repaymentTargetLoan.counterpartyName}`,
+        });
+        setRepaymentTargetLoan(null);
+        setRepAmount('');
+        setRepNotes('');
+      } else {
+        toast.updateToast(toastId, { type: 'error', message: res.error || 'Failed to record repayment' });
+      }
+    } catch (err: any) {
+      toast.updateToast(toastId, { type: 'error', message: err?.message || 'Network error while recording repayment' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

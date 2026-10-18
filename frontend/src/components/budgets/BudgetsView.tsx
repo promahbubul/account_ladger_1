@@ -4,8 +4,10 @@ import {
   AlertTriangle,
   Edit2,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
+import { useToast } from '../../context/ToastContext';
 import { formatBDT } from '../../lib/formatters';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TableEmptyRow } from '../common/StateViews';
@@ -26,6 +28,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   const [budgetLimitInput, setBudgetLimitInput] = useState('');
   const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
 
+  const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
 
   // Compute spend metrics for all budgets

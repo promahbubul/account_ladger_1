@@ -4,6 +4,7 @@ import {
   Search,
   Eye,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
 import { getQueryParam, updateQueryParams } from '../../lib/queryState';
@@ -46,6 +47,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any | null>(null);
   const [txToReverse, setTxToReverse] = useState<any | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -142,51 +144,75 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
     e.preventDefault();
     setErrorMessage(null);
     const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
-
-    if (fromAccId === toAccId) {
-      setErrorMessage('Source and destination accounts must be different.');
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid transfer amount.');
       return;
     }
 
-    const res = await addTransfer({
-      sourceAccountId: fromAccId,
-      destinationAccountId: toAccId,
-      amount: amountNum,
-      date: transferDate || getDhakaTodayISO(),
-      description: desc.trim() || undefined,
-      reference: refNum.trim() || undefined,
-    });
+    if (!fromAccId || !toAccId) {
+      toast.error('Please select both source and destination accounts.');
+      return;
+    }
 
-    if (res.success && res.transfer) {
-      const fromName = accounts.find((a) => a.id === fromAccId)?.name || 'Source';
-      const toName = accounts.find((a) => a.id === toAccId)?.name || 'Destination';
-      const newTransfer: TransferItem = {
-        id: res.transfer.id,
+    if (fromAccId === toAccId) {
+      const err = 'Source and destination accounts must be different.';
+      setErrorMessage(err);
+      toast.error(err);
+      return;
+    }
+
+    setIsSubmitting(true);
+    const toastId = toast.loading('Transferring funds between accounts...');
+    try {
+      const res = await addTransfer({
         sourceAccountId: fromAccId,
-        sourceAccountName: fromName,
         destinationAccountId: toAccId,
-        destinationAccountName: toName,
         amount: amountNum,
-        date: res.transfer.date || new Date().toISOString().slice(0, 10),
+        date: transferDate || getDhakaTodayISO(),
         description: desc.trim() || undefined,
         reference: refNum.trim() || undefined,
-      };
+      });
 
-      const matchesSource = sourceFilter === 'ALL' || sourceFilter === fromAccId;
-      const matchesDest = destFilter === 'ALL' || destFilter === toAccId;
-      if (matchesSource && matchesDest) {
-        setItems((prev) => [newTransfer, ...prev]);
+      if (res.success && res.transfer) {
+        const fromName = accounts.find((a) => a.id === fromAccId)?.name || 'Source';
+        const toName = accounts.find((a) => a.id === toAccId)?.name || 'Destination';
+        const newTransfer: TransferItem = {
+          id: res.transfer.id,
+          sourceAccountId: fromAccId,
+          sourceAccountName: fromName,
+          destinationAccountId: toAccId,
+          destinationAccountName: toName,
+          amount: amountNum,
+          date: res.transfer.date || transferDate || getDhakaTodayISO(),
+          description: desc.trim() || undefined,
+          reference: refNum.trim() || undefined,
+        };
+
+        const matchesSource = sourceFilter === 'ALL' || sourceFilter === fromAccId;
+        const matchesDest = destFilter === 'ALL' || destFilter === toAccId;
+        if (matchesSource && matchesDest) {
+          setItems((prev) => [newTransfer, ...prev]);
+        }
+        setTotalCount((prev) => prev + 1);
+        toast.updateToast(toastId, {
+          type: 'success',
+          message: `Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}`,
+        });
+        setIsModalOpen(false);
+        setAmount('');
+        setDesc('');
+        setRefNum('');
+      } else {
+        const err = res.error || 'Failed to complete transfer.';
+        setErrorMessage(err);
+        toast.updateToast(toastId, { type: 'error', message: err });
       }
-      setTotalCount((prev) => prev + 1);
-      toast.success(`Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}`);
-      setIsModalOpen(false);
-      setAmount('');
-      setDesc('');
-      setRefNum('');
-    } else {
-      setErrorMessage(res.error || 'Failed to complete transfer.');
-      toast.error(res.error || 'Failed to complete transfer');
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error while transferring funds';
+      setErrorMessage(errMsg);
+      toast.updateToast(toastId, { type: 'error', message: errMsg });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -471,15 +497,18 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Transfer Funds
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSubmitting ? 'Transferring...' : 'Transfer Funds'}</span>
             </button>
           </div>
         </form>

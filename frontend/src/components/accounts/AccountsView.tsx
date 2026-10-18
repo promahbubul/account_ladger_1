@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
+  Loader2,
   ArrowRightLeft,
   Search,
   Eye,
@@ -39,6 +40,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewAccount, setViewAccount] = useState<Account | null>(null);
   const [editAccountState, setEditAccountState] = useState<Account | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
@@ -134,36 +136,47 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim()) {
+      toast.error('Account name is required.');
+      return;
+    }
 
-    const opBal = parseFloat(newOpeningBalance) || 0;
-    const res = await addAccount({
-      name: newName.trim(),
-      type: newType,
-      providerName: newProvider.trim() || (newType === 'BANK' ? 'Bank' : newType === 'MOBILE_BANKING' ? 'MFS' : 'Physical Cash'),
-      accountNumber: newNumber.trim() ? (newNumber.startsWith('••••') ? newNumber : `•••• ${newNumber.slice(-4)}`) : undefined,
-      openingBalance: opBal,
-      currentBalance: opBal,
-      currency: 'BDT',
-      status: 'ACTIVE',
-    });
+    setIsSubmitting(true);
+    const toastId = toast.loading('Creating account...');
+    try {
+      const opBal = parseFloat(newOpeningBalance) || 0;
+      const res = await addAccount({
+        name: newName.trim(),
+        type: newType,
+        providerName: newProvider.trim() || (newType === 'BANK' ? 'Bank' : newType === 'MOBILE_BANKING' ? 'MFS' : 'Physical Cash'),
+        accountNumber: newNumber.trim() ? (newNumber.startsWith('••••') ? newNumber : `•••• ${newNumber.slice(-4)}`) : undefined,
+        openingBalance: opBal,
+        currentBalance: opBal,
+        currency: 'BDT',
+        status: 'ACTIVE',
+      });
 
-    if (res.success && res.account) {
-      const created = res.account;
-      const matchesType = filterType === 'ALL' || filterType === created.type;
-      const matchesStatus = filterStatus === 'ALL' || filterStatus === 'ACTIVE';
-      if (matchesType && matchesStatus) {
-        setItems((prev) => [created, ...prev]);
+      if (res.success && res.account) {
+        const created = res.account;
+        const matchesType = filterType === 'ALL' || filterType === created.type;
+        const matchesStatus = filterStatus === 'ALL' || filterStatus === 'ACTIVE';
+        if (matchesType && matchesStatus) {
+          setItems((prev) => [created, ...prev]);
+        }
+        setTotalCount((prev) => prev + 1);
+        toast.updateToast(toastId, { type: 'success', message: `Account "${newName}" created successfully` });
+        setIsAddOpen(false);
+        setNewName('');
+        setNewProvider('');
+        setNewNumber('');
+        setNewOpeningBalance('0');
+      } else {
+        toast.updateToast(toastId, { type: 'error', message: res.error || 'Failed to create account' });
       }
-      setTotalCount((prev) => prev + 1);
-      toast.success(`Account "${newName}" created successfully`);
-      setIsAddOpen(false);
-      setNewName('');
-      setNewProvider('');
-      setNewNumber('');
-      setNewOpeningBalance('0');
-    } else {
-      toast.error(res.error || 'Failed to create account');
+    } catch (err: any) {
+      toast.updateToast(toastId, { type: 'error', message: err?.message || 'Network error while creating account' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

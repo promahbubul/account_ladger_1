@@ -3,7 +3,7 @@ import { Modal } from '../common/Modal';
 import { useFinance } from '../../context/FinanceContext';
 import { Loan } from '../../mock/data';
 import { formatBDT } from '../../lib/formatters';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { DatePicker, getDhakaTodayISO } from '../common/DatePicker';
 
@@ -40,6 +40,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   const getTodayDate = () => getDhakaTodayISO();
 
   const [modalError, setModalError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Income form state
   const [incomeAmount, setIncomeAmount] = useState('');
@@ -79,6 +80,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
       }
       setTransferDate(getTodayDate());
       setModalError(null);
+      setIsSubmitting(false);
     }
   }, [activeModal, accounts]);
 
@@ -129,50 +131,96 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   // Submit Income
   const handleIncomeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError(null);
     const amountNum = parseFloat(incomeAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid income amount.');
+      return;
+    }
+    const accId = incomeAccount || accounts[0]?.id;
+    if (!accId) {
+      toast.error('Please select an account.');
+      return;
+    }
 
-    const res = await addIncome({
-      accountId: incomeAccount || accounts[0]?.id || '',
-      categoryId: incomeCategory || incomeCategories[0]?.id,
-      amount: amountNum,
-      date: incomeDate,
-      description: incomeDesc.trim() || 'Income deposit',
-      reference: incomeRef.trim() || undefined,
-    });
+    setIsSubmitting(true);
+    const toastId = toast.loading('Adding income...');
+    try {
+      const res = await addIncome({
+        accountId: accId,
+        categoryId: incomeCategory || incomeCategories[0]?.id,
+        amount: amountNum,
+        date: incomeDate,
+        description: incomeDesc.trim() || 'Income deposit',
+        reference: incomeRef.trim() || undefined,
+      });
 
-    if (res.success) {
-      toast.success('Income added successfully');
-      onClose();
-    } else {
-      setModalError(res.error || 'Failed to add income');
-      toast.error(res.error || 'Failed to add income');
+      if (res.success) {
+        toast.updateToast(toastId, { type: 'success', message: 'Income added successfully.' });
+        setIncomeAmount('');
+        setIncomeDesc('');
+        setIncomeRef('');
+        onClose();
+      } else {
+        const err = res.error || 'Failed to add income';
+        setModalError(err);
+        toast.updateToast(toastId, { type: 'error', message: err });
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error while adding income';
+      setModalError(errMsg);
+      toast.updateToast(toastId, { type: 'error', message: errMsg });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Submit Expense
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError(null);
     const amountNum = parseFloat(expenseAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid expense amount.');
+      return;
+    }
+    const accId = expenseAccount || accounts[0]?.id;
+    if (!accId) {
+      toast.error('Please select an account.');
+      return;
+    }
 
     const chosenCat = expenseCategory || expenseCategories[0]?.name || 'Food & Dining';
 
-    const res = await addExpense({
-      accountId: expenseAccount || accounts[0]?.id || '',
-      category: chosenCat,
-      amount: amountNum,
-      date: expenseDate,
-      description: expenseDesc.trim() || `${chosenCat} payment`,
-      reference: expenseRef.trim() || undefined,
-    });
+    setIsSubmitting(true);
+    const toastId = toast.loading('Recording expense...');
+    try {
+      const res = await addExpense({
+        accountId: accId,
+        category: chosenCat,
+        amount: amountNum,
+        date: expenseDate,
+        description: expenseDesc.trim() || `${chosenCat} payment`,
+        reference: expenseRef.trim() || undefined,
+      });
 
-    if (res.success) {
-      toast.success('Expense added successfully');
-      onClose();
-    } else {
-      setModalError(res.error || 'Failed to add expense');
-      toast.error(res.error || 'Failed to add expense');
+      if (res.success) {
+        toast.updateToast(toastId, { type: 'success', message: 'Expense recorded successfully.' });
+        setExpenseAmount('');
+        setExpenseDesc('');
+        setExpenseRef('');
+        onClose();
+      } else {
+        const err = res.error || 'Failed to add expense';
+        setModalError(err);
+        toast.updateToast(toastId, { type: 'error', message: err });
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error while recording expense';
+      setModalError(errMsg);
+      toast.updateToast(toastId, { type: 'error', message: errMsg });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -181,32 +229,59 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
     e.preventDefault();
     setModalError(null);
     const amountNum = parseFloat(transferAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid transfer amount.');
+      return;
+    }
+
+    if (!sourceAccId || !destAccId) {
+      toast.error('Please select both source and destination accounts.');
+      return;
+    }
 
     if (sourceAccId === destAccId) {
-      setModalError('Source and destination accounts must be different.');
+      const err = 'Source and destination accounts must be different.';
+      setModalError(err);
+      toast.error(err);
       return;
     }
 
-    const res = await addTransfer({
-      sourceAccountId: sourceAccId,
-      destinationAccountId: destAccId,
-      amount: amountNum,
-      date: transferDate || getTodayDate(),
-      description: transferDesc.trim() || undefined,
-      reference: transferRef.trim() || undefined,
-    });
+    setIsSubmitting(true);
+    const toastId = toast.loading('Executing account transfer...');
+    try {
+      const res = await addTransfer({
+        sourceAccountId: sourceAccId,
+        destinationAccountId: destAccId,
+        amount: amountNum,
+        date: transferDate || getTodayDate(),
+        description: transferDesc.trim() || undefined,
+        reference: transferRef.trim() || undefined,
+      });
 
-    if (!res.success) {
-      setModalError(res.error || 'Transfer failed.');
-      toast.error(res.error || 'Transfer failed');
-      return;
+      if (!res.success) {
+        const err = res.error || 'Transfer failed.';
+        setModalError(err);
+        toast.updateToast(toastId, { type: 'error', message: err });
+        return;
+      }
+
+      const fromName = accounts.find((a) => a.id === sourceAccId)?.name || 'Source';
+      const toName = accounts.find((a) => a.id === destAccId)?.name || 'Destination';
+      toast.updateToast(toastId, {
+        type: 'success',
+        message: `Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}`,
+      });
+      setTransferAmount('');
+      setTransferDesc('');
+      setTransferRef('');
+      onClose();
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error during transfer';
+      setModalError(errMsg);
+      toast.updateToast(toastId, { type: 'error', message: errMsg });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const fromName = accounts.find((a) => a.id === sourceAccId)?.name;
-    const toName = accounts.find((a) => a.id === destAccId)?.name;
-    toast.success(`Transferred ${formatBDT(amountNum)} from ${fromName} to ${toName}`);
-    onClose();
   };
 
   // Submit Loan
@@ -214,30 +289,58 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
     e.preventDefault();
     setModalError(null);
     const amountNum = parseFloat(loanAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
-    if (!counterparty.trim()) return;
-
-    const res = await addLoan({
-      type: loanType,
-      counterpartyName: counterparty.trim(),
-      counterpartyContact: loanContact.trim() || undefined,
-      principalAmount: amountNum,
-      accountId: loanAccount || accounts[0]?.id || '',
-      startDate: loanStartDate,
-      dueDate: loanDueDate.trim() || undefined,
-      notes: loanNote.trim() || undefined,
-    });
-
-    if (!res.success) {
-      setModalError(res.error || 'Could not record loan.');
-      toast.error(res.error || 'Could not record loan');
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid principal amount.');
+      return;
+    }
+    if (!counterparty.trim()) {
+      toast.error('Please enter counterparty name.');
+      return;
+    }
+    const accId = loanAccount || accounts[0]?.id;
+    if (!accId) {
+      toast.error('Please select an account.');
       return;
     }
 
-    toast.success(
-      `Recorded ${loanType === 'LENT' ? 'Loan Given to' : 'Loan Borrowed from'} ${counterparty}`
-    );
-    onClose();
+    setIsSubmitting(true);
+    const toastId = toast.loading('Recording loan transaction...');
+    try {
+      const res = await addLoan({
+        type: loanType,
+        counterpartyName: counterparty.trim(),
+        counterpartyContact: loanContact.trim() || undefined,
+        principalAmount: amountNum,
+        accountId: accId,
+        startDate: loanStartDate,
+        dueDate: loanDueDate.trim() || undefined,
+        notes: loanNote.trim() || undefined,
+      });
+
+      if (!res.success) {
+        const err = res.error || 'Could not record loan.';
+        setModalError(err);
+        toast.updateToast(toastId, { type: 'error', message: err });
+        return;
+      }
+
+      toast.updateToast(toastId, {
+        type: 'success',
+        message: `Recorded ${loanType === 'LENT' ? 'Loan Given to' : 'Loan Borrowed from'} ${counterparty}`,
+      });
+      setCounterparty('');
+      setLoanContact('');
+      setLoanAmount('');
+      setLoanDueDate('');
+      setLoanNote('');
+      onClose();
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error while recording loan';
+      setModalError(errMsg);
+      toast.updateToast(toastId, { type: 'error', message: errMsg });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Submit Repayment
@@ -391,15 +494,18 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Save Income
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSubmitting ? 'Saving Income...' : 'Save Income'}</span>
             </button>
           </div>
         </form>
@@ -484,15 +590,18 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Save Expense
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSubmitting ? 'Saving Expense...' : 'Save Expense'}</span>
             </button>
           </div>
         </form>
@@ -583,15 +692,18 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Execute Transfer
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSubmitting ? 'Executing Transfer...' : 'Execute Transfer'}</span>
             </button>
           </div>
         </form>
@@ -699,15 +811,18 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Save Loan
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSubmitting ? 'Saving Loan...' : 'Save Loan'}</span>
             </button>
           </div>
         </form>
@@ -788,15 +903,18 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                disabled={isSubmitting}
+                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                disabled={isSubmitting}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
               >
-                Record Repayment
+                {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isSubmitting ? 'Recording Repayment...' : 'Record Repayment'}</span>
               </button>
             </div>
           </form>
@@ -913,15 +1031,18 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+              disabled={isSubmitting}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              Save Batch ({formatBDT(bulkTotal)})
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSubmitting ? 'Saving Batch...' : `Save Batch (${formatBDT(bulkTotal)})`}</span>
             </button>
           </div>
         </form>

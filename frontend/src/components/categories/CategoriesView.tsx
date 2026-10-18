@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
+  Loader2,
   Search,
   Edit2,
   Archive,
@@ -44,6 +45,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
 
   // Modals
   const [isAddCatOpen, setIsAddCatOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [subcatModalCat, setSubcatModalCat] = useState<Category | null>(null);
   const [newSubcatName, setNewSubcatName] = useState('');
@@ -144,47 +146,61 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
     e.preventDefault();
     setModalError(null);
     if (!newCatName.trim()) {
-      setModalError('Category name is required.');
+      const err = 'Category name is required.';
+      setModalError(err);
+      toast.error(err);
       return;
     }
 
-    const subArr = initialSubcats
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    setIsSubmitting(true);
+    const toastId = toast.loading('Adding category...');
+    try {
+      const subArr = initialSubcats
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    const res = await addCategory({
-      name: newCatName.trim(),
-      type: newCatType,
-      parentId: newCatParentId ? newCatParentId : null,
-      icon: 'Tag',
-      color: '#4B5563',
-      subcategories: subArr,
-      isArchived: false,
-    });
+      const res = await addCategory({
+        name: newCatName.trim(),
+        type: newCatType,
+        parentId: newCatParentId ? newCatParentId : null,
+        icon: 'Tag',
+        color: '#4B5563',
+        subcategories: subArr,
+        isArchived: false,
+      });
 
-    if (!res.success || !res.category) {
-      setModalError(res.error || 'Failed to add category.');
-      return;
+      if (!res.success || !res.category) {
+        const err = res.error || 'Failed to add category.';
+        setModalError(err);
+        toast.updateToast(toastId, { type: 'error', message: err });
+        return;
+      }
+
+      if (newCatType === 'EXPENSE' && initialBudget && parseFloat(initialBudget) > 0) {
+        await setCategoryBudget(newCatName.trim(), parseFloat(initialBudget));
+      }
+
+      const created = res.category;
+      const matchesType = typeFilter === 'ALL' || typeFilter === created.type;
+      const matchesStatus = statusFilter === 'ALL' || statusFilter === 'ACTIVE';
+      if (matchesType && matchesStatus) {
+        setItems((prev) => [created, ...prev]);
+      }
+      setTotalCount((prev) => prev + 1);
+      toast.updateToast(toastId, { type: 'success', message: `Category "${newCatName}" added successfully` });
+      setIsAddCatOpen(false);
+      setNewCatName('');
+      setNewCatParentId('');
+      setInitialSubcats('');
+      setInitialBudget('');
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error while adding category';
+      setModalError(errMsg);
+      toast.updateToast(toastId, { type: 'error', message: errMsg });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (newCatType === 'EXPENSE' && initialBudget && parseFloat(initialBudget) > 0) {
-      await setCategoryBudget(newCatName.trim(), parseFloat(initialBudget));
-    }
-
-    const created = res.category;
-    const matchesType = typeFilter === 'ALL' || typeFilter === created.type;
-    const matchesStatus = statusFilter === 'ALL' || statusFilter === 'ACTIVE';
-    if (matchesType && matchesStatus) {
-      setItems((prev) => [created, ...prev]);
-    }
-    setTotalCount((prev) => prev + 1);
-    toast.success(`Category "${newCatName}" added successfully`);
-    setIsAddCatOpen(false);
-    setNewCatName('');
-    setNewCatParentId('');
-    setInitialSubcats('');
-    setInitialBudget('');
   };
 
   const handleUpdateCategory = async (e: React.FormEvent) => {
@@ -217,20 +233,31 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
 
   const handleAddSubcat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subcatModalCat || !newSubcatName.trim()) return;
-
-    const res = await addSubcategory(subcatModalCat.id, newSubcatName.trim());
-    if (res.success && res.subcategories) {
-      const subs = res.subcategories;
-      setItems((prev) =>
-        prev.map((c) => (c.id === subcatModalCat.id ? { ...c, subcategories: subs } : c))
-      );
-      toast.success(`Subcategory "${newSubcatName.trim()}" added to "${subcatModalCat.name}"`);
-    } else {
-      toast.error(res.error || 'Failed to add subcategory');
+    if (!subcatModalCat || !newSubcatName.trim()) {
+      toast.error('Subcategory name is required.');
+      return;
     }
-    setSubcatModalCat(null);
-    setNewSubcatName('');
+
+    setIsSubmitting(true);
+    const toastId = toast.loading('Adding subcategory...');
+    try {
+      const res = await addSubcategory(subcatModalCat.id, newSubcatName.trim());
+      if (res.success && res.subcategories) {
+        const subs = res.subcategories;
+        setItems((prev) =>
+          prev.map((c) => (c.id === subcatModalCat.id ? { ...c, subcategories: subs } : c))
+        );
+        toast.updateToast(toastId, { type: 'success', message: `Subcategory "${newSubcatName.trim()}" added to "${subcatModalCat.name}"` });
+        setSubcatModalCat(null);
+        setNewSubcatName('');
+      } else {
+        toast.updateToast(toastId, { type: 'error', message: res.error || 'Failed to add subcategory' });
+      }
+    } catch (err: any) {
+      toast.updateToast(toastId, { type: 'error', message: err?.message || 'Network error while adding subcategory' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleToggleArchive = async (cat: Category) => {

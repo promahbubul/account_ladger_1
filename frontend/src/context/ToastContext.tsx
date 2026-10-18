@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X, Loader2 } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'loading';
 
 export interface ToastItem {
   id: string;
@@ -11,11 +11,13 @@ export interface ToastItem {
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType, duration?: number) => void;
-  success: (message: string, duration?: number) => void;
-  error: (message: string, duration?: number) => void;
-  warning: (message: string, duration?: number) => void;
-  info: (message: string, duration?: number) => void;
+  showToast: (message: string, type?: ToastType, duration?: number) => string;
+  success: (message: string, duration?: number) => string;
+  error: (message: string, duration?: number) => string;
+  warning: (message: string, duration?: number) => string;
+  info: (message: string, duration?: number) => string;
+  loading: (message: string) => string;
+  updateToast: (id: string, updates: { message?: string; type?: ToastType; duration?: number }) => void;
   dismissToast: (id: string) => void;
 }
 
@@ -29,21 +31,48 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const updateToast = useCallback(
+    (id: string, updates: { message?: string; type?: ToastType; duration?: number }) => {
+      setToasts((prev) =>
+        prev.map((t) => {
+          if (t.id !== id) return t;
+          return {
+            ...t,
+            message: updates.message !== undefined ? updates.message.trim() : t.message,
+            type: updates.type !== undefined ? updates.type : t.type,
+            duration: updates.duration !== undefined ? updates.duration : t.duration,
+          };
+        })
+      );
+
+      const dur = updates.duration !== undefined ? updates.duration : 3500;
+      if (dur > 0) {
+        setTimeout(() => {
+          dismissToast(id);
+        }, dur);
+      }
+    },
+    [dismissToast]
+  );
+
   const showToast = useCallback(
-    (message: string, type: ToastType = 'success', duration = 3500) => {
-      if (!message || !message.trim()) return;
+    (message: string, type: ToastType = 'success', duration = 3500): string => {
+      if (!message || !message.trim()) return '';
       const cleanMsg = message.trim();
 
-      // Deduplicate identical messages shown within the last 1.5 seconds
+      // Deduplicate identical non-loading messages shown within the last 1.2 seconds
       const now = Date.now();
-      const lastShown = recentMessagesRef.current.get(cleanMsg);
-      if (lastShown && now - lastShown < 1500) {
-        return;
+      if (type !== 'loading') {
+        const lastShown = recentMessagesRef.current.get(cleanMsg);
+        if (lastShown && now - lastShown < 1200) {
+          return '';
+        }
+        recentMessagesRef.current.set(cleanMsg, now);
       }
-      recentMessagesRef.current.set(cleanMsg, now);
 
       const id = `toast_${now}_${Math.random().toString(36).substr(2, 5)}`;
-      const newToast: ToastItem = { id, type, message: cleanMsg, duration };
+      const toastDuration = type === 'loading' ? 0 : duration;
+      const newToast: ToastItem = { id, type, message: cleanMsg, duration: toastDuration };
 
       setToasts((prev) => {
         // Limit max concurrent toasts to 3
@@ -51,11 +80,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return [...trimmed, newToast];
       });
 
-      if (duration > 0) {
+      if (toastDuration > 0) {
         setTimeout(() => {
           dismissToast(id);
-        }, duration);
+        }, toastDuration);
       }
+
+      return id;
     },
     [dismissToast]
   );
@@ -64,9 +95,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const error = useCallback((msg: string, dur?: number) => showToast(msg, 'error', dur), [showToast]);
   const warning = useCallback((msg: string, dur?: number) => showToast(msg, 'warning', dur), [showToast]);
   const info = useCallback((msg: string, dur?: number) => showToast(msg, 'info', dur), [showToast]);
+  const loading = useCallback((msg: string) => showToast(msg, 'loading', 0), [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast, success, error, warning, info, dismissToast }}>
+    <ToastContext.Provider value={{ showToast, success, error, warning, info, loading, updateToast, dismissToast }}>
       {children}
 
       {/* Top Center Fixed Toast Container */}
@@ -86,7 +118,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           let bgColor = 'bg-[#181d24]/95';
           let textColor = 'text-gray-100';
 
-          if (toast.type === 'error') {
+          if (toast.type === 'loading') {
+            icon = <Loader2 className="w-4 h-4 text-blue-400 animate-spin flex-shrink-0" />;
+            borderColor = 'border-blue-500/40';
+            bgColor = 'bg-[#141b24]/95';
+            textColor = 'text-blue-100';
+          } else if (toast.type === 'error') {
             icon = <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />;
             borderColor = 'border-rose-600/40';
             bgColor = 'bg-[#221619]/95';
@@ -112,14 +149,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             >
               {icon}
               <span className="flex-1 leading-snug">{toast.message}</span>
-              <button
-                type="button"
-                onClick={() => dismissToast(toast.id)}
-                className="p-1 rounded text-gray-400 hover:text-white transition-colors cursor-pointer"
-                aria-label="Dismiss notification"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              {toast.type !== 'loading' && (
+                <button
+                  type="button"
+                  onClick={() => dismissToast(toast.id)}
+                  className="p-1 rounded text-gray-400 hover:text-white transition-colors cursor-pointer"
+                  aria-label="Dismiss notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           );
         })}
