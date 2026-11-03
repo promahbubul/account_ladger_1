@@ -13,6 +13,21 @@ import { transactionsApi } from '../../services/api/transactions.api';
 import { formatCurrency } from '../../utils/formatters';
 import { useDateFilter } from '../../context/DateFilterContext';
 
+const QUICK_ACTIONS = [
+  { route: 'AddIncome', label: 'Income', icon: 'arrow-down-outline' },
+  { route: 'AddExpense', label: 'Expense', icon: 'arrow-up-outline' },
+  { route: 'BulkExpense', label: 'Bulk', icon: 'list-outline' },
+  { route: 'CreateTransfer', label: 'Transfer', icon: 'swap-horizontal-outline' },
+];
+
+const ACCOUNT_TYPE_LABELS = {
+  BANK: 'Bank',
+  CASH: 'Cash',
+  MOBILE_BANKING: 'Mobile Banking',
+};
+
+const DASHBOARD_ACCOUNT_LIMIT = 4;
+
 export const DashboardScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
   const { startDate, endDate } = useDateFilter();
@@ -93,49 +108,17 @@ export const DashboardScreen = ({ navigation }) => {
 
         {/* Quick Actions Bar */}
         <View style={styles.quickActionsRow}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('AddIncome')}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.successLight }]}>
-              <Ionicons name="add" size={22} color={COLORS.success} />
-            </View>
-            <Text style={styles.actionText}>Income</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('AddExpense')}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.dangerLight }]}>
-              <Ionicons name="remove" size={22} color={COLORS.danger} />
-            </View>
-            <Text style={styles.actionText}>Expense</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('BulkExpense')}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.purpleLight }]}>
-              <Ionicons name="layers-outline" size={20} color={COLORS.purple} />
-            </View>
-            <Text style={styles.actionText}>Daily Bulk</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtn}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('CreateTransfer')}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: COLORS.warningLight }]}>
-              <Ionicons name="swap-horizontal" size={20} color={COLORS.warning} />
-            </View>
-            <Text style={styles.actionText}>Transfer</Text>
-          </TouchableOpacity>
+          {QUICK_ACTIONS.map((action, index) => (
+            <TouchableOpacity
+              key={action.route}
+              style={[styles.actionBtn, index > 0 && styles.actionBtnDivider]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate(action.route)}
+            >
+              <Ionicons name={action.icon} size={20} color={COLORS.text} />
+              <Text style={styles.actionText}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Accounts Overview */}
@@ -146,26 +129,33 @@ export const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalAccounts}>
+        <View style={styles.accountsList}>
           {accounts.length === 0 ? (
             <View style={styles.accountCardEmpty}>
               <Text style={styles.emptyText}>No accounts found</Text>
             </View>
           ) : (
-            accounts.map((acc) => (
+            accounts.slice(0, DASHBOARD_ACCOUNT_LIMIT).map((acc, index) => (
               <TouchableOpacity
                 key={acc.id}
-                style={styles.accountMiniCard}
+                style={[styles.accountRow, index > 0 && styles.accountRowDivider]}
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate('AccountDetail', { account: acc })}
               >
-                <Text style={styles.miniAccName} numberOfLines={1}>{acc.name}</Text>
-                <Text style={styles.miniAccBalance}>{formatCurrency(acc.currentBalance, acc.currency)}</Text>
-                <Text style={styles.miniAccType}>{acc.type}</Text>
+                <View style={styles.accountRowInfo}>
+                  <Text style={styles.accountRowName} numberOfLines={1}>{acc.name}</Text>
+                  <Text style={styles.accountRowType}>{ACCOUNT_TYPE_LABELS[acc.type] || acc.type}</Text>
+                </View>
+                <Text
+                  style={[styles.accountRowBalance, Number(acc.currentBalance) < 0 && { color: COLORS.danger }]}
+                  numberOfLines={1}
+                >
+                  {formatCurrency(acc.currentBalance, acc.currency)}
+                </Text>
               </TouchableOpacity>
             ))
           )}
-        </ScrollView>
+        </View>
 
         {/* Receivables & Payables Summary */}
         {(summary.totalReceivables > 0 || summary.totalPayables > 0) ? (
@@ -268,25 +258,25 @@ const styles = StyleSheet.create({
   },
   quickActionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.lg,
     marginVertical: SPACING.lg,
-    paddingHorizontal: SPACING.xs,
   },
   actionBtn: {
-    alignItems: 'center',
     flex: 1,
-  },
-  actionIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: RADIUS.full,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
+    paddingVertical: SPACING.md,
+    gap: 6,
+  },
+  actionBtnDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: COLORS.border,
   },
   actionText: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
+    fontWeight: '500',
     color: COLORS.textSecondary,
   },
   sectionHeader: {
@@ -308,38 +298,44 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
-  horizontalAccounts: {
-    gap: SPACING.sm,
-    paddingVertical: SPACING.xs,
-  },
-  accountMiniCard: {
-    width: 136,
-    padding: SPACING.md,
-    backgroundColor: COLORS.surfaceGhost,
+  accountsList: {
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.borderHairline,
+    borderColor: COLORS.border,
     borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.md,
   },
-  miniAccName: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
   },
-  miniAccBalance: {
+  accountRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  accountRowInfo: {
+    flex: 1,
+    marginRight: SPACING.md,
+  },
+  accountRowName: {
     fontSize: FONT_SIZE.sm,
-    fontWeight: '700',
+    fontWeight: '600',
     color: COLORS.text,
-    marginVertical: 4,
-    letterSpacing: -0.2,
   },
-  miniAccType: {
-    fontSize: FONT_SIZE.xs - 2,
+  accountRowType: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
-    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  accountRowBalance: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   accountCardEmpty: {
-    padding: SPACING.md,
-    width: 180,
+    paddingVertical: SPACING.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
