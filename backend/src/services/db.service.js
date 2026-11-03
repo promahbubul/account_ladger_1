@@ -1914,46 +1914,7 @@ class DatabaseService {
           throw new Error('Account not found or access denied.');
         }
 
-        // Resolve or verify categoryId
-        let categoryId = tx.categoryId || null;
-        if (!categoryId && (tx.category || tx.subcategory)) {
-          const catRes = await client.query(
-            `SELECT id FROM categories 
-             WHERE user_id = $1 
-               AND (LOWER(name) = LOWER($2) OR (LOWER(name) = LOWER($3) AND $3 IS NOT NULL))
-             ORDER BY parent_id NULLS LAST LIMIT 1`,
-            [tx.userId, tx.subcategory || tx.category, tx.category]
-          );
-          if (catRes.rows.length > 0) {
-            categoryId = catRes.rows[0].id;
-          }
-        }
-
-        await client.query(
-          `INSERT INTO transactions (id, user_id, account_id, account_name, category_id, type, category, subcategory, amount, direction, date, description, reference, counterparty, status, transfer_id, loan_id, destination_account_id, destination_account_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
-          [
-            tx.id,
-            tx.userId,
-            tx.accountId,
-            tx.accountName || accRes.rows[0].name,
-            categoryId,
-            tx.type,
-            tx.category || null,
-            tx.subcategory || null,
-            cleanAmount,
-            tx.direction,
-            tx.date,
-            tx.description,
-            tx.reference || null,
-            tx.counterparty || null,
-            tx.status || 'COMPLETED',
-            tx.transferId || null,
-            tx.loanId || null,
-            tx.destinationAccountId || null,
-            tx.destinationAccountName || null,
-          ]
-        );
+        const categoryId = await this.insertTransactionRow(client, tx, cleanAmount, accRes.rows[0].name);
 
         let balanceDelta = 0;
         if (tx.direction === 'INFLOW') balanceDelta = cleanAmount;
@@ -1989,6 +1950,110 @@ class DatabaseService {
       }
       this.persistLocalDb();
       return tx;
+    }
+  }
+
+  async insertTransactionRow(client, tx, cleanAmount, fallbackAccountName) {
+    // Resolve or verify categoryId
+    let categoryId = tx.categoryId || null;
+    if (!categoryId && (tx.category || tx.subcategory)) {
+      const catRes = await client.query(
+        `SELECT id FROM categories
+         WHERE user_id = $1
+           AND (LOWER(name) = LOWER($2) OR (LOWER(name) = LOWER($3) AND $3 IS NOT NULL))
+         ORDER BY parent_id NULLS LAST LIMIT 1`,
+        [tx.userId, tx.subcategory || tx.category, tx.category]
+      );
+      if (catRes.rows.length > 0) {
+        categoryId = catRes.rows[0].id;
+      }
+    }
+
+    await client.query(
+      `INSERT INTO transactions (id, user_id, account_id, account_name, category_id, type, category, subcategory, amount, direction, date, description, reference, counterparty, status, transfer_id, loan_id, destination_account_id, destination_account_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+      [
+        tx.id,
+        tx.userId,
+        tx.accountId,
+        tx.accountName || fallbackAccountName,
+        categoryId,
+        tx.type,
+        tx.category || null,
+        tx.subcategory || null,
+        cleanAmount,
+        tx.direction,
+        tx.date,
+        tx.description,
+        tx.reference || null,
+        tx.counterparty || null,
+        tx.status || 'COMPLETED',
+        tx.transferId || null,
+        tx.loanId || null,
+        tx.destinationAccountId || null,
+        tx.destinationAccountName || null,
+      ]
+    );
+    return categoryId;
+  }
+
+  // Saves every outflow in one DB transaction: all rows and the balance change commit together or not at all.
+  // If any id already exists the batch was saved by an earlier attempt, so nothing is written again.
+  async createBulkExpenseTransactions(userId, accountId, txs) {
+    const totalCents = txs.reduce((sum, tx) => sum + Math.round(tx.amount * 100), 0);
+    const total = totalCents / 100;
+    const ids = txs.map((tx) => tx.id);
+
+    if (this.isPostgresConnected && this.pool) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const accRes = await client.query(
+          'SELECT id, name FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+          [accountId, userId]
+        );
+        if (accRes.rows.length === 0) {
+          throw new Error('Account not found or access denied.');
+        }
+
+        const existing = await client.query(
+          'SELECT id FROM transactions WHERE user_id = $1 AND id = ANY($2::varchar[])',
+          [userId, ids]
+        );
+        if (existing.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return { transactions: existing.rows, replayed: true };
+        }
+
+        const created = [];
+        for (const tx of txs) {
+          const categoryId = await this.insertTransactionRow(client, tx, tx.amount, accRes.rows[0].name);
+          created.push({ ...tx, categoryId });
+        }
+
+        await client.query(
+          'UPDATE accounts SET current_balance = current_balance - $1, updated_at = NOW() WHERE id = $2',
+          [total, accountId]
+        );
+
+        await client.query('COMMIT');
+        return { transactions: created, replayed: false };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } else {
+      const existing = this.inMemoryData.transactions.filter((t) => ids.includes(t.id));
+      if (existing.length > 0) {
+        return { transactions: existing, replayed: true };
+      }
+      this.inMemoryData.transactions.push(...txs);
+      await this.updateAccountBalance(accountId, -total);
+      this.persistLocalDb();
+      return { transactions: txs, replayed: false };
     }
   }
 
