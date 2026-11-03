@@ -4,7 +4,7 @@
 #
 # Repository secrets (Settings → Secrets and variables → Actions):
 #   FTP_SERVER     e.g. ftp.nutrimedbd.com
-#   FTP_USERNAME   cPanel username (nutrimed) or an FTP account
+#   FTP_USERNAME   FTP account whose directory is the app root
 #   FTP_PASSWORD   its password
 #   SSH_HOST, SSH_PORT, SSH_USERNAME, SSH_PRIVATE_KEY   optional, see below
 #
@@ -51,7 +51,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./deploy-backend/
-          server-dir: accountladger-api.nutrimedbd.com/
+          server-dir: /
           exclude: |
             **/.git*
             **/.git*/**
