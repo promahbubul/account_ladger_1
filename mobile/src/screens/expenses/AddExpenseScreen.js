@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { Select } from '../../components/common/Select';
 import { transactionsApi } from '../../services/api/transactions.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { categoriesApi } from '../../services/api/categories.api';
-import { getTodayISO } from '../../utils/formatters';
+import { getTodayISO, parseAmount, isValidISODate } from '../../utils/formatters';
+import { getSelectableCategories } from '../../utils/categories';
 
 export const AddExpenseScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -16,7 +19,6 @@ export const AddExpenseScreen = ({ navigation }) => {
   const [date, setDate] = useState(getTodayISO());
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [categoryName, setCategoryName] = useState('');
   const [subcatName, setSubcatName] = useState('');
   const [accountId, setAccountId] = useState('');
   const [description, setDescription] = useState('');
@@ -35,7 +37,11 @@ export const AddExpenseScreen = ({ navigation }) => {
   });
 
   const accounts = accountsQuery.data?.accounts || [];
-  const expenseCategories = (categoriesQuery.data?.categories || []).filter(c => c.type === 'EXPENSE');
+  const expenseCategories = useMemo(
+    () => getSelectableCategories(categoriesQuery.data?.categories, 'EXPENSE'),
+    [categoriesQuery.data]
+  );
+  const selectedCategory = expenseCategories.find(c => c.id === categoryId);
 
   React.useEffect(() => {
     if (!accountId && accounts.length > 0) {
@@ -43,18 +49,11 @@ export const AddExpenseScreen = ({ navigation }) => {
     }
   }, [accounts, accountId]);
 
-  React.useEffect(() => {
-    if (!categoryName && expenseCategories.length > 0) {
-      setCategoryName(expenseCategories[0].name);
-      setCategoryId(expenseCategories[0].id);
-    }
-  }, [expenseCategories, categoryName]);
-
   const handleAdd = async () => {
     if (loading) return;
     setError('');
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseAmount(amount);
+    if (numAmount === null) {
       setError('Please provide a valid amount greater than 0.');
       return;
     }
@@ -62,12 +61,16 @@ export const AddExpenseScreen = ({ navigation }) => {
       setError('Please select a payment account.');
       return;
     }
-    if (!date.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+    if (!selectedCategory) {
+      setError('Please select a category.');
+      return;
+    }
+    if (!isValidISODate(date.trim())) {
       setError('Please provide a valid date in YYYY-MM-DD format.');
       return;
     }
 
-    const finalDescription = description.trim() || (categoryName ? `${categoryName} Expense` : 'Expense');
+    const finalDescription = description.trim() || `${selectedCategory.name} Expense`;
 
     setLoading(true);
     try {
@@ -75,8 +78,8 @@ export const AddExpenseScreen = ({ navigation }) => {
         date: date.trim(),
         amount: numAmount,
         accountId,
-        categoryId: categoryId || undefined,
-        category: categoryName || 'Other Expense',
+        categoryId: selectedCategory.id,
+        category: selectedCategory.name,
         subcategory: subcatName || undefined,
         description: finalDescription,
         reference: reference.trim() || undefined,
@@ -103,6 +106,11 @@ export const AddExpenseScreen = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <TouchableOpacity style={styles.multipleLink} onPress={() => navigation.replace('BulkExpense')}>
+          <Ionicons name="layers-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.multipleLinkText}>Add multiple expenses by category</Text>
+        </TouchableOpacity>
 
         <Input
           label="Amount (BDT) *"
@@ -138,24 +146,34 @@ export const AddExpenseScreen = ({ navigation }) => {
         </ScrollView>
 
         {/* Category Selector */}
-        <Text style={styles.fieldLabel}>Category *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {expenseCategories.map(cat => {
-            const isSelected = categoryName === cat.name;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[styles.chip, isSelected && styles.chipActive]}
-                onPress={() => {
-                  setCategoryName(cat.name);
-                  setCategoryId(cat.id);
-                }}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{cat.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {categoriesQuery.isError ? (
+          <TouchableOpacity onPress={() => categoriesQuery.refetch()}>
+            <Text style={styles.errorText}>Could not load categories. Tap to retry.</Text>
+          </TouchableOpacity>
+        ) : null}
+        <Select
+          label="Category *"
+          placeholder="Select a category"
+          value={categoryId}
+          options={expenseCategories.map(cat => ({ value: cat.id, label: cat.name }))}
+          onChange={(id) => {
+            setCategoryId(id);
+            setSubcatName('');
+          }}
+          loading={categoriesQuery.isLoading}
+          emptyMessage="No expense categories found. Add one in Settings."
+        />
+
+        {selectedCategory?.subcategories?.length > 0 ? (
+          <Select
+            label="Subcategory"
+            placeholder="Optional"
+            value={subcatName}
+            options={selectedCategory.subcategories.map(name => ({ value: name, label: name }))}
+            onChange={setSubcatName}
+            allowClear
+          />
+        ) : null}
 
         <Input
           label="Description (Optional)"
@@ -195,6 +213,17 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     fontSize: FONT_SIZE.xs,
     marginBottom: SPACING.md,
+  },
+  multipleLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.lg,
+  },
+  multipleLinkText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   fieldLabel: {
     fontSize: FONT_SIZE.xs,

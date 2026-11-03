@@ -1,29 +1,35 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
-import { Card } from '../../components/common/Card';
+import { Select } from '../../components/common/Select';
 import { transactionsApi } from '../../services/api/transactions.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { categoriesApi } from '../../services/api/categories.api';
-import { getTodayISO, formatCurrency } from '../../utils/formatters';
+import { getTodayISO, formatCurrency, parseAmount, isValidISODate } from '../../utils/formatters';
+import { getSelectableCategories } from '../../utils/categories';
+import { showMessage } from '../../utils/notify';
+
+const newKey = () => `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+const newRow = () => ({ key: newKey(), subcategory: '', description: '', amount: '' });
+const newGroup = () => ({ key: newKey(), categoryId: '', rows: [newRow()] });
+const isBlankRow = (row) => !row.amount.trim() && !row.description.trim() && !row.subcategory;
 
 export const BulkExpenseScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
 
   const [date, setDate] = useState(getTodayISO());
   const [accountId, setAccountId] = useState('');
-  const [items, setItems] = useState([
-    { id: '1', category: 'Food & Dining', description: 'Lunch', amount: '150' },
-    { id: '2', category: 'Transportation', description: 'Commute', amount: '60' },
-    { id: '3', category: 'Housing & Utilities', description: 'Mobile Recharge', amount: '100' },
-  ]);
+  const [groups, setGroups] = useState(() => [newGroup()]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // One id per distinct payload, so resending after a lost response cannot save the batch twice.
+  const batchRef = useRef({ signature: '', id: '' });
 
   const accountsQuery = useQuery({
     queryKey: ['accountsList'],
@@ -36,7 +42,11 @@ export const BulkExpenseScreen = ({ navigation }) => {
   });
 
   const accounts = accountsQuery.data?.accounts || [];
-  const expenseCategories = (categoriesQuery.data?.categories || []).filter(c => c.type === 'EXPENSE');
+  const expenseCategories = useMemo(
+    () => getSelectableCategories(categoriesQuery.data?.categories, 'EXPENSE'),
+    [categoriesQuery.data]
+  );
+  const findCategory = (id) => expenseCategories.find((c) => c.id === id);
 
   React.useEffect(() => {
     if (!accountId && accounts.length > 0) {
@@ -44,63 +54,136 @@ export const BulkExpenseScreen = ({ navigation }) => {
     }
   }, [accounts, accountId]);
 
-  const updateItem = (id, field, value) => {
-    setItems(items.map(it => it.id === id ? { ...it, [field]: value } : it));
+  const clearFieldError = (key) => {
+    setError('');
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
-  const addItem = () => {
-    const defaultCat = expenseCategories[0]?.name || 'Daily Expense';
-    setItems([...items, { id: String(Date.now()), category: defaultCat, description: '', amount: '' }]);
+  const updateGroup = (groupKey, changes) => {
+    setGroups((prev) => prev.map((g) => (g.key === groupKey ? { ...g, ...changes } : g)));
   };
 
-  const removeItem = (id) => {
-    if (items.length <= 1) return;
-    setItems(items.filter(it => it.id !== id));
+  const updateRow = (groupKey, rowKey, field, value) => {
+    if (field === 'amount') clearFieldError(rowKey);
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.key === groupKey
+          ? { ...g, rows: g.rows.map((r) => (r.key === rowKey ? { ...r, [field]: value } : r)) }
+          : g
+      )
+    );
   };
 
-  const totalSum = items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+  const selectCategory = (group, categoryId) => {
+    if (categoryId === group.categoryId) return;
+    clearFieldError(group.key);
+    // Subcategories belong to the previous category, so they cannot carry over.
+    updateGroup(group.key, {
+      categoryId,
+      rows: group.rows.map((r) => ({ ...r, subcategory: '' })),
+    });
+  };
+
+  const addRow = (groupKey) => {
+    setGroups((prev) => prev.map((g) => (g.key === groupKey ? { ...g, rows: [...g.rows, newRow()] } : g)));
+  };
+
+  const removeRow = (groupKey, rowKey) => {
+    clearFieldError(rowKey);
+    setGroups((prev) =>
+      prev.map((g) => (g.key === groupKey ? { ...g, rows: g.rows.filter((r) => r.key !== rowKey) } : g))
+    );
+  };
+
+  const addGroup = () => setGroups((prev) => [...prev, newGroup()]);
+  const removeGroup = (groupKey) => {
+    clearFieldError(groupKey);
+    setGroups((prev) => prev.filter((g) => g.key !== groupKey));
+  };
+
+  const groupTotal = (group) => group.rows.reduce((sum, r) => sum + (parseAmount(r.amount) || 0), 0);
+  const totalSum = groups.reduce((sum, g) => sum + groupTotal(g), 0);
+  const filledCount = groups.reduce((sum, g) => sum + g.rows.filter((r) => !isBlankRow(r)).length, 0);
+  const canAddGroup = groups.length < expenseCategories.length;
 
   const handleSubmit = async () => {
+    if (loading) return;
     setError('');
-    if (!accountId) {
-      setError('Please select an account.');
+
+    const errors = {};
+    const validItems = [];
+
+    if (!accountId) errors.account = 'Please select an account.';
+    if (!isValidISODate(date.trim())) errors.date = 'Enter a valid date as YYYY-MM-DD.';
+
+    groups.forEach((group) => {
+      const filledRows = group.rows.filter((r) => !isBlankRow(r));
+      const category = findCategory(group.categoryId);
+      if (filledRows.length > 0 && !category) {
+        errors[group.key] = 'Please select a category.';
+      }
+      filledRows.forEach((row) => {
+        const amount = parseAmount(row.amount);
+        if (amount === null) {
+          errors[row.key] = 'Enter a valid amount.';
+          return;
+        }
+        if (category) {
+          validItems.push({
+            categoryId: category.id,
+            category: category.name,
+            subcategory: row.subcategory || undefined,
+            description: row.description.trim() || `${category.name} Expense`,
+            amount,
+          });
+        }
+      });
+    });
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fix the highlighted fields. Nothing has been saved.');
+      return;
+    }
+    if (validItems.length === 0) {
+      setError('Please add at least one expense with an amount.');
       return;
     }
 
-    const validItems = items
-      .map(it => ({
-        category: it.category,
-        description: it.description.trim() || `${it.category} Expense`,
-        amount: parseFloat(it.amount) || 0,
-      }))
-      .filter(it => it.amount > 0);
-
-    if (validItems.length === 0) {
-      setError('Please provide at least one item with a valid amount.');
-      return;
+    const payload = { date: date.trim(), accountId, items: validItems };
+    const signature = JSON.stringify(payload);
+    if (batchRef.current.signature !== signature) {
+      batchRef.current = { signature, id: newKey() };
     }
 
     setLoading(true);
     try {
-      await transactionsApi.createBulkExpense({
-        date,
-        accountId,
-        items: validItems,
-      });
+      const result = await transactionsApi.createBulkExpense({ ...payload, batchId: batchRef.current.id });
 
       queryClient.invalidateQueries({ queryKey: ['expensesList'] });
       queryClient.invalidateQueries({ queryKey: ['transactionsList'] });
       queryClient.invalidateQueries({ queryKey: ['reportsSummary'] });
       queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['accountsList'] });
       queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['budgetsList'] });
 
-      Alert.alert(
+      showMessage(
         'Success',
-        `Recorded ${validItems.length} expenses successfully! Total: ${formatCurrency(totalSum)}`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        `Recorded ${result.count} expenses. Total: ${formatCurrency(validItems.reduce((sum, it) => sum + it.amount, 0))}`,
+        () => navigation.goBack()
       );
     } catch (err) {
-      setError(err.message || 'Failed to record daily bulk expenses.');
+      if (err.status === 408 || err.status === 0) {
+        setError('Could not confirm the save. Tap Save again; it will not create duplicates.');
+      } else {
+        setError(err.message || 'Failed to record expenses. Nothing has been saved.');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,108 +191,157 @@ export const BulkExpenseScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Header title="Daily Bulk Expenses" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
+      <Header title="Add Multiple Expenses" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <View style={styles.metaRow}>
-          <View style={{ flex: 1, marginRight: SPACING.sm }}>
-            <Input
-              label="Date"
-              value={date}
-              onChangeText={setDate}
-              style={{ marginBottom: 0 }}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.fieldLabel}>Account</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4 }}>
-              {accounts.map(acc => {
-                const isSelected = accountId === acc.id;
-                return (
-                  <TouchableOpacity
-                    key={acc.id}
-                    style={[styles.smallChip, isSelected && styles.smallChipActive]}
-                    onPress={() => setAccountId(acc.id)}
-                  >
-                    <Text style={[styles.smallChipText, isSelected && styles.smallChipTextActive]}>{acc.name}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
+        <Input
+          label="Date (YYYY-MM-DD) *"
+          placeholder="YYYY-MM-DD"
+          value={date}
+          onChangeText={(val) => {
+            clearFieldError('date');
+            setDate(val);
+          }}
+          error={fieldErrors.date}
+        />
 
-        {/* Running Batch Summary */}
+        <Select
+          label="Payment Account *"
+          placeholder="Select an account"
+          value={accountId}
+          options={accounts.map((acc) => ({ value: acc.id, label: acc.name }))}
+          onChange={(id) => {
+            clearFieldError('account');
+            setAccountId(id);
+          }}
+          loading={accountsQuery.isLoading}
+          emptyMessage="No accounts found. Create an account first."
+          error={fieldErrors.account}
+        />
+
+        {categoriesQuery.isError ? (
+          <TouchableOpacity style={styles.retryBox} onPress={() => categoriesQuery.refetch()}>
+            <Text style={styles.errorText}>Could not load categories. Tap to retry.</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <View style={styles.summaryBar}>
           <View>
             <Text style={styles.summaryLabel}>RUNNING TOTAL</Text>
             <Text style={styles.summaryTotal}>{formatCurrency(totalSum)}</Text>
           </View>
           <View style={styles.itemCountBadge}>
-            <Text style={styles.itemCountText}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
+            <Text style={styles.itemCountText}>{filledCount} {filledCount === 1 ? 'expense' : 'expenses'}</Text>
           </View>
         </View>
 
-        <View style={styles.sectionHeadingRow}>
-          <Text style={styles.sectionHeading}>EXPENSE ENTRIES</Text>
-        </View>
+        {groups.map((group) => {
+          const category = findCategory(group.categoryId);
+          const usedElsewhere = groups.filter((g) => g.key !== group.key).map((g) => g.categoryId);
+          const categoryOptions = expenseCategories
+            .filter((c) => !usedElsewhere.includes(c.id))
+            .map((c) => ({ value: c.id, label: c.name }));
+          const subcategoryOptions = (category?.subcategories || []).map((name) => ({ value: name, label: name }));
 
-        {items.map((it, idx) => (
-          <View key={it.id} style={styles.itemRow}>
-            <View style={styles.itemHeader}>
-              <View style={styles.itemIndexPill}>
-                <Text style={styles.itemIndexText}>#{idx + 1}</Text>
+          return (
+            <View key={group.key} style={styles.groupCard}>
+              <View style={styles.groupHeader}>
+                <Select
+                  label="Category *"
+                  placeholder="Select a category"
+                  value={group.categoryId}
+                  options={categoryOptions}
+                  onChange={(id) => selectCategory(group, id)}
+                  loading={categoriesQuery.isLoading}
+                  emptyMessage="No expense categories found. Add one in Settings."
+                  error={fieldErrors[group.key]}
+                  style={styles.groupSelect}
+                />
+                {groups.length > 1 ? (
+                  <TouchableOpacity
+                    style={styles.removeGroupBtn}
+                    onPress={() => removeGroup(group.key)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Remove category"
+                  >
+                    <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
-              {items.length > 1 ? (
-                <TouchableOpacity
-                  onPress={() => removeItem(it.id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
+
+              {group.rows.map((row, idx) => (
+                <View key={row.key} style={styles.itemRow}>
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemIndexText}>Expense {idx + 1}</Text>
+                    {group.rows.length > 1 ? (
+                      <TouchableOpacity
+                        onPress={() => removeRow(group.key, row.key)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Remove expense"
+                      >
+                        <Ionicons name="close-circle-outline" size={18} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.inputRow}>
+                    <View style={styles.descriptionCol}>
+                      <Input
+                        label="Description"
+                        placeholder="e.g. Lunch"
+                        value={row.description}
+                        onChangeText={(val) => updateRow(group.key, row.key, 'description', val)}
+                        style={styles.flushField}
+                      />
+                    </View>
+                    <View style={styles.amountCol}>
+                      <Input
+                        label="Amount *"
+                        placeholder="0.00"
+                        value={row.amount}
+                        onChangeText={(val) => updateRow(group.key, row.key, 'amount', val)}
+                        keyboardType="numeric"
+                        error={fieldErrors[row.key]}
+                        style={styles.flushField}
+                        inputStyle={styles.amountInput}
+                      />
+                    </View>
+                  </View>
+
+                  {subcategoryOptions.length > 0 ? (
+                    <Select
+                      label="Subcategory"
+                      placeholder="Optional"
+                      value={row.subcategory}
+                      options={subcategoryOptions}
+                      onChange={(val) => updateRow(group.key, row.key, 'subcategory', val)}
+                      allowClear
+                      style={styles.subcategorySelect}
+                    />
+                  ) : null}
+                </View>
+              ))}
+
+              <View style={styles.groupFooter}>
+                <TouchableOpacity style={styles.addRowLink} onPress={() => addRow(group.key)}>
+                  <Ionicons name="add" size={16} color={COLORS.primary} />
+                  <Text style={styles.addRowText}>Add expense</Text>
                 </TouchableOpacity>
-              ) : null}
-            </View>
-
-            <View style={styles.inputRow}>
-              <View style={{ flex: 1, marginRight: SPACING.sm }}>
-                <Input
-                  label="Category"
-                  value={it.category}
-                  onChangeText={(val) => updateItem(it.id, 'category', val)}
-                  style={{ marginBottom: 0 }}
-                />
-              </View>
-              <View style={{ width: 125 }}>
-                <Input
-                  label="Amount (BDT) *"
-                  placeholder="0.00"
-                  value={it.amount}
-                  onChangeText={(val) => updateItem(it.id, 'amount', val)}
-                  keyboardType="numeric"
-                  style={{ marginBottom: 0 }}
-                  inputStyle={{ fontWeight: '700', color: COLORS.danger }}
-                />
+                <Text style={styles.subtotal}>Subtotal: {formatCurrency(groupTotal(group))}</Text>
               </View>
             </View>
-
-            <Input
-              label="Description (Optional)"
-              placeholder="e.g. Lunch"
-              value={it.description}
-              onChangeText={(val) => updateItem(it.id, 'description', val)}
-              style={{ marginTop: SPACING.sm, marginBottom: 0 }}
-            />
-          </View>
-        ))}
+          );
+        })}
 
         <Button
-          title="Add Row"
+          title="Add Another Category"
           variant="secondary"
           icon={<Ionicons name="add" size={16} color={COLORS.text} />}
-          onPress={addItem}
-          style={styles.addRowBtn}
+          onPress={addGroup}
+          disabled={!canAddGroup}
+          style={styles.addGroupBtn}
         />
 
         <Button
@@ -237,37 +369,8 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     marginBottom: SPACING.md,
   },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.md,
-  },
-  fieldLabel: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '500',
-    color: COLORS.textSecondary,
+  retryBox: {
     marginBottom: SPACING.xs,
-  },
-  smallChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.surfaceGhost,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-  },
-  smallChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  smallChipText: {
-    fontSize: FONT_SIZE.xs - 1,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  smallChipTextActive: {
-    color: '#FFF',
-    fontWeight: '600',
   },
   summaryBar: {
     flexDirection: 'row',
@@ -305,44 +408,87 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontWeight: '600',
   },
-  sectionHeadingRow: {
-    marginBottom: SPACING.sm,
-    paddingHorizontal: SPACING.xs,
+  groupCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
   },
-  sectionHeading: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    letterSpacing: 0.6,
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  groupSelect: {
+    flex: 1,
+  },
+  removeGroupBtn: {
+    marginLeft: SPACING.md,
+    marginTop: 34,
   },
   itemRow: {
     paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderHairline,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderSubtle,
   },
   itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  itemIndexPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.surfaceGhost,
+    marginBottom: SPACING.sm,
   },
   itemIndexText: {
-    fontSize: FONT_SIZE.xs - 1,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
     color: COLORS.textMuted,
   },
   inputRow: {
     flexDirection: 'row',
   },
-  addRowBtn: {
-    marginVertical: SPACING.md,
+  descriptionCol: {
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  amountCol: {
+    width: 115,
+  },
+  flushField: {
+    marginBottom: 0,
+  },
+  amountInput: {
+    fontWeight: '700',
+    color: COLORS.danger,
+  },
+  subcategorySelect: {
+    marginTop: SPACING.sm,
+    marginBottom: 0,
+  },
+  groupFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderSubtle,
+  },
+  addRowLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addRowText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  subtotal: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  addGroupBtn: {
+    marginBottom: SPACING.md,
   },
   submitBtn: {
     marginBottom: SPACING.xxl,

@@ -158,11 +158,36 @@ export async function createExpense(req, res) {
   }
 }
 
+const MAX_BULK_ITEMS = 200;
+const BATCH_ID_PATTERN = /^[A-Za-z0-9_-]{8,40}$/;
+
+function isRealCalendarDate(iso) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return false;
+  const [year, month, day] = match.slice(1).map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
+}
+
 export async function createBulkExpense(req, res) {
   try {
-    const { accountId, date, items } = req.body;
+    const { accountId, date, items, batchId } = req.body;
     if (!accountId || !date || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ error: 'Account, date, and a non-empty array of items are required.' });
+      return;
+    }
+    if (items.length > MAX_BULK_ITEMS) {
+      res.status(400).json({ error: `A maximum of ${MAX_BULK_ITEMS} expenses can be saved at once.` });
+      return;
+    }
+    if (batchId !== undefined && !BATCH_ID_PATTERN.test(String(batchId))) {
+      res.status(400).json({ error: 'Invalid batch id.' });
+      return;
+    }
+
+    const isoDate = parseDateToISO(date);
+    if (!isoDate || !isRealCalendarDate(isoDate)) {
+      res.status(400).json({ error: 'Please provide a valid date.' });
       return;
     }
 
@@ -173,22 +198,47 @@ export async function createBulkExpense(req, res) {
       return;
     }
 
-    const createdTxs = [];
-    for (const item of items) {
-      const cleanAmount = Number(item.amount);
-      if (isNaN(cleanAmount) || cleanAmount <= 0) continue;
+    const categories = await dbService.getCategories(req.user.id);
+    const stamp = Date.now();
+    const txs = [];
 
-      const tx = {
-        id: `tx_exp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    // Validate every item before anything is written so one bad row cannot leave a partial save.
+    for (const [index, item] of items.entries()) {
+      const label = `Expense #${index + 1}`;
+      const cleanAmount = Math.round(Number(item.amount) * 100) / 100;
+      if (isNaN(cleanAmount) || cleanAmount <= 0) {
+        res.status(400).json({ error: `${label}: amount must be a positive number.` });
+        return;
+      }
+
+      let categoryName = item.category || 'Miscellaneous';
+      if (item.categoryId) {
+        const cat = categories.find((c) => c.id === item.categoryId);
+        if (!cat || cat.type !== 'EXPENSE' || cat.isArchived) {
+          res.status(400).json({ error: `${label}: the selected category is not available.` });
+          return;
+        }
+        categoryName = cat.name;
+        if (item.subcategory && !(cat.subcategories || []).includes(item.subcategory)) {
+          res.status(400).json({ error: `${label}: the selected subcategory is not available.` });
+          return;
+        }
+      }
+
+      txs.push({
+        id: batchId
+          ? `tx_bulk_${batchId}_${index}`
+          : `tx_exp_${stamp}_${index}_${Math.random().toString(36).substr(2, 6)}`,
         userId: req.user.id,
         accountId,
         accountName: acc.name,
+        categoryId: item.categoryId || null,
         type: 'EXPENSE',
-        category: item.category || 'Miscellaneous',
+        category: categoryName,
         subcategory: item.subcategory || null,
         amount: cleanAmount,
         direction: 'OUTFLOW',
-        date: parseDateToISO(date) || String(date).slice(0, 10),
+        date: isoDate,
         description: (item.description || item.desc)
           ? String(item.description || item.desc).trim()
           : (item.category ? `${item.category} Expense` : 'Daily Expense'),
@@ -196,13 +246,12 @@ export async function createBulkExpense(req, res) {
         counterparty: null,
         status: 'COMPLETED',
         createdAt: new Date().toISOString(),
-      };
-
-      const created = await dbService.createTransaction(tx);
-      createdTxs.push(created);
+      });
     }
 
-    res.status(201).json({ success: true, transactions: createdTxs, count: createdTxs.length });
+    const { transactions, replayed } = await dbService.createBulkExpenseTransactions(req.user.id, accountId, txs);
+
+    res.status(replayed ? 200 : 201).json({ success: true, transactions, count: transactions.length, replayed });
   } catch (err) {
     res.status(500).json({ error: 'Failed to record bulk expenses.' });
   }

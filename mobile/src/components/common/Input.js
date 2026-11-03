@@ -108,6 +108,8 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: FONT_SIZE.sm,
     paddingVertical: SPACING.sm,
+    // The wrapper already shows focus, so drop the browser's own outline on web.
+    outlineStyle: 'none',
   },
   eyeBtn: {
     padding: SPACING.xs,

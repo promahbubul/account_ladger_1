@@ -44,6 +44,7 @@ export const transactionsApi = {
     return apiClient('/api/transactions/bulk', {
       method: 'POST',
       body: JSON.stringify(data),
+      timeout: 30000,
     });
   },
 
