@@ -70,12 +70,10 @@ export const DashboardScreen = ({ navigation }) => {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('IncomeScreen')}
             >
-              <View style={[styles.flowDot, { backgroundColor: COLORS.success }]} />
               <Text style={styles.flowMetricLabel}>Income</Text>
-              <Text style={[styles.flowMetricValue, { color: COLORS.success }]}>
-                +{formatCurrency(summary.totalIncome)}
+              <Text style={[styles.flowMetricValue, { color: COLORS.success }]} numberOfLines={1} adjustsFontSizeToFit>
+                {formatCurrency(summary.totalIncome)}
               </Text>
-              <Ionicons name="chevron-forward" size={11} color={COLORS.textMuted} />
             </TouchableOpacity>
 
             <View style={styles.flowMetricDivider} />
@@ -85,12 +83,10 @@ export const DashboardScreen = ({ navigation }) => {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('ExpensesScreen')}
             >
-              <View style={[styles.flowDot, { backgroundColor: COLORS.danger }]} />
               <Text style={styles.flowMetricLabel}>Expense</Text>
-              <Text style={[styles.flowMetricValue, { color: COLORS.danger }]}>
-                -{formatCurrency(summary.totalExpense)}
+              <Text style={[styles.flowMetricValue, { color: COLORS.danger }]} numberOfLines={1} adjustsFontSizeToFit>
+                {formatCurrency(summary.totalExpense)}
               </Text>
-              <Ionicons name="chevron-forward" size={11} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -247,38 +243,28 @@ const styles = StyleSheet.create({
   flowMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceGhost,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    borderRadius: RADIUS.full,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    marginTop: SPACING.sm,
+    alignSelf: 'stretch',
+    marginTop: SPACING.lg,
   },
   flowMetricItem: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
-    gap: 5,
-  },
-  flowDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    paddingHorizontal: SPACING.sm,
   },
   flowMetricLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
     fontWeight: '500',
+    marginBottom: 2,
   },
   flowMetricValue: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.md,
+    fontWeight: '600',
   },
   flowMetricDivider: {
     width: 1,
-    height: 14,
-    backgroundColor: COLORS.borderHairline,
-    marginHorizontal: SPACING.sm + 2,
+    height: 28,
+    backgroundColor: COLORS.border,
   },
   quickActionsRow: {
     flexDirection: 'row',
