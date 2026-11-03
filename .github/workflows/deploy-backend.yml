@@ -1,4 +1,16 @@
-name: Deploy Backend to cPanel
+# Deploys the backend to cPanel (Setup Node.js App, accountladger-api.nutrimedbd.com)
+# over FTP on every push to main that touches backend/. Passenger restarts the
+# app when tmp/restart.txt changes.
+#
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   FTP_SERVER     e.g. ftp.nutrimedbd.com
+#   FTP_USERNAME   cPanel username (nutrimed) or an FTP account
+#   FTP_PASSWORD   its password
+#   SSH_HOST, SSH_PORT, SSH_USERNAME, SSH_PRIVATE_KEY   optional, see below
+#
+# Runtime settings (DATABASE_URL, JWT_SECRET, SMTP_*, ...) live in the cPanel
+# app's Environment variables, never in GitHub.
+name: Deploy Backend (cPanel)
 
 on:
   push:
@@ -13,59 +25,70 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Application root folder (relative to the cPanel home directory)
-  APP_DIR: accountladger-api.nutrimedbd.com
-  # Node.js version selected in cPanel "Setup Node.js App"
-  NODE_MAJOR: "24"
+  APP_ROOT: /home/nutrimed/accountladger-api.nutrimedbd.com
+  NODEVENV: /home/nutrimed/nodevenv/accountladger-api.nutrimedbd.com/24/bin/activate
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      HAS_SSH: ${{ secrets.SSH_PRIVATE_KEY != '' }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Setup SSH key
-        env:
-          SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
-          HOST: ${{ secrets.CPANEL_HOST }}
-          PORT: ${{ secrets.CPANEL_PORT }}
+      - name: Assemble upload folder
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "${PORT:-22}" "$HOST" >> ~/.ssh/known_hosts
+          mkdir -p deploy-backend/tmp
+          cd backend
+          cp -r src prisma server.js package.json package-lock.json ../deploy-backend/
+          # Touching this file makes Passenger restart the app after upload.
+          date -u > ../deploy-backend/tmp/restart.txt
 
-      - name: Upload backend files (rsync)
-        env:
-          HOST: ${{ secrets.CPANEL_HOST }}
-          PORT: ${{ secrets.CPANEL_PORT }}
-          USER: ${{ secrets.CPANEL_USER }}
-        run: |
-          # .env, node_modules, data and tmp live only on the server — never overwrite them
-          rsync -az --delete \
-            --exclude ".env" \
-            --exclude ".env.*" \
-            --exclude "node_modules" \
-            --exclude "data" \
-            --exclude "tmp" \
-            --exclude "tests" \
-            -e "ssh -i ~/.ssh/id_deploy -p ${PORT:-22}" \
-            backend/ "$USER@$HOST:$APP_DIR/"
+      - name: Upload over FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./deploy-backend/
+          server-dir: accountladger-api.nutrimedbd.com/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            node_modules/**
+            .env
+            .htaccess
 
-      - name: Install dependencies & restart app
-        env:
-          HOST: ${{ secrets.CPANEL_HOST }}
-          PORT: ${{ secrets.CPANEL_PORT }}
-          USER: ${{ secrets.CPANEL_USER }}
-        run: |
-          ssh -i ~/.ssh/id_deploy -p "${PORT:-22}" "$USER@$HOST" bash -s <<EOF
+      # Optional (runs once the SSH_* secrets exist): install dependencies in
+      # cPanel's Node.js environment — what "Run NPM Install" does — and restart.
+      # The shared host's memory limit kills a full `npm install` over SSH, so it
+      # only runs when installed packages no longer match package.json.
+      - name: Install dependencies and restart over SSH
+        if: env.HAS_SSH == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: APP_ROOT,NODEVENV
+          script: |
             set -e
-            source "\$HOME/nodevenv/$APP_DIR/$NODE_MAJOR/bin/activate"
-            cd "\$HOME/$APP_DIR"
-            npm ci --no-audit --no-fund
-            npx prisma generate --schema=prisma/schema.prisma
-            mkdir -p tmp
-            touch tmp/restart.txt
-            echo "Deployed \$(date)"
-          EOF
+            source "$NODEVENV"
+            cd "$APP_ROOT"
+            if npm ls --omit=dev --depth=0 >/dev/null 2>&1; then
+              echo "Dependencies already match package.json; skipping npm install."
+            else
+              echo "Dependencies changed; installing with a low memory footprint..."
+              export UV_THREADPOOL_SIZE=1 NODE_OPTIONS=--max-old-space-size=384
+              if ! npm install --omit=dev --no-audit --no-fund --no-progress --maxsockets=2; then
+                echo "::error::npm install was stopped by the host's memory limit. In cPanel → Setup Node.js App → accountladger-api.nutrimedbd.com press 'Run NPM Install', then 'Restart'."
+                exit 1
+              fi
+            fi
+            mkdir -p tmp && touch tmp/restart.txt
+            # touch alone can leave an old instance running; stop this app's Node
+            # processes so the host starts a fresh one on the next request.
+            for pid in $(pgrep -u "$(id -u)" node || true); do
+              if [ "$(readlink /proc/$pid/cwd 2>/dev/null)" = "$APP_ROOT" ]; then kill "$pid" || true; fi
+            done
