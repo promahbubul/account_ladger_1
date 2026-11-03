@@ -1,0 +1,71 @@
+name: Deploy Backend to cPanel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  # Application root folder (relative to the cPanel home directory)
+  APP_DIR: accountladger-api.nutrimedbd.com
+  # Node.js version selected in cPanel "Setup Node.js App"
+  NODE_MAJOR: "24"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+          HOST: ${{ secrets.CPANEL_HOST }}
+          PORT: ${{ secrets.CPANEL_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "${PORT:-22}" "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload backend files (rsync)
+        env:
+          HOST: ${{ secrets.CPANEL_HOST }}
+          PORT: ${{ secrets.CPANEL_PORT }}
+          USER: ${{ secrets.CPANEL_USER }}
+        run: |
+          # .env, node_modules, data and tmp live only on the server — never overwrite them
+          rsync -az --delete \
+            --exclude ".env" \
+            --exclude ".env.*" \
+            --exclude "node_modules" \
+            --exclude "data" \
+            --exclude "tmp" \
+            --exclude "tests" \
+            -e "ssh -i ~/.ssh/id_deploy -p ${PORT:-22}" \
+            backend/ "$USER@$HOST:$APP_DIR/"
+
+      - name: Install dependencies & restart app
+        env:
+          HOST: ${{ secrets.CPANEL_HOST }}
+          PORT: ${{ secrets.CPANEL_PORT }}
+          USER: ${{ secrets.CPANEL_USER }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "${PORT:-22}" "$USER@$HOST" bash -s <<EOF
+            set -e
+            source "\$HOME/nodevenv/$APP_DIR/$NODE_MAJOR/bin/activate"
+            cd "\$HOME/$APP_DIR"
+            npm ci --no-audit --no-fund
+            npx prisma generate --schema=prisma/schema.prisma
+            mkdir -p tmp
+            touch tmp/restart.txt
+            echo "Deployed \$(date)"
+          EOF
