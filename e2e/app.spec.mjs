@@ -102,10 +102,17 @@ test('a project can be created and opened', async ({ page }) => {
   // The empty project table has its own "Create Project" button, so take the form's submit button.
   await page.locator('form button[type="submit"]', { hasText: 'Create Project' }).click();
 
+  // A new project opens straight away.
+  await expect(page.getByRole('button', { name: 'Edit project' })).toBeVisible();
+  await expect(page.getByText('E2E Office Fit-out').first()).toBeVisible();
+  await expect(failureBanner(page)).toHaveCount(0);
+
+  // It is also listed, and opens again from the list. The open project lives in component state,
+  // so go back with the page's own back button rather than the sidebar link.
+  await page.getByRole('button', { name: 'Projects', exact: true }).click();
   const row = page.locator('tr').filter({ hasText: 'E2E Office Fit-out' });
   await expect(row).toBeVisible();
   await expect(row).toContainText('E2E Client');
   await row.click();
   await expect(page.getByRole('button', { name: 'Edit project' })).toBeVisible();
-  await expect(failureBanner(page)).toHaveCount(0);
 });
