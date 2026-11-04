@@ -26,15 +26,7 @@ export async function login(req, res) {
       return;
     }
 
-    let isMatch = await bcrypt.compare(String(password), user.passwordHash);
-    if (!isMatch && user.role === 'ADMIN') {
-      const envAdminPass = config.adminInitialPassword;
-      if ((envAdminPass && String(password) === envAdminPass) || String(password) === '123456') {
-        isMatch = true;
-        const newHash = await bcrypt.hash(String(password), 10);
-        await dbService.updateUser(user.id, { passwordHash: newHash });
-      }
-    }
+    const isMatch = await bcrypt.compare(String(password), user.passwordHash);
 
     if (!isMatch) {
       res.status(401).json({ error: 'Invalid credentials. Please check your username/email and password.' });

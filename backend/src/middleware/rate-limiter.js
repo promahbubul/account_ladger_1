@@ -7,6 +7,8 @@ export function createRateLimiter({
   maxAttempts = 5,
   message = 'Too many requests. Please try again later.',
   keyGenerator = (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
+  // When set, only responses it accepts use up an attempt, e.g. only failed logins.
+  countResponse,
 }) {
   const store = new Map(); // key -> Array of timestamps
 
@@ -39,11 +41,54 @@ export function createRateLimiter({
       return;
     }
 
-    timestamps.push(now);
-    store.set(key, timestamps);
+    const recordAttempt = () => {
+      const active = (store.get(key) || []).filter((t) => Date.now() - t < windowMs);
+      active.push(Date.now());
+      store.set(key, active);
+    };
+
+    if (countResponse) {
+      store.set(key, timestamps);
+      res.on('finish', () => {
+        if (countResponse(res.statusCode)) recordAttempt();
+      });
+    } else {
+      recordAttempt();
+    }
     next();
   };
 }
+
+const isInvalidCredentials = (statusCode) => statusCode === 401;
+
+// Per account from one address, so shared networks do not lock each other out.
+export const loginAccountRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxAttempts: 10,
+  message: 'Too many failed sign-in attempts. Please wait before trying again.',
+  keyGenerator: (req) => `${req.ip}:${String(req.body?.identifier || '').trim().toLowerCase()}`,
+  countResponse: isInvalidCredentials,
+});
+
+// Per address, to slow password guessing spread across many accounts.
+export const loginIpRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxAttempts: 50,
+  message: 'Too many failed sign-in attempts. Please wait before trying again.',
+  countResponse: isInvalidCredentials,
+});
+
+export const registerRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  maxAttempts: 30,
+  message: 'Too many registration attempts. Please try again later.',
+});
+
+export const googleAuthRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxAttempts: 60,
+  message: 'Too many sign-in attempts. Please wait before trying again.',
+});
 
 // Pre-configured rate limiters
 export const forgotPasswordRateLimiter = createRateLimiter({

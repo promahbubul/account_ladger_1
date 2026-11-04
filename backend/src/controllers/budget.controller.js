@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
 
 export async function getBudgets(req, res) {
@@ -5,6 +6,7 @@ export async function getBudgets(req, res) {
     const budgets = await dbService.getBudgets(req.user.id);
     res.json({ success: true, budgets });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to fetch budgets.' });
   }
 }
@@ -26,6 +28,7 @@ export async function setBudget(req, res) {
     const budget = await dbService.setBudget(req.user.id, String(categoryName).trim(), cleanLimit);
     res.status(201).json({ success: true, budget });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to save budget.' });
   }
 }
@@ -40,6 +43,7 @@ export async function deleteBudget(req, res) {
     }
     res.json({ success: true, message: 'Budget removed successfully.' });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to delete budget.' });
   }
 }

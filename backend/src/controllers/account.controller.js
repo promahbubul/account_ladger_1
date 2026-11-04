@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
 
 export async function getAccounts(req, res) {
@@ -44,6 +45,7 @@ export async function getAccounts(req, res) {
 
     res.json({ success: true, accounts, items: accounts, totalCount });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to fetch accounts.' });
   }
 }
@@ -75,6 +77,7 @@ export async function createAccount(req, res) {
     const created = await dbService.createAccount(newAccount);
     res.status(201).json({ success: true, account: created });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to create account.' });
   }
 }
@@ -99,6 +102,7 @@ export async function updateAccount(req, res) {
     }
     res.json({ success: true, account: updated });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to update account.' });
   }
 }
@@ -116,6 +120,7 @@ export async function archiveAccount(req, res) {
     const updated = await dbService.updateAccount(id, req.user.id, { status: nextStatus });
     res.json({ success: true, account: updated });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to update account status.' });
   }
 }
@@ -130,6 +135,7 @@ export async function deleteAccount(req, res) {
     }
     res.json({ success: true, message: 'Account deleted successfully.' });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to delete account.' });
   }
 }

@@ -12,6 +12,10 @@ import {
 } from '../controllers/auth.controller.js';
 import { authenticateToken } from '../middleware/auth.js';
 import {
+  googleAuthRateLimiter,
+  loginAccountRateLimiter,
+  loginIpRateLimiter,
+  registerRateLimiter,
   forgotPasswordRateLimiter,
   resetPasswordRateLimiter,
   verifyEmailRateLimiter,
@@ -20,12 +24,12 @@ import {
 
 export const authRouter = Router();
 
-authRouter.post('/login', login);
-authRouter.post('/register', register);
+authRouter.post('/login', loginIpRateLimiter, loginAccountRateLimiter, login);
+authRouter.post('/register', registerRateLimiter, register);
 authRouter.post('/verify-email', verifyEmailRateLimiter, verifyEmail);
 authRouter.post('/resend-verification', resendVerificationRateLimiter, resendVerification);
-authRouter.post('/google', googleLogin);
-authRouter.post('/google/link', googleLogin);
+authRouter.post('/google', googleAuthRateLimiter, googleLogin);
+authRouter.post('/google/link', googleAuthRateLimiter, googleLogin);
 authRouter.get('/me', authenticateToken, getMe);
 
 // Forgot Password & Reset Password Endpoints

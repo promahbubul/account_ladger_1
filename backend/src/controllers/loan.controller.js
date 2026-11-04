@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
 import { validateLimit } from '../utils/cursor.js';
 
@@ -166,6 +167,7 @@ export async function createLoan(req, res) {
     const created = await dbService.createLoan(loan);
     res.status(201).json({ success: true, loan: created });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to create loan record.' });
   }
 }
@@ -180,6 +182,7 @@ export async function deleteLoan(req, res) {
     }
     res.json({ success: true, message: 'Loan deleted and account balance reversed.' });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to delete loan.' });
   }
 }

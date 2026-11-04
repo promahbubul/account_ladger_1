@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
 
 export async function getSummary(req, res) {
@@ -5,7 +6,7 @@ export async function getSummary(req, res) {
     const userId = req.user.id;
     const { startDate, endDate } = req.query;
     const accounts = await dbService.getAccounts(userId);
-    const transactions = await dbService.getTransactions(userId, { startDate, endDate });
+    const { totalIncome, totalExpense, totalTransactions } = await dbService.getTransactionTotals(userId, { startDate, endDate });
     const loans = await dbService.getLoans(userId);
 
     const totalCash = accounts.filter((a) => a.type === 'CASH').reduce((sum, a) => sum + a.currentBalance, 0);
@@ -13,9 +14,7 @@ export async function getSummary(req, res) {
     const totalMobile = accounts.filter((a) => a.type === 'MOBILE_BANKING').reduce((sum, a) => sum + a.currentBalance, 0);
     const netWorth = accounts.reduce((sum, a) => sum + a.currentBalance, 0);
 
-    const totalIncome = transactions.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = transactions.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
-    const netSavings = totalIncome - totalExpense;
+    const netSavings = Math.round((totalIncome - totalExpense) * 100) / 100;
 
     const totalReceivables = loans.filter((l) => l.type === 'LENT').reduce((sum, l) => sum + l.outstandingPrincipal, 0);
     const totalPayables = loans.filter((l) => l.type === 'BORROWED').reduce((sum, l) => sum + l.outstandingPrincipal, 0);
@@ -30,10 +29,22 @@ export async function getSummary(req, res) {
       netSavings,
       totalReceivables,
       totalPayables,
-      totalTransactions: transactions.length,
+      totalTransactions,
     });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to compute reports summary.' });
+  }
+}
+
+export async function getAnalytics(req, res) {
+  try {
+    const { startDate, endDate } = req.query;
+    const analytics = await dbService.getReportAnalytics(req.user.id, { startDate, endDate });
+    res.json({ success: true, ...analytics });
+  } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
+    res.status(500).json({ error: 'Failed to compute report analytics.' });
   }
 }
 
@@ -49,7 +60,7 @@ export async function exportData(req, res) {
     const budgets = await dbService.getBudgets(userId);
 
     const payload = {
-      app: 'Account Ladger',
+      app: 'AccountLedger',
       version: '2.0.0-production',
       user: {
         username: req.user.username,
@@ -70,6 +81,7 @@ export async function exportData(req, res) {
 
     res.json(payload);
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to generate export.' });
   }
 }

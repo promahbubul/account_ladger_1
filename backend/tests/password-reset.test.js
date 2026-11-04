@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
 import { createApp } from '../src/app.js';
 import { dbService } from '../src/services/db.service.js';
 import { emailService } from '../src/services/email.service.js';

@@ -7,6 +7,20 @@ import { dbService } from './services/db.service.js';
 
 export function createApp() {
   const app = express();
+  app.set('trust proxy', config.trustProxy);
+  app.disable('x-powered-by');
+
+  // This API only serves JSON, so these are all the browser-facing protections it needs.
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    if (config.isProduction) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+  });
 
   // CORS Configuration: allow frontend origin
   const allowedOrigins = [
@@ -22,7 +36,7 @@ export function createApp() {
       origin: (origin, callback) => {
         // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        if (allowedOrigins.includes(origin) || !config.isProduction) {
           return callback(null, true);
         }
         return callback(new Error(`CORS policy: origin ${origin} not allowed.`));
@@ -33,14 +47,15 @@ export function createApp() {
     })
   );
 
-  app.use(express.json());
+  app.use(express.json({ limit: '5mb' }));
 
   // Root health check endpoint
-  app.get('/health', (req, res) => {
+  app.get('/health', async (req, res) => {
     const status = dbService.getStatus();
-    res.json({
-      status: 'healthy',
-      service: 'Account Ladger REST API',
+    const healthy = await dbService.isDatabaseHealthy();
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'healthy' : 'unhealthy',
+      service: 'AccountLedger REST API',
       database: status.mode,
       connectedToPostgres: status.connectedToPostgres,
       timestamp: new Date().toISOString(),

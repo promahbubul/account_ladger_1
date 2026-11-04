@@ -272,7 +272,7 @@ test('Mandatory Email Verification & Google OAuth Exception - Complete Test Suit
     }
   });
 
-  await t.test('4c. Expired verification code is rejected with 400', async () => {
+  await t.test('4c. Expired verification code is rejected with 400', { skip: !process.env.TEST_DATABASE_URL && 'needs Postgres (set TEST_DATABASE_URL)' }, async () => {
     const testEmailExpired = `expired_${Date.now()}@example.com`;
     const regRes = await fetch(`${baseUrl}/api/auth/register`, {
       method: 'POST',

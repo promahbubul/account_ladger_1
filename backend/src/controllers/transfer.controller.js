@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
 import { validateLimit } from '../utils/cursor.js';
 import { parseDateToISO } from './transaction.controller.js';
@@ -138,6 +139,7 @@ export async function deleteTransfer(req, res) {
     }
     res.json({ success: true, message: 'Transfer deleted and account balances reversed.' });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to delete transfer.' });
   }
 }
