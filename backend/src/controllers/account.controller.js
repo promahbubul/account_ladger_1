@@ -34,7 +34,6 @@ export async function getAccounts(req, res) {
 
       res.json({
         success: true,
-        accounts,
         items,
         totalCount,
         hasNextPage,

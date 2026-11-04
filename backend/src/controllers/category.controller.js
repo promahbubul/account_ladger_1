@@ -34,7 +34,6 @@ export async function getCategories(req, res) {
 
       res.json({
         success: true,
-        categories,
         items,
         totalCount,
         hasNextPage,
@@ -249,8 +248,7 @@ export async function deleteCategory(req, res) {
     }
 
     // Prevent deleting category if it has existing transactions
-    const txs = await dbService.getTransactions(req.user.id, { category: cat.name });
-    if (txs && txs.length > 0) {
+    if (await dbService.hasTransactionsInCategory(req.user.id, cat.name)) {
       res.status(400).json({ error: 'Cannot delete category in use by existing transactions. Please archive it instead.' });
       return;
     }

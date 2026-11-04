@@ -17,7 +17,6 @@ export async function getTransactions(req, res) {
       });
       res.json({
         success: true,
-        items: allTxs,
         transactions: allTxs,
         totalCount: allTxs.length,
       });
@@ -51,7 +50,6 @@ export async function getTransactions(req, res) {
     res.json({
       success: true,
       items: result.items,
-      transactions: result.items,
       nextCursor: result.nextCursor,
       previousCursor: result.previousCursor,
       hasNextPage: result.hasNextPage,

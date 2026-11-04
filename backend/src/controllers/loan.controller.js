@@ -14,7 +14,6 @@ export async function getLoans(req, res) {
       });
       res.json({
         success: true,
-        items: allLoans,
         loans: allLoans,
         totalCount: allLoans.length,
       });
@@ -42,7 +41,6 @@ export async function getLoans(req, res) {
     res.json({
       success: true,
       items: result.items,
-      loans: result.items,
       nextCursor: result.nextCursor,
       previousCursor: result.previousCursor,
       hasNextPage: result.hasNextPage,
@@ -69,7 +67,6 @@ export async function getRepayments(req, res) {
       });
       res.json({
         success: true,
-        items: allReps,
         repayments: allReps,
         totalCount: allReps.length,
       });
@@ -95,7 +92,6 @@ export async function getRepayments(req, res) {
     res.json({
       success: true,
       items: result.items,
-      repayments: result.items,
       nextCursor: result.nextCursor,
       previousCursor: result.previousCursor,
       hasNextPage: result.hasNextPage,
@@ -197,8 +193,7 @@ export async function addRepayment(req, res) {
       return;
     }
 
-    const loans = await dbService.getLoans(req.user.id);
-    const loan = loans.find((l) => l.id === id);
+    const loan = await dbService.getLoanById(req.user.id, id);
     if (!loan) {
       res.status(404).json({ error: 'Loan not found.' });
       return;

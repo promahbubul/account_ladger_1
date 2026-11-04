@@ -338,7 +338,7 @@ test('Express API Integration Tests', async (t) => {
       assert.equal(repRes1.status, 201);
 
       // Verify loan outstanding is now 3000 and account balance was refunded 2000
-      const loansList1 = (await (await fetch(`${baseUrl}/api/loans`, { headers: { Authorization: `Bearer ${token}` } })).json()).loans;
+      const loansList1 = (await (await fetch(`${baseUrl}/api/loans`, { headers: { Authorization: `Bearer ${token}` } })).json()).items;
       const loanUpdated1 = loansList1.find((l) => l.id === loan.id);
       assert.equal(Number(loanUpdated1.outstandingPrincipal), 3000);
       assert.equal(loanUpdated1.status, 'PARTIALLY_REPAID');

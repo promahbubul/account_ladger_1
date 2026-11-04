@@ -17,7 +17,6 @@ export async function getTransfers(req, res) {
       });
       res.json({
         success: true,
-        items: allTransfers,
         transfers: allTransfers,
         totalCount: allTransfers.length,
       });
@@ -49,7 +48,6 @@ export async function getTransfers(req, res) {
     res.json({
       success: true,
       items: result.items,
-      transfers: result.items,
       nextCursor: result.nextCursor,
       previousCursor: result.previousCursor,
       hasNextPage: result.hasNextPage,

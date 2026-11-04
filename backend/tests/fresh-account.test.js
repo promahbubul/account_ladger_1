@@ -107,7 +107,7 @@ test('Fresh Empty Default Data for Every New Account - Comprehensive Test Suite'
     });
     assert.equal(txRes.status, 200);
     const txData = await txRes.json();
-    const transactions = txData.transactions || txData.items || [];
+    const transactions = txData.transactions;
     assert.equal(transactions.length, 0, 'Total transactions must be 0');
 
     const totalIncome = transactions.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
@@ -121,14 +121,14 @@ test('Fresh Empty Default Data for Every New Account - Comprehensive Test Suite'
     });
     assert.equal(trfRes.status, 200);
     const trfData = await trfRes.json();
-    assert.equal((trfData.transfers || []).length, 0, 'No transfers should exist');
+    assert.equal((trfData.items).length, 0, 'No transfers should exist');
 
     const loansRes = await fetch(`${baseUrl}/api/loans?all=true`, {
       headers: { Authorization: `Bearer ${tokenA}` },
     });
     assert.equal(loansRes.status, 200);
     const loansData = await loansRes.json();
-    assert.equal((loansData.loans || []).length, 0, 'No loan records should exist');
+    assert.equal((loansData.loans).length, 0, 'No loan records should exist');
 
     // 7. Default categories are created without transactions
     const catRes = await fetch(`${baseUrl}/api/categories`, {
@@ -212,7 +212,7 @@ test('Fresh Empty Default Data for Every New Account - Comprehensive Test Suite'
       headers: { Authorization: `Bearer ${tokenB}` },
     });
     const bTxData = await bTxRes.json();
-    assert.equal((bTxData.transactions || []).length, 0, 'User B must see zero transactions');
+    assert.equal((bTxData.transactions).length, 0, 'User B must see zero transactions');
 
     // User B cannot access User A account by ID
     const crossAccessRes = await fetch(`${baseUrl}/api/accounts/${userAAccs[0].id}`, {
@@ -304,7 +304,7 @@ test('Fresh Empty Default Data for Every New Account - Comprehensive Test Suite'
 
       // Verify Google user starts with 0 transactions
       const gTxs = await (await fetch(`${baseUrl}/api/transactions?all=true`, { headers: { Authorization: `Bearer ${gData.token}` } })).json();
-      assert.equal((gTxs.transactions || []).length, 0, 'Google user starts with 0 transactions');
+      assert.equal((gTxs.transactions).length, 0, 'Google user starts with 0 transactions');
     } finally {
       authInstance.verifyIdToken = origVerify;
     }

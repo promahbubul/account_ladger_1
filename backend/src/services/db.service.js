@@ -53,6 +53,132 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   { name: 'Miscellaneous', icon: 'Receipt', color: '#94a3b8', subcategories: ['Emergency Repairs', 'Unplanned Incidentals', 'General Donations'] },
 ];
 
+const TRANSFER_SELECT =
+  'SELECT id, user_id as "userId", source_account_id as "sourceAccountId", source_account_name as "sourceAccountName", destination_account_id as "destinationAccountId", destination_account_name as "destinationAccountName", amount, transfer_fee as "transferFee", date, description, reference, created_at as "createdAt" FROM transfers';
+const mapTransferRow = (r) => ({
+  ...r,
+  amount: Number(r.amount),
+  transferFee: Number(r.transferFee || 0),
+  date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
+  createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
+});
+
+const LOAN_SELECT =
+  'SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", type, counterparty_name as "counterpartyName", counterparty_contact as "counterpartyContact", principal_amount as "principalAmount", outstanding_principal as "outstandingPrincipal", interest_rate as "interestRate", start_date as "startDate", due_date as "dueDate", status, notes, created_at as "createdAt", updated_at as "updatedAt" FROM loans';
+const mapLoanRow = (r) => ({
+  ...r,
+  principalAmount: Number(r.principalAmount),
+  outstandingPrincipal: Number(r.outstandingPrincipal),
+  interestRate: Number(r.interestRate || 0),
+  startDate: typeof r.startDate === 'string' ? r.startDate.slice(0, 10) : new Date(r.startDate).toISOString().slice(0, 10),
+  dueDate: r.dueDate ? (typeof r.dueDate === 'string' ? r.dueDate.slice(0, 10) : new Date(r.dueDate).toISOString().slice(0, 10)) : undefined,
+  createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
+});
+
+const REPAYMENT_SELECT =
+  'SELECT id, user_id as "userId", loan_id as "loanId", counterparty_name as "counterpartyName", loan_type as "loanType", account_id as "accountId", account_name as "accountName", amount, date, notes, created_at as "createdAt" FROM repayments';
+const mapRepaymentRow = (r) => ({
+  ...r,
+  amount: Number(r.amount),
+  date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
+  createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
+});
+
+const TRANSACTION_SELECT = `
+  SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName",
+         category_id as "categoryId", type, category, subcategory, amount, direction, date,
+         description, reference, counterparty, status, transfer_id as "transferId",
+         loan_id as "loanId", destination_account_id as "destinationAccountId",
+         destination_account_name as "destinationAccountName", created_at as "createdAt"
+  FROM transactions`;
+const mapTransactionRow = (r) => ({
+  ...r,
+  amount: Number(r.amount),
+  date: formatToISODate(r.date),
+  createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
+});
+
+// ---- SQL list pages -------------------------------------------------------
+
+const MAX_PAGE = 1_000_000;
+const AUDIT_SELECT =
+  'SELECT id, user_id as "userId", user_email as "userEmail", action, entity_type as "entityType", entity_id as "entityId", details, ip_address as "ipAddress", created_at as "createdAt" FROM audit_logs';
+
+// A date only counts if it really exists, so a bad query value cannot become a database error.
+const isRealDate = (value) => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
+const isCursorTimestamp = (value) =>
+  typeof value === 'string' &&
+  (isRealDate(value) ||
+    (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(value) && !Number.isNaN(Date.parse(value))));
+
+// Builds WHERE clauses with numbered parameters.
+const sqlFilters = (first = []) => {
+  const where = [...first.map(([sql]) => sql)];
+  const values = first.map(([, value]) => value);
+  const add = (column, operator, value) => {
+    values.push(value);
+    where.push(`${column} ${operator} $${values.length}`);
+  };
+  // % and _ typed by the user are plain text, not wildcards.
+  const addSearch = (search, columns) => {
+    const term = typeof search === 'string' ? search.trim().toLowerCase() : '';
+    if (!term) return;
+    values.push(`%${term.replace(/[\\%_]/g, '\\$&')}%`);
+    const placeholder = `$${values.length}`;
+    where.push(`(${columns.map((c) => `LOWER(${c}) LIKE ${placeholder} ESCAPE '\\'`).join(' OR ')})`);
+  };
+  return { where, values, add, addSearch };
+};
+
+const transactionFilters = (userId, filters = {}) => {
+  const query = sqlFilters([['user_id = $1', userId]]);
+  if (filters.type && filters.type !== 'ALL') query.add('type', '=', filters.type);
+  if (filters.accountId && filters.accountId !== 'ALL') query.add('account_id', '=', filters.accountId);
+  if (filters.categoryId) query.add('category_id', '=', filters.categoryId);
+  if (filters.category && filters.category !== 'ALL') query.add('category', '=', filters.category);
+  if (isRealDate(filters.startDate)) query.add('date', '>=', filters.startDate);
+  if (isRealDate(filters.endDate)) query.add('date', '<=', filters.endDate);
+  query.addSearch(filters.search, ['description', 'reference', 'counterparty', 'category']);
+  return query;
+};
+
+const transferFilters = (userId, filters = {}) => {
+  const query = sqlFilters([['user_id = $1', userId]]);
+  if (filters.sourceAccountId && filters.sourceAccountId !== 'ALL') query.add('source_account_id', '=', filters.sourceAccountId);
+  if (filters.destAccountId && filters.destAccountId !== 'ALL') query.add('destination_account_id', '=', filters.destAccountId);
+  if (isRealDate(filters.startDate)) query.add('date', '>=', filters.startDate);
+  if (isRealDate(filters.endDate)) query.add('date', '<=', filters.endDate);
+  query.addSearch(filters.search, ['description', 'reference', 'source_account_name', 'destination_account_name']);
+  return query;
+};
+
+const loanFilters = (userId, filters = {}) => {
+  const query = sqlFilters([['user_id = $1', userId]]);
+  if (filters.type && filters.type !== 'ALL') query.add('type', '=', filters.type);
+  if (filters.status && filters.status !== 'ALL') query.add('status', '=', filters.status);
+  query.addSearch(filters.search, ['counterparty_name', 'counterparty_contact', 'notes']);
+  return query;
+};
+
+const repaymentFilters = (userId, filters = {}) => {
+  const query = sqlFilters([['user_id = $1', userId]]);
+  if (filters.loanId) query.add('loan_id', '=', filters.loanId);
+  query.addSearch(filters.search, ['counterparty_name', 'notes']);
+  return query;
+};
+
+const auditFilters = (filters = {}) => {
+  const query = sqlFilters();
+  if (filters.action && filters.action !== 'ALL') query.add('action', '=', filters.action);
+  query.addSearch(filters.search, ['action', 'entity_type', 'user_email', 'details']);
+  return query;
+};
+
 class DatabaseService {
   constructor() {
     this.pool = null;
@@ -424,6 +550,11 @@ class DatabaseService {
         CREATE INDEX IF NOT EXISTS idx_repayments_loan_id ON repayments(loan_id);
         CREATE INDEX IF NOT EXISTS idx_repayments_account_id ON repayments(account_id);
         CREATE INDEX IF NOT EXISTS idx_audit_logs_user_entity ON audit_logs(user_id, entity_type, entity_id);
+        CREATE INDEX IF NOT EXISTS idx_transactions_user_feed ON transactions(user_id, date DESC, created_at DESC NULLS LAST, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_transfers_user_feed ON transfers(user_id, date DESC, created_at DESC NULLS LAST, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_loans_user_feed ON loans(user_id, start_date DESC, created_at DESC NULLS LAST, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_repayments_user_feed ON repayments(user_id, date DESC, created_at DESC NULLS LAST, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_feed ON audit_logs(created_at DESC NULLS LAST, id DESC);
 
         -- Check constraints
         DO $$ BEGIN
@@ -1955,58 +2086,12 @@ class DatabaseService {
     let txs = [];
 
     if (this.isPostgresConnected && this.pool) {
-      const conditions = ['user_id = $1'];
-      const values = [userId];
-      let pIdx = 2;
-
-      if (filters.type && filters.type !== 'ALL') {
-        conditions.push(`type = $${pIdx++}`);
-        values.push(filters.type);
-      }
-      if (filters.accountId && filters.accountId !== 'ALL') {
-        conditions.push(`account_id = $${pIdx++}`);
-        values.push(filters.accountId);
-      }
-      if (filters.categoryId) {
-        conditions.push(`category_id = $${pIdx++}`);
-        values.push(filters.categoryId);
-      }
-      if (filters.category && filters.category !== 'ALL') {
-        conditions.push(`category = $${pIdx++}`);
-        values.push(filters.category);
-      }
-      if (filters.startDate) {
-        conditions.push(`date >= $${pIdx++}`);
-        values.push(filters.startDate);
-      }
-      if (filters.endDate) {
-        conditions.push(`date <= $${pIdx++}`);
-        values.push(filters.endDate);
-      }
-      if (filters.search && filters.search.trim()) {
-        const term = `%${filters.search.trim().toLowerCase()}%`;
-        conditions.push(`(LOWER(description) LIKE $${pIdx} OR LOWER(reference) LIKE $${pIdx} OR LOWER(counterparty) LIKE $${pIdx} OR LOWER(category) LIKE $${pIdx})`);
-        values.push(term);
-        pIdx++;
-      }
-
-      const sql = `
-        SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", 
-               category_id as "categoryId", type, category, subcategory, amount, direction, date, 
-               description, reference, counterparty, status, transfer_id as "transferId", 
-               loan_id as "loanId", destination_account_id as "destinationAccountId", 
-               destination_account_name as "destinationAccountName", created_at as "createdAt" 
-        FROM transactions 
-        WHERE ${conditions.join(' AND ')} 
-        ORDER BY date DESC, created_at DESC, id DESC
-      `;
-      const res = await this.pool.query(sql, values);
-      txs = res.rows.map((r) => ({
-        ...r,
-        amount: Number(r.amount),
-        date: formatToISODate(r.date),
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
-      }));
+      const { where, values } = transactionFilters(userId, filters);
+      const res = await this.pool.query(
+        `${TRANSACTION_SELECT} WHERE ${where.join(' AND ')} ORDER BY date DESC, created_at DESC NULLS LAST, id DESC`,
+        values
+      );
+      txs = res.rows.map(mapTransactionRow);
     } else {
       txs = this.inMemoryData.transactions.filter((t) => t.userId === userId);
       if (filters.type && filters.type !== 'ALL') {
@@ -2047,7 +2132,99 @@ class DatabaseService {
     });
   }
 
+  // Reads one page in SQL, newest first, without loading the rest of the list.
+  // A cursor names the row a page continues from, and only counts if that row matches the same filters.
+  async queryPage({ table, select, filters, dateColumn, options, mapRow, cursorField }) {
+    const limit = options.limit || 50;
+    const { where, values } = filters;
+    const whereSql = (conditions) => (conditions.length ? `WHERE ${conditions.join(' AND ')}` : '');
+
+    const created = "COALESCE(created_at, '-infinity'::timestamptz)";
+    const key = [dateColumn, created, 'id'].filter(Boolean).join(', ');
+    const newestFirst = [dateColumn && `${dateColumn} DESC`, 'created_at DESC NULLS LAST', 'id DESC'].filter(Boolean).join(', ');
+    const oldestFirst = [dateColumn && `${dateColumn} ASC`, 'created_at ASC NULLS FIRST', 'id ASC'].filter(Boolean).join(', ');
+
+    const countRes = await this.pool.query(`SELECT COUNT(*)::int AS n FROM ${table} ${whereSql(where)}`, values);
+    const totalCount = countRes.rows[0].n;
+
+    const encode = (row) => encodeCursor({ id: row.id, timestamp: row[cursorField] });
+    const finish = (rows, hasNextPage, hasPreviousPage) => {
+      const items = rows.map(mapRow);
+      return {
+        items,
+        nextCursor: items.length > 0 && hasNextPage ? encode(items[items.length - 1]) : null,
+        previousCursor: items.length > 0 && hasPreviousPage ? encode(items[0]) : null,
+        hasNextPage,
+        hasPreviousPage,
+        totalCount,
+      };
+    };
+
+    if (options.page !== undefined && options.page > 0) {
+      const offset = (Math.min(options.page, MAX_PAGE) - 1) * limit;
+      const res = await this.pool.query(
+        `${select} ${whereSql(where)} ORDER BY ${newestFirst} LIMIT ${limit} OFFSET ${offset}`,
+        values
+      );
+      return finish(res.rows, offset + limit < totalCount, offset > 0);
+    }
+
+    const backward = options.direction === 'backward';
+    const decoded = options.cursor ? decodeCursor(options.cursor) : null;
+    const conditions = [...where];
+    const params = [...values];
+    let continues = false;
+
+    if (decoded && typeof decoded.id === 'string') {
+      const exists = await this.pool.query(
+        `SELECT 1 FROM ${table} ${whereSql([...where, `id = $${values.length + 1}`])} LIMIT 1`,
+        [...values, decoded.id]
+      );
+      if (exists.rows.length > 0) {
+        params.push(decoded.id);
+        conditions.push(`(${key}) ${backward ? '>' : '<'} (SELECT ${key} FROM ${table} WHERE id = $${params.length})`);
+        continues = true;
+      } else if (!backward && isCursorTimestamp(decoded.timestamp)) {
+        // The row was deleted between pages, so carry on from its date instead of restarting.
+        params.push(decoded.timestamp);
+        conditions.push(`${dateColumn || 'created_at'} <= $${params.length}`);
+        continues = true;
+      }
+    }
+
+    const res = await this.pool.query(
+      `${select} ${whereSql(conditions)} ORDER BY ${backward ? oldestFirst : newestFirst} LIMIT ${limit + 1}`,
+      params
+    );
+    const hasMore = res.rows.length > limit;
+    const rows = res.rows.slice(0, limit);
+    if (backward) {
+      rows.reverse();
+      return finish(rows, continues, hasMore);
+    }
+    return finish(rows, hasMore, continues);
+  }
+
+  async hasTransactionsInCategory(userId, categoryName) {
+    if (this.isPostgresConnected && this.pool) {
+      const res = await this.pool.query('SELECT 1 FROM transactions WHERE user_id = $1 AND category = $2 LIMIT 1', [userId, categoryName]);
+      return res.rows.length > 0;
+    }
+    return this.inMemoryData.transactions.some((t) => t.userId === userId && t.category === categoryName);
+  }
+
   async getPaginatedTransactions(userId, options) {
+    if (this.isPostgresConnected && this.pool) {
+      return this.queryPage({
+        table: 'transactions',
+        select: TRANSACTION_SELECT,
+        filters: transactionFilters(userId, options),
+        dateColumn: 'date',
+        options,
+        mapRow: mapTransactionRow,
+        cursorField: 'date',
+      });
+    }
     const limit = options.limit || 50;
     const direction = options.direction || 'forward';
     const txs = await this.getTransactions(userId, options);
@@ -2457,16 +2634,10 @@ class DatabaseService {
 
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, user_id as "userId", source_account_id as "sourceAccountId", source_account_name as "sourceAccountName", destination_account_id as "destinationAccountId", destination_account_name as "destinationAccountName", amount, transfer_fee as "transferFee", date, description, reference, created_at as "createdAt" FROM transfers WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
+        `${TRANSFER_SELECT} WHERE user_id = $1 ORDER BY date DESC, created_at DESC`,
         [userId]
       );
-      transfers = res.rows.map((r) => ({
-        ...r,
-        amount: Number(r.amount),
-        transferFee: Number(r.transferFee || 0),
-        date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
-      }));
+      transfers = res.rows.map(mapTransferRow);
     }
 
     if (filters.sourceAccountId && filters.sourceAccountId !== 'ALL') {
@@ -2502,6 +2673,17 @@ class DatabaseService {
   }
 
   async getPaginatedTransfers(userId, options) {
+    if (this.isPostgresConnected && this.pool) {
+      return this.queryPage({
+        table: 'transfers',
+        select: TRANSFER_SELECT,
+        filters: transferFilters(userId, options),
+        dateColumn: 'date',
+        options,
+        mapRow: mapTransferRow,
+        cursorField: 'date',
+      });
+    }
     const limit = options.limit || 50;
     const direction = options.direction || 'forward';
     const transfers = await this.getTransfers(userId, options);
@@ -2688,18 +2870,10 @@ class DatabaseService {
 
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, user_id as "userId", account_id as "accountId", account_name as "accountName", type, counterparty_name as "counterpartyName", counterparty_contact as "counterpartyContact", principal_amount as "principalAmount", outstanding_principal as "outstandingPrincipal", interest_rate as "interestRate", start_date as "startDate", due_date as "dueDate", status, notes, created_at as "createdAt", updated_at as "updatedAt" FROM loans WHERE user_id = $1 ORDER BY start_date DESC, created_at DESC',
+        `${LOAN_SELECT} WHERE user_id = $1 ORDER BY start_date DESC, created_at DESC`,
         [userId]
       );
-      loans = res.rows.map((r) => ({
-        ...r,
-        principalAmount: Number(r.principalAmount),
-        outstandingPrincipal: Number(r.outstandingPrincipal),
-        interestRate: Number(r.interestRate || 0),
-        startDate: typeof r.startDate === 'string' ? r.startDate.slice(0, 10) : new Date(r.startDate).toISOString().slice(0, 10),
-        dueDate: r.dueDate ? (typeof r.dueDate === 'string' ? r.dueDate.slice(0, 10) : new Date(r.dueDate).toISOString().slice(0, 10)) : undefined,
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
-      }));
+      loans = res.rows.map(mapLoanRow);
     }
 
     if (filters.type && filters.type !== 'ALL') {
@@ -2727,7 +2901,26 @@ class DatabaseService {
     });
   }
 
+  async getLoanById(userId, loanId) {
+    if (this.isPostgresConnected && this.pool) {
+      const res = await this.pool.query(`${LOAN_SELECT} WHERE user_id = $1 AND id = $2`, [userId, loanId]);
+      return res.rows[0] ? mapLoanRow(res.rows[0]) : null;
+    }
+    return this.inMemoryData.loans.find((l) => l.userId === userId && l.id === loanId) || null;
+  }
+
   async getPaginatedLoans(userId, options) {
+    if (this.isPostgresConnected && this.pool) {
+      return this.queryPage({
+        table: 'loans',
+        select: LOAN_SELECT,
+        filters: loanFilters(userId, options),
+        dateColumn: 'start_date',
+        options,
+        mapRow: mapLoanRow,
+        cursorField: 'startDate',
+      });
+    }
     const limit = options.limit || 50;
     const direction = options.direction || 'forward';
     const loans = await this.getLoans(userId, options);
@@ -2903,15 +3096,10 @@ class DatabaseService {
 
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, user_id as "userId", loan_id as "loanId", counterparty_name as "counterpartyName", loan_type as "loanType", account_id as "accountId", account_name as "accountName", amount, date, notes, created_at as "createdAt" FROM repayments WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
+        `${REPAYMENT_SELECT} WHERE user_id = $1 ORDER BY date DESC, created_at DESC`,
         [userId]
       );
-      repayments = res.rows.map((r) => ({
-        ...r,
-        amount: Number(r.amount),
-        date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.createdAt ? String(r.createdAt) : new Date().toISOString()),
-      }));
+      repayments = res.rows.map(mapRepaymentRow);
     }
 
     if (filters.loanId) {
@@ -2936,6 +3124,17 @@ class DatabaseService {
   }
 
   async getPaginatedRepayments(userId, options) {
+    if (this.isPostgresConnected && this.pool) {
+      return this.queryPage({
+        table: 'repayments',
+        select: REPAYMENT_SELECT,
+        filters: repaymentFilters(userId, options),
+        dateColumn: 'date',
+        options,
+        mapRow: mapRepaymentRow,
+        cursorField: 'date',
+      });
+    }
     const limit = options.limit || 50;
     const direction = options.direction || 'forward';
     const reps = await this.getRepayments(userId, options);
@@ -3188,6 +3387,17 @@ class DatabaseService {
   }
 
   async getPaginatedAuditLogs(options) {
+    if (this.isPostgresConnected && this.pool) {
+      return this.queryPage({
+        table: 'audit_logs',
+        select: AUDIT_SELECT,
+        filters: auditFilters(options),
+        dateColumn: null,
+        options,
+        mapRow: (r) => r,
+        cursorField: 'createdAt',
+      });
+    }
     const limit = options.limit || 50;
     const direction = options.direction || 'forward';
     let logs = await this.getAuditLogs();

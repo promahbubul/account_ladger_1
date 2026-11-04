@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { apiRouter } from './routes/index.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { compressJson } from './middleware/compress-json.js';
 import { config } from './config/env.js';
 import { dbService } from './services/db.service.js';
 
@@ -47,6 +48,7 @@ export function createApp() {
     })
   );
 
+  app.use(compressJson);
   app.use(express.json({ limit: '5mb' }));
 
   // Root health check endpoint

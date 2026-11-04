@@ -42,7 +42,7 @@ export const ReportsView: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           if (active) {
-            setReportTransactions(data.items || data.transactions || []);
+            setReportTransactions(data.transactions || []);
           }
         } else if (active) {
           setReportFailed(true);
