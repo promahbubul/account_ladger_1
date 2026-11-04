@@ -41,6 +41,19 @@ export const calculateRangeForPreset = (preset) => {
   return { startDate: '', endDate: '' };
 };
 
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Short enough for the header badge: the year only appears when it is not the current one.
+export const formatCustomRangeLabel = (startDate, endDate) => {
+  const currentYear = getTodayISO().slice(0, 4);
+  const format = (iso) => {
+    const [year, month, day] = iso.split('-');
+    const base = `${day} ${SHORT_MONTHS[Number(month) - 1]}`;
+    return year === currentYear ? base : `${base} ${year.slice(2)}`;
+  };
+  return startDate === endDate ? format(startDate) : `${format(startDate)} – ${format(endDate)}`;
+};
+
 export const DateFilterProvider = ({ children }) => {
   const [preset, setPresetState] = useState('month');
   const [range, setRange] = useState(() => calculateRangeForPreset('month'));
@@ -69,7 +82,7 @@ export const DateFilterProvider = ({ children }) => {
     if (preset === 'month') return 'This Month';
     if (preset === 'year') return 'This Year';
     if (!range.startDate && !range.endDate) return 'All Time';
-    return `${range.startDate} → ${range.endDate}`;
+    return formatCustomRangeLabel(range.startDate, range.endDate);
   }, [preset, range]);
 
   const value = {

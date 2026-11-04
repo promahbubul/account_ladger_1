@@ -2,8 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { DateField } from '../../components/common/DateField';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Select } from '../../components/common/Select';
@@ -113,7 +115,7 @@ export const AddExpenseScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <Input
-          label="Amount (BDT) *"
+          label="Amount *"
           placeholder="0.00"
           value={amount}
           onChangeText={setAmount}
@@ -121,29 +123,25 @@ export const AddExpenseScreen = ({ navigation }) => {
           inputStyle={{ fontSize: FONT_SIZE.xl, fontWeight: '700', color: COLORS.danger }}
         />
 
-        <Input
-          label="Date (YYYY-MM-DD) *"
-          placeholder="YYYY-MM-DD"
+        <DateField
+          label="Date *"
           value={date}
-          onChangeText={setDate}
+          onChange={setDate}
         />
 
         {/* Account Selector */}
-        <Text style={styles.fieldLabel}>Payment Account *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {accounts.map(acc => {
-            const isSelected = accountId === acc.id;
-            return (
-              <TouchableOpacity
-                key={acc.id}
-                style={[styles.chip, isSelected && styles.chipActive]}
-                onPress={() => setAccountId(acc.id)}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{acc.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {accountsQuery.isError ? (
+          <QueryErrorBanner message="Could not load accounts." onRetry={() => accountsQuery.refetch()} />
+        ) : null}
+        <Select
+          label="Payment Account *"
+          placeholder="Select an account"
+          value={accountId}
+          options={accounts.map((acc) => ({ value: acc.id, label: acc.name }))}
+          onChange={setAccountId}
+          loading={accountsQuery.isLoading}
+          emptyMessage="No accounts found."
+        />
 
         {/* Category Selector */}
         {categoriesQuery.isError ? (
@@ -177,6 +175,7 @@ export const AddExpenseScreen = ({ navigation }) => {
 
         <Input
           label="Description (Optional)"
+          autoCapitalize="sentences"
           placeholder="e.g. Lunch, Groceries, Electricity bill"
           value={description}
           onChangeText={setDescription}
@@ -230,31 +229,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
-  },
-  chipsRow: {
-    gap: SPACING.xs,
-    marginBottom: SPACING.md,
-  },
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    backgroundColor: COLORS.surfaceGhost,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-  },
-  chipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  chipText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#FFF',
-    fontWeight: '600',
   },
   submitBtn: {
     marginTop: SPACING.lg,

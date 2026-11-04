@@ -1,12 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { TransactionRow } from '../../components/lists/TransactionRow';
 import { EmptyState } from '../../components/common/EmptyState';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
+import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { transactionsApi } from '../../services/api/transactions.api';
 import { useDateFilter } from '../../context/DateFilterContext';
@@ -17,7 +20,6 @@ export const TransactionsScreen = ({ navigation }) => {
 
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | INCOME | EXPENSE | TRANSFER
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
 
   const filters = [
     { id: 'ALL', label: 'All' },
@@ -26,9 +28,9 @@ export const TransactionsScreen = ({ navigation }) => {
     { id: 'TRANSFER', label: 'Transfer' },
   ];
 
-  const transactionsQuery = useQuery({
-    queryKey: ['transactionsList', typeFilter, startDate, endDate, search, page],
-    queryFn: () => transactionsApi.getTransactions({
+  const transactionsQuery = usePagedQuery({
+    queryKey: ['transactionsList', typeFilter, startDate, endDate, search],
+    fetchPage: (page) => transactionsApi.getTransactions({
       type: typeFilter,
       startDate,
       endDate,
@@ -42,9 +44,7 @@ export const TransactionsScreen = ({ navigation }) => {
     queryClient.invalidateQueries({ queryKey: ['transactionsList'] });
   }, [queryClient]);
 
-  const items = transactionsQuery.data?.items || [];
-  const totalCount = transactionsQuery.data?.totalCount ?? items.length;
-  const hasNextPage = Boolean(transactionsQuery.data?.hasNextPage);
+  const items = transactionsQuery.items;
 
   return (
     <View style={styles.container}>
@@ -57,8 +57,8 @@ export const TransactionsScreen = ({ navigation }) => {
           activeOpacity={0.8}
           onPress={() => navigation.navigate('AddIncome')}
         >
-          <Ionicons name="add-circle" size={18} color={COLORS.success} />
-          <Text style={[styles.actionBtnText, { color: COLORS.success }]}>Add Income</Text>
+          <Ionicons name="add-circle" size={18} color={COLORS.text} />
+          <Text style={styles.actionBtnText}>Add Income</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -66,8 +66,8 @@ export const TransactionsScreen = ({ navigation }) => {
           activeOpacity={0.8}
           onPress={() => navigation.navigate('AddExpense')}
         >
-          <Ionicons name="remove-circle" size={18} color={COLORS.danger} />
-          <Text style={[styles.actionBtnText, { color: COLORS.danger }]}>Add Expense</Text>
+          <Ionicons name="remove-circle" size={18} color={COLORS.text} />
+          <Text style={styles.actionBtnText}>Add Expense</Text>
         </TouchableOpacity>
       </View>
 
@@ -77,7 +77,6 @@ export const TransactionsScreen = ({ navigation }) => {
           value={search}
           onChangeText={(val) => {
             setSearch(val);
-            setPage(1);
           }}
           leftIcon={<Ionicons name="search" size={16} color={COLORS.textSecondary} />}
           style={{ marginBottom: 0 }}
@@ -91,7 +90,6 @@ export const TransactionsScreen = ({ navigation }) => {
             style={[styles.filterChip, typeFilter === f.id && styles.filterChipActive]}
             onPress={() => {
               setTypeFilter(f.id);
-              setPage(1);
             }}
           >
             <Text style={[styles.filterText, typeFilter === f.id && styles.filterTextActive]}>
@@ -101,7 +99,7 @@ export const TransactionsScreen = ({ navigation }) => {
         ))}
       </View>
 
-      {transactionsQuery.isLoading && page === 1 ? (
+      {transactionsQuery.isLoading ? (
         <LoadingSpinner message="Loading ledger..." fullScreen />
       ) : (
         <FlatList
@@ -121,22 +119,16 @@ export const TransactionsScreen = ({ navigation }) => {
               tintColor={COLORS.primary}
             />
           }
-          ListFooterComponent={
-            hasNextPage ? (
-              <TouchableOpacity
-                style={styles.loadMoreBtn}
-                onPress={() => setPage((p) => p + 1)}
-              >
-                <Text style={styles.loadMoreText}>Load More</Text>
-              </TouchableOpacity>
-            ) : null
-          }
+          ListFooterComponent={<LoadMoreFooter query={transactionsQuery} />}
           ListEmptyComponent={
-            <EmptyState
-              icon="receipt-outline"
-              title="No transactions found"
-              description="No ledger activity recorded for this period."
-            />
+            transactionsQuery.isError ? (
+              <QueryErrorState title="Could not load transactions" onRetry={() => transactionsQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="receipt-outline"
+                title="No transactions found"
+              />
+            )
           }
         />
       )}
@@ -162,17 +154,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 9,
-    borderRadius: RADIUS.full,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   incomeBtn: {
-    backgroundColor: COLORS.successLight,
+    backgroundColor: COLORS.surface,
   },
   expenseBtn: {
-    backgroundColor: COLORS.dangerLight,
+    backgroundColor: COLORS.surface,
   },
   actionBtnText: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: COLORS.text,
   },
   searchBox: {
     paddingHorizontal: SPACING.lg,
@@ -207,15 +202,5 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
-  },
-  loadMoreBtn: {
-    padding: SPACING.md,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  loadMoreText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.primary,
-    fontWeight: '700',
   },
 });

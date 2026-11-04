@@ -10,6 +10,7 @@ export function generateToken(user) {
       username: user.username,
       role: user.role,
       emailVerified: user.emailVerified === true,
+      tokenVersion: user.tokenVersion || 0,
     },
     config.jwtSecret,
     { expiresIn: '30d' }
@@ -34,6 +35,12 @@ export async function authenticateToken(req, res, next) {
       return;
     }
 
+    // Changing a password bumps the version, which ends every session issued before it.
+    if ((payload.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+      res.status(401).json({ error: 'Your session has ended. Please sign in again.' });
+      return;
+    }
+
     if (!user.isActive) {
       res.status(403).json({ error: 'Account is deactivated. Contact system administrator.' });
       return;
@@ -51,7 +58,7 @@ export async function authenticateToken(req, res, next) {
     req.user = user;
     next();
   } catch (err) {
-    res.status(403).json({ error: 'Invalid or expired session. Please sign in again.' });
+    res.status(401).json({ error: 'Invalid or expired session. Please sign in again.' });
   }
 }
 

@@ -1,31 +1,33 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { PageLoadingState } from './components/common/StateViews';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { DashboardView } from './components/dashboard/DashboardView';
-import { AccountsView } from './components/accounts/AccountsView';
-import { IncomeView } from './components/income/IncomeView';
-import { ExpensesView } from './components/expenses/ExpensesView';
-import { BudgetsView } from './components/budgets/BudgetsView';
-import { TransfersView } from './components/transfers/TransfersView';
-import { LoansView } from './components/loans/LoansView';
-import { CategoriesView } from './components/categories/CategoriesView';
-import { TransactionsView } from './components/transactions/TransactionsView';
-import { ReportsView } from './components/reports/ReportsView';
-import { SettingsView } from './components/settings/SettingsView';
-import { AdminView } from './components/admin/AdminView';
 import { ActionModals } from './components/modals/ActionModals';
-import { LoginView } from './components/auth/LoginView';
-import { ForgotPasswordView } from './components/auth/ForgotPasswordView';
-import { ResetPasswordView } from './components/auth/ResetPasswordView';
-import { VerifyEmailView } from './components/auth/VerifyEmailView';
-import { LandingPageView } from './components/landing/LandingPageView';
 import { Loan } from './mock/data';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { DateFilterProvider } from './context/DateFilterContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { RouterProvider, useRouter, usePathname } from './lib/router';
-import { Wallet } from 'lucide-react';
+
+const DashboardView = lazy(() => import('./components/dashboard/DashboardView').then((module) => ({ default: module.DashboardView })));
+const AccountsView = lazy(() => import('./components/accounts/AccountsView').then((module) => ({ default: module.AccountsView })));
+const IncomeView = lazy(() => import('./components/income/IncomeView').then((module) => ({ default: module.IncomeView })));
+const ExpensesView = lazy(() => import('./components/expenses/ExpensesView').then((module) => ({ default: module.ExpensesView })));
+const BudgetsView = lazy(() => import('./components/budgets/BudgetsView').then((module) => ({ default: module.BudgetsView })));
+const TransfersView = lazy(() => import('./components/transfers/TransfersView').then((module) => ({ default: module.TransfersView })));
+const LoansView = lazy(() => import('./components/loans/LoansView').then((module) => ({ default: module.LoansView })));
+const CategoriesView = lazy(() => import('./components/categories/CategoriesView').then((module) => ({ default: module.CategoriesView })));
+const TransactionsView = lazy(() => import('./components/transactions/TransactionsView').then((module) => ({ default: module.TransactionsView })));
+const ReportsView = lazy(() => import('./components/reports/ReportsView').then((module) => ({ default: module.ReportsView })));
+const SettingsView = lazy(() => import('./components/settings/SettingsView').then((module) => ({ default: module.SettingsView })));
+const AdminView = lazy(() => import('./components/admin/AdminView').then((module) => ({ default: module.AdminView })));
+const LoginView = lazy(() => import('./components/auth/LoginView').then((module) => ({ default: module.LoginView })));
+const ForgotPasswordView = lazy(() => import('./components/auth/ForgotPasswordView').then((module) => ({ default: module.ForgotPasswordView })));
+const ResetPasswordView = lazy(() => import('./components/auth/ResetPasswordView').then((module) => ({ default: module.ResetPasswordView })));
+const VerifyEmailView = lazy(() => import('./components/auth/VerifyEmailView').then((module) => ({ default: module.VerifyEmailView })));
+const LandingPageView = lazy(() => import('./components/landing/LandingPageView').then((module) => ({ default: module.LandingPageView })));
 
 function AppContent() {
   const router = useRouter();
@@ -136,10 +138,10 @@ function AppContent() {
       <div className="min-h-screen bg-[#0d0f12] text-gray-400 flex flex-col items-center justify-center">
         <img
           src="/logo.png"
-          alt="Account Ladger Logo"
+          alt="AccountLedger Logo"
           className="w-12 h-12 object-contain mb-3 animate-pulse"
         />
-        <p className="text-xs text-gray-400">Loading Account Ladger...</p>
+        <p className="text-xs text-gray-400">Loading AccountLedger...</p>
       </div>
     );
   }
@@ -204,7 +206,7 @@ function AppContent() {
       case 'settings':
         return 'Settings';
       default:
-        return 'Account Ladger';
+        return 'AccountLedger';
     }
   };
 
@@ -223,7 +225,7 @@ function AppContent() {
   ].includes(currentTab);
 
   return (
-    <div className="h-screen max-h-screen bg-[#121417] text-gray-100 flex flex-col antialiased overflow-hidden">
+    <div className="h-screen max-h-screen bg-surface-sunken text-gray-100 flex flex-col antialiased overflow-hidden">
 
 
       {/* Main Sidebar */}
@@ -244,6 +246,8 @@ function AppContent() {
         />
 
         <main className={`flex-1 min-h-0 p-3 sm:p-4 lg:p-5 w-full min-w-0 ${isDataTableTab ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
+          <ErrorBoundary key={currentTab}>
+          <Suspense fallback={<PageLoadingState />}>
           {/* System Admin Sections */}
           {isAdmin && (
             <>
@@ -346,6 +350,8 @@ function AppContent() {
               {currentTab === 'settings' && <SettingsView />}
             </>
           )}
+          </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
 

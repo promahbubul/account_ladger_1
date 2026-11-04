@@ -8,6 +8,7 @@ import {
 } from '../mock/data';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL, parseResponseJson } from '../services/api';
+import type { DataStatus } from '../components/common/StateViews';
 import { sortTransactions } from '../lib/sorting';
 
 export interface CategoryBudget {
@@ -33,6 +34,7 @@ interface FinanceContextType {
   budgets: CategoryBudget[];
   budgetAlerts: BudgetAlert[];
   isLoading: boolean;
+  dataStatus: DataStatus;
   refreshData: () => Promise<void>;
   
   // Actions
@@ -121,6 +123,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
   const [budgetAlerts, setBudgetAlerts] = useState<BudgetAlert[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Stays 'ready' during later refreshes, so existing figures do not flash back to a skeleton.
+  const [hasLoadedData, setHasLoadedData] = useState<boolean>(false);
+  const [dataLoadFailed, setDataLoadFailed] = useState<boolean>(false);
+  const dataStatus: DataStatus = hasLoadedData ? 'ready' : dataLoadFailed ? 'error' : 'loading';
 
   // Auth fetch helper
   const authFetch = useCallback(
@@ -198,12 +204,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setCategories([]);
       setBudgets([]);
       setBudgetAlerts([]);
+      setHasLoadedData(false);
+      setDataLoadFailed(false);
       setIsLoading(false);
       return;
     }
 
     try {
       setIsLoading(true);
+      setDataLoadFailed(false);
       const [accRes, txRes, loanRes, catRes, bgtRes] = await Promise.all([
         authFetch('/api/accounts'),
         authFetch('/api/transactions?all=true'),
@@ -249,8 +258,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       recalculateBudgetAlerts(fetchedBudgets, fetchedTransactions);
+
+      if ([accRes, txRes, loanRes, catRes, bgtRes].every((res) => res.ok)) {
+        setHasLoadedData(true);
+      } else {
+        setDataLoadFailed(true);
+      }
     } catch (err) {
       console.error('[FinanceContext] Error fetching financial data:', err);
+      setDataLoadFailed(true);
     } finally {
       setIsLoading(false);
     }
@@ -917,7 +933,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const exportData = (): string => {
     return JSON.stringify(
       {
-        app: 'Account Ladger',
+        app: 'AccountLedger',
         user: { email: user?.email, username: user?.username },
         exportedAt: new Date().toISOString(),
         data: { accounts, transactions, loans, repayments, categories, budgets },
@@ -949,6 +965,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         budgets,
         budgetAlerts,
         isLoading,
+        dataStatus,
         refreshData,
         addAccount,
         editAccount,

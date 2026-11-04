@@ -33,6 +33,10 @@ export const COLORS = {
   textMuted: '#64748B',
   textInverse: '#090A0E',
 
+  // Chart series, validated for this dark surface. Separate from the status colors above.
+  chartPrimary: '#3987E5',
+  chartSecondary: '#D95926',
+
   card: '#12141A',
   cardHover: '#181B24',
 };

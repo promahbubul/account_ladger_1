@@ -96,7 +96,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   const isNextDisabled = !hasNextPage || isLoading || (totalPages !== undefined && activePage >= totalPages);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3.5 py-2 bg-[#121417] border-t border-[#22252c] text-xs text-gray-400 select-none flex-shrink-0">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3.5 py-2 bg-surface-sunken border-t border-line text-xs text-gray-400 select-none flex-shrink-0">
       {/* Left side: Rows per page selector */}
       <div className="flex items-center gap-1.5">
         <label htmlFor="rows-per-page-select" className="text-gray-400 font-medium whitespace-nowrap text-[11px]">
@@ -112,7 +112,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
             }
           }}
           disabled={isLoading}
-          className="bg-[#16181d] border border-[#262932] rounded px-2 py-0.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-50"
+          className="bg-surface border border-line-strong rounded px-2 py-0.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-50"
         >
           <option value={50}>50</option>
           <option value={70}>70</option>
@@ -130,7 +130,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           className={`p-1 rounded text-xs transition-colors border ${
             isPrevDisabled
               ? 'text-gray-600 border-[#1f2229] bg-[#14161b]/50 cursor-not-allowed'
-              : 'text-gray-200 hover:text-white hover:bg-[#20242e] border-[#2b2f3a] cursor-pointer'
+              : 'text-gray-200 hover:text-white hover:bg-[#20242e] border-field-line cursor-pointer'
           }`}
           aria-label="Previous page"
           title="Previous page"
@@ -155,7 +155,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
             }}
             onBlur={handleCommitPage}
             disabled={isLoading}
-            className="w-12 text-center bg-[#16181d] border border-[#262932] rounded py-0.5 px-1 font-mono text-xs text-gray-100 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+            className="w-12 text-center bg-surface border border-line-strong rounded py-0.5 px-1 font-mono text-xs text-gray-100 focus:outline-none focus:border-blue-500 disabled:opacity-50"
             title="Type page number and press Enter"
             aria-label="Current page number"
           />
@@ -172,7 +172,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           className={`p-1 rounded text-xs transition-colors border ${
             isNextDisabled
               ? 'text-gray-600 border-[#1f2229] bg-[#14161b]/50 cursor-not-allowed'
-              : 'text-gray-200 hover:text-white hover:bg-[#20242e] border-[#2b2f3a] cursor-pointer'
+              : 'text-gray-200 hover:text-white hover:bg-[#20242e] border-field-line cursor-pointer'
           }`}
           aria-label="Next page"
           title="Next page"

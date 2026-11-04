@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { showMessage } from '../../utils/notify';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
@@ -30,11 +31,7 @@ export const ResetPasswordScreen = ({ route, navigation }) => {
     setLoading(true);
     try {
       await authApi.resetPassword(token, password);
-      Alert.alert(
-        'Success',
-        'Your password has been reset. You may now sign in with your new password.',
-        [{ text: 'Sign In', onPress: () => navigation.navigate('Login') }]
-      );
+      showMessage('Success', 'Your password has been reset. You may now sign in with your new password.', () => navigation.navigate('Login'));
     } catch (err) {
       setError(err.message || 'Failed to reset password.');
     } finally {
@@ -50,9 +47,6 @@ export const ResetPasswordScreen = ({ route, navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Text style={styles.heading}>Set New Password</Text>
-          <Text style={styles.subheading}>
-            Enter your new secure password for AccountLedger.
-          </Text>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -63,7 +57,7 @@ export const ResetPasswordScreen = ({ route, navigation }) => {
 
           <Input
             label="New Password *"
-            placeholder="••••••••"
+            placeholder="New password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -71,7 +65,7 @@ export const ResetPasswordScreen = ({ route, navigation }) => {
 
           <Input
             label="Confirm New Password *"
-            placeholder="••••••••"
+            placeholder="Repeat the new password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -107,15 +101,10 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   heading: {
+    marginBottom: SPACING.lg,
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
     color: COLORS.text,
-  },
-  subheading: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.lg,
-    marginTop: 2,
   },
   errorBox: {
     flexDirection: 'row',

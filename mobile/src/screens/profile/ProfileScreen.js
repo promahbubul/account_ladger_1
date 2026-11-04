@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { Select } from '../../components/common/Select';
+import { CURRENCIES, TIMEZONES } from '../../constants/preferences';
+import { showMessage } from '../../utils/notify';
 import { Card } from '../../components/common/Card';
 import { useAuth } from '../../context/AuthContext';
 import { userApi } from '../../services/api/user.api';
+
+const CURRENCY_OPTIONS = CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} (${c.symbol}) - ${c.name}` }));
 
 export const ProfileScreen = ({ navigation }) => {
   const { user, updateUser } = useAuth();
@@ -18,20 +23,28 @@ export const ProfileScreen = ({ navigation }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Keeps a timezone saved before this list existed selectable.
+  const timezoneOptions = TIMEZONES.some((t) => t.value === timezone)
+    ? TIMEZONES
+    : [{ value: timezone, label: timezone }, ...TIMEZONES];
+
   const handleSave = async () => {
     setError('');
     setSuccess('');
     setLoading(true);
     try {
       const res = await userApi.updateProfile({
-        fullName: fullName.trim() || undefined,
-        currency: currency.trim() || undefined,
-        timezone: timezone.trim() || undefined,
+        fullName: fullName.trim(),
+        currency,
+        timezone,
       });
 
       if (res.user) {
+        const currencyChanged = res.user.currency !== user?.currency;
         await updateUser(res.user);
         setSuccess('Profile updated successfully.');
+        // A new currency redraws every screen, which also clears the message above.
+        if (currencyChanged) showMessage('Profile Updated', `Amounts now show in ${res.user.currency}.`);
       }
     } catch (err) {
       setError(err.message || 'Failed to update profile.');
@@ -57,25 +70,26 @@ export const ProfileScreen = ({ navigation }) => {
 
           <Input
             label="Full Name"
+            autoCapitalize="words"
             placeholder="e.g. Mahbubul Alam"
             value={fullName}
             onChangeText={setFullName}
             style={{ marginTop: SPACING.md }}
           />
 
-          <Input
-            label="Default Currency (BDT, USD, EUR, GBP)"
-            placeholder="BDT"
+          <Select
+            label="Currency"
             value={currency}
-            onChangeText={setCurrency}
-            autoCapitalize="characters"
+            options={CURRENCY_OPTIONS}
+            onChange={setCurrency}
           />
+          <Text style={styles.hint}>Changes the symbol shown. Amounts are not converted.</Text>
 
-          <Input
+          <Select
             label="Timezone"
-            placeholder="Asia/Dhaka"
             value={timezone}
-            onChangeText={setTimezone}
+            options={timezoneOptions}
+            onChange={setTimezone}
           />
 
           <Button
@@ -101,6 +115,12 @@ const styles = StyleSheet.create({
   errorText: {
     color: COLORS.danger,
     fontSize: FONT_SIZE.xs,
+    marginBottom: SPACING.md,
+  },
+  hint: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    marginTop: -SPACING.sm,
     marginBottom: SPACING.md,
   },
   successText: {

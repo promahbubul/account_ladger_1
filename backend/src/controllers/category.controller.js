@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
 
 export async function getCategories(req, res) {
@@ -44,6 +45,7 @@ export async function getCategories(req, res) {
 
     res.json({ success: true, categories, items: categories, totalCount });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to fetch categories.' });
   }
 }
@@ -109,6 +111,7 @@ export async function createCategory(req, res) {
 
     res.status(201).json({ success: true, category: created });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to create category.' });
   }
 }
@@ -159,6 +162,7 @@ export async function updateCategory(req, res) {
     }
     res.json({ success: true, category: updated });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to update category.' });
   }
 }
@@ -189,6 +193,7 @@ export async function addSubcategory(req, res) {
 
     res.json({ success: true, subcategories: existingSubs });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to add subcategory.' });
   }
 }
@@ -206,6 +211,7 @@ export async function archiveCategory(req, res) {
     const updated = await dbService.updateCategory(id, req.user.id, { isArchived: !cat.isArchived });
     res.json({ success: true, category: updated });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to archive category.' });
   }
 }
@@ -241,6 +247,7 @@ export async function deleteCategory(req, res) {
     }
     res.json({ success: true, message: 'Category deleted successfully.' });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to delete category.' });
   }
 }

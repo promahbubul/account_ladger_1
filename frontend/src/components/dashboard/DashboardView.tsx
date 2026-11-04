@@ -10,7 +10,13 @@ import {
 import { formatBDT, formatDate } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { useDateFilter } from '../../context/DateFilterContext';
-import { TableEmptyRow } from '../common/StateViews';
+import {
+  DataLoadErrorBanner,
+  LoadedValue,
+  TableEmptyRow,
+  TableErrorRow,
+  TableLoadingRow,
+} from '../common/StateViews';
 import { normalizeToISODate } from '../common/DatePicker';
 
 interface DashboardViewProps {
@@ -24,7 +30,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateTab,
   selectedPeriod,
 }) => {
-  const { accounts, transactions, loans, budgetAlerts } = useFinance();
+  const { accounts, transactions, loans, budgetAlerts, dataStatus, refreshData } = useFinance();
   const { dateFilter } = useDateFilter();
 
   const filteredTransactions = React.useMemo(() => {
@@ -77,44 +83,48 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
+      {dataStatus === 'error' && (
+        <DataLoadErrorBanner message="Could not load your financial data." onRetry={refreshData} />
+      )}
+
       {/* Summary Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Liquid Balance</div>
           <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
-            {formatBDT(totalBalance)}
+            <LoadedValue status={dataStatus}>{formatBDT(totalBalance)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Total Income</div>
           <div className="text-lg font-bold font-mono text-gray-100 mt-1">
-            +{formatBDT(totalIncome)}
+            <LoadedValue status={dataStatus}>+{formatBDT(totalIncome)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Total Expenses</div>
           <div className="text-lg font-bold font-mono text-gray-200 mt-1">
-            -{formatBDT(totalExpense)}
+            <LoadedValue status={dataStatus}>-{formatBDT(totalExpense)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Net Flow</div>
-          <div className={`text-lg font-bold font-mono mt-1 ${netCashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatBDT(netCashFlow, true)}
+          <div className={`text-lg font-bold font-mono mt-1 ${dataStatus !== 'ready' || netCashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <LoadedValue status={dataStatus}>{formatBDT(netCashFlow, true)}</LoadedValue>
           </div>
         </div>
       </div>
 
       {/* Receivables & Payables */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3 flex items-center justify-between">
+        <div className="bg-surface border border-line rounded p-3 flex items-center justify-between">
           <div>
             <div className="text-xs text-gray-400">Receivables (Lent)</div>
             <div className="text-base font-semibold font-mono text-emerald-400 mt-0.5">
-              {formatBDT(totalReceivables)}
+              <LoadedValue status={dataStatus}>{formatBDT(totalReceivables)}</LoadedValue>
             </div>
           </div>
           <button
@@ -125,11 +135,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3 flex items-center justify-between">
+        <div className="bg-surface border border-line rounded p-3 flex items-center justify-between">
           <div>
             <div className="text-xs text-gray-400">Payables (Borrowed)</div>
             <div className="text-base font-semibold font-mono text-gray-200 mt-0.5">
-              {formatBDT(totalPayables)}
+              <LoadedValue status={dataStatus}>{formatBDT(totalPayables)}</LoadedValue>
             </div>
           </div>
           <button
@@ -145,7 +155,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <button
           onClick={() => onOpenQuickAction('income')}
-          className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-400" />
           <span>Income</span>
@@ -153,7 +163,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('expense')}
-          className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />
           <span>Expense</span>
@@ -161,7 +171,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('daily_bulk')}
-          className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
           <span>Daily Expenses</span>
@@ -169,7 +179,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('transfer')}
-          className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowLeftRight className="w-3.5 h-3.5 text-blue-400" />
           <span>Transfer</span>
@@ -177,7 +187,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('loan')}
-          className="flex items-center justify-center gap-2 p-2 bg-[#16181d] hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors col-span-2 sm:col-span-1"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors col-span-2 sm:col-span-1"
         >
           <HandCoins className="w-3.5 h-3.5 text-amber-400" />
           <span>Loan</span>
@@ -187,8 +197,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Main Standard Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Table 1: Accounts Position */}
-        <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-[#22252c] bg-[#121417] flex items-center justify-between">
+        <div className="bg-surface border border-line rounded overflow-hidden flex flex-col">
+          <div className="p-3 border-b border-line bg-surface-sunken flex items-center justify-between">
             <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
               Accounts Position
             </h3>
@@ -202,15 +212,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-[#22252c] bg-[#14161c] text-gray-400 text-[10px]">
+                <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px]">
                   <th className="py-2 px-3">Account</th>
                   <th className="py-2 px-3">Type</th>
                   <th className="py-2 px-3 text-right">Balance</th>
                   <th className="py-2 px-3 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#20232a]">
-                {accounts.length === 0 ? (
+              <tbody className="divide-y divide-divider">
+                {dataStatus === 'loading' ? (
+                  <TableLoadingRow colSpan={4} message="Loading accounts..." minHeightClass="min-h-[160px]" />
+                ) : dataStatus === 'error' ? (
+                  <TableErrorRow colSpan={4} title="Could not load accounts" onRetry={refreshData} minHeightClass="min-h-[160px]" />
+                ) : accounts.length === 0 ? (
                   <TableEmptyRow
                     colSpan={4}
                     title="No accounts found"
@@ -218,7 +232,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   />
                 ) : (
                   accounts.slice(0, 6).map((acc) => (
-                    <tr key={acc.id} className="hover:bg-[#1a1d24]">
+                    <tr key={acc.id} className="hover:bg-surface-hover">
                       <td className="py-2 px-3 font-medium text-gray-200">
                         {acc.name}
                       </td>
@@ -242,8 +256,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Table 2: Recent Transactions */}
-        <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-[#22252c] bg-[#121417] flex items-center justify-between">
+        <div className="bg-surface border border-line rounded overflow-hidden flex flex-col">
+          <div className="p-3 border-b border-line bg-surface-sunken flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
                 Recent Transactions
@@ -264,15 +278,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-[#22252c] bg-[#14161c] text-gray-400 text-[10px]">
+                <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px]">
                   <th className="py-2 px-3">Date</th>
                   <th className="py-2 px-3">Description</th>
                   <th className="py-2 px-3">Account</th>
                   <th className="py-2 px-3 text-right">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#20232a]">
-                {filteredTransactions.length === 0 ? (
+              <tbody className="divide-y divide-divider">
+                {dataStatus === 'loading' ? (
+                  <TableLoadingRow colSpan={4} message="Loading transactions..." minHeightClass="min-h-[160px]" />
+                ) : dataStatus === 'error' ? (
+                  <TableErrorRow colSpan={4} title="Could not load transactions" onRetry={refreshData} minHeightClass="min-h-[160px]" />
+                ) : filteredTransactions.length === 0 ? (
                   <TableEmptyRow
                     colSpan={4}
                     title="No transactions recorded"
@@ -280,7 +298,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   />
                 ) : (
                   filteredTransactions.slice(0, 6).map((tx) => (
-                    <tr key={tx.id} className="hover:bg-[#1a1d24]">
+                    <tr key={tx.id} className="hover:bg-surface-hover">
                       <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                         {formatDate(tx.date)}
                       </td>

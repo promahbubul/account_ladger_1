@@ -1,5 +1,5 @@
 /**
- * Cursor Pagination Helpers for HisabFlow
+ * Cursor Pagination Helpers for AccountLedger
  * Base64 URL-safe encoding/decoding and strict limit validation.
  */
 

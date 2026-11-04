@@ -1,3 +1,5 @@
+import { SUPPORTED_CURRENCIES } from '../config/preferences.js';
+import { logger } from '../utils/logger.js';
 import bcrypt from 'bcryptjs';
 import { dbService } from '../services/db.service.js';
 import { validateLimit } from '../utils/cursor.js';
@@ -42,6 +44,10 @@ export async function getUsers(req, res) {
 export async function createUser(req, res) {
   try {
     const { username, email, fullName, password, role, currency } = req.body;
+    if (currency && !SUPPORTED_CURRENCIES.includes(currency)) {
+      res.status(400).json({ error: 'Unsupported currency code.' });
+      return;
+    }
     if (!username || !email || !password || !fullName) {
       res.status(400).json({ error: 'Missing required user fields.' });
       return;
@@ -104,6 +110,10 @@ export async function updateUser(req, res) {
   try {
     const { id } = req.params;
     const { fullName, email, role, currency } = req.body;
+    if (currency && !SUPPORTED_CURRENCIES.includes(currency)) {
+      res.status(400).json({ error: 'Unsupported currency code.' });
+      return;
+    }
 
     if (req.user.id === id && role && role !== 'ADMIN') {
       res.status(400).json({ error: 'Safeguard: You cannot demote your own administrator role.' });
@@ -134,6 +144,7 @@ export async function updateUser(req, res) {
     const { passwordHash: _, ...safeUser } = updated;
     res.json({ success: true, user: safeUser });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to update user.' });
   }
 }
@@ -172,6 +183,7 @@ export async function toggleUserStatus(req, res) {
     const { passwordHash: _, ...safeUser } = updated;
     res.json({ success: true, user: safeUser });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to change user status.' });
   }
 }
@@ -206,6 +218,7 @@ export async function resetUserPassword(req, res) {
 
     res.json({ success: true, message: `Password reset successfully for @${user.username}.` });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to reset user password.' });
   }
 }
@@ -238,6 +251,7 @@ export async function deleteUser(req, res) {
 
     res.json({ success: true, message: `User @${user.username} deleted permanently.` });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 }
@@ -257,6 +271,7 @@ export async function getStats(req, res) {
       },
     });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to fetch admin stats.' });
   }
 }
@@ -322,6 +337,7 @@ export async function updateSettings(req, res) {
 
     res.json({ success: true, settings: updated });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to update system settings.' });
   }
 }

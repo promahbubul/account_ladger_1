@@ -7,20 +7,30 @@ import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { useDateFilter } from '../../context/DateFilterContext';
 import { Transaction } from '../../mock/data';
-import { TableLoadingRow, TableEmptyRow } from '../common/StateViews';
+import {
+  DataLoadErrorBanner,
+  DataStatus,
+  LoadedValue,
+  TableEmptyRow,
+  TableErrorRow,
+  TableLoadingRow,
+} from '../common/StateViews';
 
 export const ReportsView: React.FC = () => {
-  const { transactions, accounts, budgets, authFetch } = useFinance();
+  const { accounts, budgets, authFetch, dataStatus, refreshData } = useFinance();
   const { dateFilter, formattedRangeLabel } = useDateFilter();
   const [selectedPeriod, setSelectedPeriod] = useState<'MONTH' | 'LAST_MONTH' | 'YTD' | 'ALL'>('MONTH');
-  const [reportTransactions, setReportTransactions] = useState<Transaction[]>(transactions);
-  const [isLoading, setIsLoading] = useState(false);
+  const [reportTransactions, setReportTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [reportFailed, setReportFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     const fetchReportData = async () => {
       try {
         setIsLoading(true);
+        setReportFailed(false);
         const params = new URLSearchParams();
         params.set('all', 'true');
         if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
@@ -32,9 +42,12 @@ export const ReportsView: React.FC = () => {
           if (active) {
             setReportTransactions(data.items || data.transactions || []);
           }
+        } else if (active) {
+          setReportFailed(true);
         }
       } catch (err) {
         console.error('ReportsView fetch error:', err);
+        if (active) setReportFailed(true);
       } finally {
         if (active) setIsLoading(false);
       }
@@ -44,7 +57,16 @@ export const ReportsView: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [authFetch, dateFilter.startDate, dateFilter.endDate]);
+  }, [authFetch, dateFilter.startDate, dateFilter.endDate, reloadKey]);
+
+  const reportStatus: DataStatus = isLoading ? 'loading' : reportFailed ? 'error' : 'ready';
+  // The account table also needs the accounts held in the finance context.
+  const accountTableStatus: DataStatus =
+    reportStatus === 'ready' ? dataStatus : reportStatus;
+  const retryReport = () => {
+    setReloadKey((key) => key + 1);
+    if (dataStatus === 'error') refreshData();
+  };
 
   const totalInflow = reportTransactions
     .filter((t) => t.direction === 'INFLOW')
@@ -157,7 +179,7 @@ export const ReportsView: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-[#16181d] border border-[#22252c] rounded p-0.5 text-xs">
+          <div className="flex items-center bg-surface border border-line rounded p-0.5 text-xs">
             {(['MONTH', 'LAST_MONTH', 'YTD', 'ALL'] as const).map((p) => (
               <button
                 key={p}
@@ -186,40 +208,44 @@ export const ReportsView: React.FC = () => {
         </div>
       </div>
 
+      {(reportStatus === 'error' || dataStatus === 'error') && (
+        <DataLoadErrorBanner message="Could not load this report." onRetry={retryReport} />
+      )}
+
       {/* Summary Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Total Inflows</div>
           <div className="text-lg font-semibold font-mono text-emerald-400 mt-0.5">
-            +{formatBDT(totalInflow)}
+            <LoadedValue status={reportStatus}>+{formatBDT(totalInflow)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Total Outflows</div>
           <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            -{formatBDT(totalOutflow)}
+            <LoadedValue status={reportStatus}>-{formatBDT(totalOutflow)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Net Flow</div>
-          <div className={`text-lg font-semibold font-mono mt-0.5 ${netCashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatBDT(netCashFlow, true)}
+          <div className={`text-lg font-semibold font-mono mt-0.5 ${reportStatus !== 'ready' || netCashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <LoadedValue status={reportStatus}>{formatBDT(netCashFlow, true)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Savings Margin</div>
           <div className="text-lg font-semibold font-mono text-blue-400 mt-0.5">
-            {savingsRate}%
+            <LoadedValue status={reportStatus}>{savingsRate}%</LoadedValue>
           </div>
         </div>
       </div>
 
       {/* Expense Category Breakdown Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-        <div className="p-3 border-b border-[#22252c] bg-[#121417]">
+      <div className="bg-surface border border-line rounded overflow-hidden">
+        <div className="p-3 border-b border-line bg-surface-sunken">
           <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
             Expense Categories
           </h3>
@@ -227,7 +253,7 @@ export const ReportsView: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-[#22252c] bg-[#14161c] text-gray-400 text-[10px] uppercase">
+              <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px] uppercase">
                 <th className="py-2.5 px-3">Category</th>
                 <th className="py-2.5 px-3 text-right">Transactions</th>
                 <th className="py-2.5 px-3 text-right">Total Spent</th>
@@ -236,21 +262,22 @@ export const ReportsView: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Variance</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#20232a]">
+            <tbody className="divide-y divide-divider">
               {isLoading ? (
                 <TableLoadingRow
                   colSpan={6}
                   message="Compiling report data..."
                 />
+              ) : reportFailed ? (
+                <TableErrorRow colSpan={6} title="Could not load expenses" onRetry={retryReport} />
               ) : expenseBreakdown.length === 0 ? (
                 <TableEmptyRow
                   colSpan={6}
                   title="No expense records available"
-                  description="No expenditures found for this period."
                 />
               ) : (
                 expenseBreakdown.map((row) => (
-                  <tr key={row.category} className="hover:bg-[#1a1d24]">
+                  <tr key={row.category} className="hover:bg-surface-hover">
                     <td className="py-2.5 px-3 font-medium text-gray-200">
                       {row.category}
                     </td>
@@ -280,8 +307,8 @@ export const ReportsView: React.FC = () => {
       </div>
 
       {/* Account Positions Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
-        <div className="p-3 border-b border-[#22252c] bg-[#121417]">
+      <div className="bg-surface border border-line rounded overflow-hidden">
+        <div className="p-3 border-b border-line bg-surface-sunken">
           <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
             Account Balances & Flows
           </h3>
@@ -289,7 +316,7 @@ export const ReportsView: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-[#22252c] bg-[#14161c] text-gray-400 text-[10px] uppercase">
+              <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px] uppercase">
                 <th className="py-2.5 px-3">Account</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3 text-right">Opening Balance</th>
@@ -299,9 +326,13 @@ export const ReportsView: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Current Balance</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#20232a]">
-              {accountBreakdown.map((row) => (
-                <tr key={row.name} className="hover:bg-[#1a1d24]">
+            <tbody className="divide-y divide-divider">
+              {accountTableStatus === 'loading' ? (
+                <TableLoadingRow colSpan={7} message="Loading account positions..." />
+              ) : accountTableStatus === 'error' ? (
+                <TableErrorRow colSpan={7} title="Could not load account positions" onRetry={retryReport} />
+              ) : accountBreakdown.map((row) => (
+                <tr key={row.name} className="hover:bg-surface-hover">
                   <td className="py-2.5 px-3 font-medium text-gray-200">
                     {row.name}
                   </td>

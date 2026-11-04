@@ -319,7 +319,7 @@ test('Firebase Google Social Authentication Tests - Passwordless Linking & Accep
     }
   });
 
-  await t.test('Acceptance Test 8: Concurrent first-login requests do not create duplicate accounts or identity mappings', async () => {
+  await t.test('Acceptance Test 8: Concurrent first-login requests do not create duplicate accounts or identity mappings', { skip: !process.env.TEST_DATABASE_URL && 'needs Postgres (set TEST_DATABASE_URL)' }, async () => {
     const concurrentUid = `google_uid_concurrent_${Date.now()}`;
     const concurrentEmail = `concurrent_${Date.now()}@gmail.com`;
 

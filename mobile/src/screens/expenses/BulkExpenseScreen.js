@@ -4,9 +4,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { DateField } from '../../components/common/DateField';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Select } from '../../components/common/Select';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { transactionsApi } from '../../services/api/transactions.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { categoriesApi } from '../../services/api/categories.api';
@@ -196,17 +198,19 @@ export const BulkExpenseScreen = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <Input
-          label="Date (YYYY-MM-DD) *"
-          placeholder="YYYY-MM-DD"
+        <DateField
+          label="Date *"
           value={date}
-          onChangeText={(val) => {
+          onChange={(val) => {
             clearFieldError('date');
             setDate(val);
           }}
           error={fieldErrors.date}
         />
 
+        {accountsQuery.isError ? (
+          <QueryErrorBanner message="Could not load accounts." onRetry={() => accountsQuery.refetch()} />
+        ) : null}
         <Select
           label="Payment Account *"
           placeholder="Select an account"
@@ -290,6 +294,7 @@ export const BulkExpenseScreen = ({ navigation }) => {
                     <View style={styles.descriptionCol}>
                       <Input
                         label="Description"
+                        autoCapitalize="sentences"
                         placeholder="e.g. Lunch"
                         value={row.description}
                         onChangeText={(val) => updateRow(group.key, row.key, 'description', val)}

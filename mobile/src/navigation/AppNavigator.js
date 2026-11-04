@@ -1,8 +1,9 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZE } from '../constants/theme';
+import { COLORS } from '../constants/theme';
 
 // Screens
 import { DashboardScreen } from '../screens/dashboard/DashboardScreen';
@@ -16,6 +17,10 @@ import { IncomeScreen } from '../screens/income/IncomeScreen';
 import { AddExpenseScreen } from '../screens/expenses/AddExpenseScreen';
 import { ExpensesScreen } from '../screens/expenses/ExpensesScreen';
 import { BulkExpenseScreen } from '../screens/expenses/BulkExpenseScreen';
+import { ProjectsScreen } from '../screens/projects/ProjectsScreen';
+import { ProjectFormScreen } from '../screens/projects/ProjectFormScreen';
+import { ProjectDetailScreen } from '../screens/projects/ProjectDetailScreen';
+import { ProjectEntriesScreen } from '../screens/projects/ProjectEntriesScreen';
 import { TransfersScreen } from '../screens/transfers/TransfersScreen';
 import { CreateTransferScreen } from '../screens/transfers/CreateTransferScreen';
 import { LoansScreen } from '../screens/lending/LoansScreen';
@@ -32,6 +37,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 export const MainTabNavigator = () => {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       initialRouteName="HomeTab"
@@ -41,14 +48,15 @@ export const MainTabNavigator = () => {
           backgroundColor: COLORS.surface,
           borderTopColor: COLORS.borderHairline,
           borderTopWidth: 1,
-          height: 62,
-          paddingBottom: 8,
+          height: 70 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 10),
           paddingTop: 6,
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: {
           fontSize: 10,
+          lineHeight: 14,
           fontWeight: '600',
           letterSpacing: 0.1,
         },
@@ -118,6 +126,10 @@ export const AppNavigator = () => {
       <Stack.Screen name="CreateLoan" component={CreateLoanScreen} />
       <Stack.Screen name="AddRepayment" component={AddRepaymentScreen} />
       <Stack.Screen name="BudgetsScreen" component={BudgetsScreen} />
+      <Stack.Screen name="Projects" component={ProjectsScreen} />
+      <Stack.Screen name="ProjectForm" component={ProjectFormScreen} />
+      <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} />
+      <Stack.Screen name="ProjectEntries" component={ProjectEntriesScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );

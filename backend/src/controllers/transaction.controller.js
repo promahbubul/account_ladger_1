@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
 import { validateLimit } from '../utils/cursor.js';
 
@@ -108,6 +109,7 @@ export async function createIncome(req, res) {
     const created = await dbService.createTransaction(tx);
     res.status(201).json({ success: true, transaction: created });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to record income transaction.' });
   }
 }
@@ -154,6 +156,7 @@ export async function createExpense(req, res) {
     const created = await dbService.createTransaction(tx);
     res.status(201).json({ success: true, transaction: created });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to record expense transaction.' });
   }
 }
@@ -161,7 +164,7 @@ export async function createExpense(req, res) {
 const MAX_BULK_ITEMS = 200;
 const BATCH_ID_PATTERN = /^[A-Za-z0-9_-]{8,40}$/;
 
-function isRealCalendarDate(iso) {
+export function isRealCalendarDate(iso) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!match) return false;
   const [year, month, day] = match.slice(1).map(Number);
@@ -253,6 +256,7 @@ export async function createBulkExpense(req, res) {
 
     res.status(replayed ? 200 : 201).json({ success: true, transactions, count: transactions.length, replayed });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to record bulk expenses.' });
   }
 }
@@ -263,7 +267,7 @@ export function parseDateToISO(input) {
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
     return str.slice(0, 10);
   }
-  const dmMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const dmMatch = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmMatch) {
     const day = dmMatch[1].padStart(2, '0');
     const month = dmMatch[2].padStart(2, '0');
@@ -336,6 +340,7 @@ export async function updateTransaction(req, res) {
     }
     res.json({ success: true, transaction: updated });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to update transaction.' });
   }
 }
@@ -350,6 +355,7 @@ export async function deleteTransaction(req, res) {
     }
     res.json({ success: true, message: 'Transaction deleted successfully.' });
   } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to delete transaction.' });
   }
 }

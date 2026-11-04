@@ -1,3 +1,4 @@
+import { SUPPORTED_CURRENCIES, SUPPORTED_DATE_FORMATS, isValidTimezone } from '../config/preferences.js';
 import { dbService } from '../services/db.service.js';
 
 export async function updateProfile(req, res) {
@@ -11,22 +12,29 @@ export async function updateProfile(req, res) {
     const updates = {};
 
     if (currency && typeof currency === 'string') {
-      const allowedCurrencies = ['BDT', 'USD', 'EUR', 'GBP', 'INR', 'SAR', 'AED', 'CAD', 'JPY'];
       const upper = currency.toUpperCase().trim();
-      if (!allowedCurrencies.includes(upper)) {
+      if (!SUPPORTED_CURRENCIES.includes(upper)) {
         res.status(400).json({ error: 'Unsupported currency code.' });
         return;
       }
       updates.currency = upper;
     }
 
-    if (fullName && typeof fullName === 'string' && fullName.trim()) {
-      updates.fullName = fullName.trim();
+    if (typeof fullName === 'string') {
+      updates.fullName = fullName.trim() || null;
     }
     if (timezone && typeof timezone === 'string') {
+      if (!isValidTimezone(timezone.trim())) {
+        res.status(400).json({ error: 'Unsupported timezone.' });
+        return;
+      }
       updates.timezone = timezone.trim();
     }
     if (dateFormat && typeof dateFormat === 'string') {
+      if (!SUPPORTED_DATE_FORMATS.includes(dateFormat.trim())) {
+        res.status(400).json({ error: 'Unsupported date format.' });
+        return;
+      }
       updates.dateFormat = dateFormat.trim();
     }
 

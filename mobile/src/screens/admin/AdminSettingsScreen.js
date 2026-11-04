@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, Alert } from 'react-native';
+import { showMessage } from '../../utils/notify';
+import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
@@ -39,13 +41,22 @@ export const AdminSettingsScreen = ({ navigation }) => {
         auditLoggingEnabled: auditLogging,
       });
       queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
-      Alert.alert('Success', 'System settings saved.');
+      showMessage('Success', 'System settings saved.');
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to update system settings.');
+      showMessage('Error', err.message || 'Failed to update system settings.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (settingsQuery.isError && !settingsQuery.data) {
+    return (
+      <View style={styles.container}>
+        <Header title="System Settings" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
+        <QueryErrorState title="Could not load settings" onRetry={() => settingsQuery.refetch()} />
+      </View>
+    );
+  }
 
   if (settingsQuery.isLoading) {
     return (
@@ -65,7 +76,6 @@ export const AdminSettingsScreen = ({ navigation }) => {
           <View style={styles.switchRow}>
             <View style={{ flex: 1, marginRight: SPACING.md }}>
               <Text style={styles.switchTitle}>Allow User Self-Registration</Text>
-              <Text style={styles.switchSub}>Controls whether new public visitors can register accounts.</Text>
             </View>
             <Switch
               value={allowRegistration}
@@ -89,7 +99,6 @@ export const AdminSettingsScreen = ({ navigation }) => {
           <View style={[styles.switchRow, { borderBottomWidth: 0 }]}>
             <View style={{ flex: 1, marginRight: SPACING.md }}>
               <Text style={styles.switchTitle}>Audit Logging</Text>
-              <Text style={styles.switchSub}>Records security and financial events for audit compliance.</Text>
             </View>
             <Switch
               value={auditLogging}

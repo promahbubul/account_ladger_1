@@ -8,6 +8,7 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { AccountRow } from '../../components/lists/AccountRow';
 import { EmptyState } from '../../components/common/EmptyState';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { accountsApi } from '../../services/api/accounts.api';
 
@@ -72,13 +73,16 @@ export const AccountsScreen = ({ navigation }) => {
             />
           }
           ListEmptyComponent={
-            <EmptyState
-              icon="wallet-outline"
-              title="No accounts found"
-              description="Tap 'Add' to create your first bank, cash, or mobile banking account."
-              actionTitle="Create Account"
-              onAction={() => navigation.navigate('CreateAccount')}
-            />
+            accountsQuery.isError ? (
+              <QueryErrorState title="Could not load accounts" onRetry={() => accountsQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="wallet-outline"
+                title="No accounts found"
+                actionTitle="Create Account"
+                onAction={() => navigation.navigate('CreateAccount')}
+              />
+            )
           }
         />
       )}

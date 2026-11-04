@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { showMessage } from '../../utils/notify';
+import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
@@ -7,6 +8,7 @@ import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Badge } from '../../components/common/Badge';
 import { EmptyState } from '../../components/common/EmptyState';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { adminApi } from '../../services/api/admin.api';
@@ -36,7 +38,7 @@ export const AdminUsersScreen = ({ navigation }) => {
       setToggleVisible(false);
       setSelectedUser(null);
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to update user status.');
+      showMessage('Error', err.message || 'Failed to update user status.');
     }
   };
 
@@ -99,10 +101,14 @@ export const AdminUsersScreen = ({ navigation }) => {
             />
           }
           ListEmptyComponent={
-            <EmptyState
-              icon="people-outline"
-              title="No users found"
-            />
+            usersQuery.isError ? (
+              <QueryErrorState title="Could not load users" onRetry={() => usersQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="people-outline"
+                title="No users found"
+              />
+            )
           }
         />
       )}

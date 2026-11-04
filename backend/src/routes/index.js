@@ -9,16 +9,18 @@ import { transferRouter } from './transfer.routes.js';
 import { loanRouter } from './loan.routes.js';
 import { budgetRouter } from './budget.routes.js';
 import { reportRouter } from './report.routes.js';
+import { projectRouter } from './project.routes.js';
 import { dbService } from '../services/db.service.js';
 
 export const apiRouter = Router();
 
 // Health check endpoint
-apiRouter.get('/health', (req, res) => {
+apiRouter.get('/health', async (req, res) => {
   const status = dbService.getStatus();
-  res.json({
-    status: 'healthy',
-    service: 'Account Ladger REST API',
+  const healthy = await dbService.isDatabaseHealthy();
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'healthy' : 'unhealthy',
+    service: 'AccountLedger REST API',
     database: status.mode,
     connectedToPostgres: status.connectedToPostgres,
     timestamp: new Date().toISOString(),
@@ -36,3 +38,4 @@ apiRouter.use('/transfers', transferRouter);
 apiRouter.use('/loans', loanRouter);
 apiRouter.use('/budgets', budgetRouter);
 apiRouter.use('/reports', reportRouter);
+apiRouter.use('/projects', projectRouter);

@@ -180,14 +180,14 @@ export const VerifyEmailView: React.FC = () => {
         <div className="text-center mb-6">
           <img
             src="/logo.png"
-            alt="Account Ladger Logo"
+            alt="AccountLedger Logo"
             className="w-12 h-12 object-contain mx-auto mb-3"
           />
-          <h1 className="text-xl font-bold tracking-tight text-white">Account Ladger</h1>
+          <h1 className="text-xl font-bold tracking-tight text-white">AccountLedger</h1>
         </div>
 
         {/* Card */}
-        <div className="bg-[#14171d] border border-[#22252c] rounded p-6 shadow-sm">
+        <div className="bg-[#14171d] border border-line rounded p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
               <ShieldCheck className="w-4 h-4" />
@@ -230,7 +230,7 @@ export const VerifyEmailView: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full bg-field border border-field-line rounded px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
             )}
@@ -257,7 +257,7 @@ export const VerifyEmailView: React.FC = () => {
                     value={digit}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(idx, e)}
-                    className="w-11 h-12 text-center text-lg font-bold text-white bg-[#1b1e25] border border-[#2b2f3a] rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                    className="w-11 h-12 text-center text-lg font-bold text-white bg-field border border-field-line rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />
                 ))}
               </div>
@@ -280,7 +280,7 @@ export const VerifyEmailView: React.FC = () => {
           </form>
 
           {/* Resend Code Section */}
-          <div className="mt-5 pt-4 border-t border-[#22252c] flex items-center justify-between text-xs">
+          <div className="mt-5 pt-4 border-t border-line flex items-center justify-between text-xs">
             <span className="text-gray-400">Didn't receive code?</span>
             <button
               type="button"

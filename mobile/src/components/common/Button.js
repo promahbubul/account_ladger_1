@@ -20,6 +20,9 @@ export const Button = ({
       activeOpacity={0.75}
       onPress={onPress}
       disabled={isActionDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isActionDisabled, busy: loading }}
       style={[
         styles.base,
         styles[variant],

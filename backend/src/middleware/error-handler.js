@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger.js';
+import { config } from '../config/env.js';
 
 export const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || (err.name === 'ValidationError' ? 400 : 500);
@@ -11,7 +12,7 @@ export const errorHandler = (err, req, res, next) => {
     error: {
       code: err.code || 'INTERNAL_ERROR',
       message,
-      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+      ...(!config.isProduction && { stack: err.stack }),
     },
   });
 };

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
@@ -8,6 +8,9 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { LoanRow } from '../../components/lists/LoanRow';
 import { EmptyState } from '../../components/common/EmptyState';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
+import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { loansApi } from '../../services/api/loans.api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -19,15 +22,15 @@ export const LoansScreen = ({ navigation }) => {
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | LENT | BORROWED
   const [search, setSearch] = useState('');
 
-  const loansQuery = useQuery({
+  const loansQuery = usePagedQuery({
     queryKey: ['loansList', typeFilter, search],
-    queryFn: () => loansApi.getLoans({ type: typeFilter, search }),
+    fetchPage: (page) => loansApi.getLoans({ type: typeFilter, search, page, limit: 50 }),
     enabled: activeTab === 'LOANS',
   });
 
-  const repaymentsQuery = useQuery({
+  const repaymentsQuery = usePagedQuery({
     queryKey: ['repaymentsList', search],
-    queryFn: () => loansApi.getRepayments({ search }),
+    fetchPage: (page) => loansApi.getRepayments({ search, page, limit: 50 }),
     enabled: activeTab === 'REPAYMENTS',
   });
 
@@ -36,8 +39,8 @@ export const LoansScreen = ({ navigation }) => {
     else queryClient.invalidateQueries({ queryKey: ['repaymentsList'] });
   }, [activeTab, queryClient]);
 
-  const loans = loansQuery.data?.items || [];
-  const repayments = repaymentsQuery.data?.items || [];
+  const loans = loansQuery.items;
+  const repayments = repaymentsQuery.items;
 
   return (
     <View style={styles.container}>
@@ -120,14 +123,18 @@ export const LoansScreen = ({ navigation }) => {
                 tintColor={COLORS.primary}
               />
             }
+            ListFooterComponent={<LoadMoreFooter query={loansQuery} />}
             ListEmptyComponent={
-              <EmptyState
-                icon="cash-outline"
-                title="No loans found"
-                description="Keep track of money lent to friends or borrowed from creditors."
-                actionTitle="Create Loan"
-                onAction={() => navigation.navigate('CreateLoan')}
-              />
+              loansQuery.isError ? (
+                <QueryErrorState title="Could not load loans" onRetry={() => loansQuery.refetch()} />
+              ) : (
+                <EmptyState
+                  icon="cash-outline"
+                  title="No loans found"
+                  actionTitle="Create Loan"
+                  onAction={() => navigation.navigate('CreateLoan')}
+                />
+              )
             }
           />
         )
@@ -154,12 +161,16 @@ export const LoansScreen = ({ navigation }) => {
               tintColor={COLORS.primary}
             />
           }
+          ListFooterComponent={<LoadMoreFooter query={repaymentsQuery} />}
           ListEmptyComponent={
-            <EmptyState
-              icon="receipt-outline"
-              title="No repayment records"
-              description="Repayments made towards loans will appear here."
-            />
+            repaymentsQuery.isError ? (
+              <QueryErrorState title="Could not load repayments" onRetry={() => repaymentsQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="receipt-outline"
+                title="No repayment records"
+              />
+            )
           }
         />
       )}

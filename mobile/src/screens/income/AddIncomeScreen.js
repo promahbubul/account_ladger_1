@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { DateField } from '../../components/common/DateField';
+import { Select } from '../../components/common/Select';
+import { getSelectableCategories } from '../../utils/categories';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { transactionsApi } from '../../services/api/transactions.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { categoriesApi } from '../../services/api/categories.api';
-import { getTodayISO } from '../../utils/formatters';
+import { getTodayISO, isValidISODate, parseAmount } from '../../utils/formatters';
 
 export const AddIncomeScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -16,7 +20,6 @@ export const AddIncomeScreen = ({ navigation }) => {
   const [date, setDate] = useState(getTodayISO());
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [categoryName, setCategoryName] = useState('');
   const [subcatName, setSubcatName] = useState('');
   const [accountId, setAccountId] = useState('');
   const [description, setDescription] = useState('');
@@ -35,7 +38,11 @@ export const AddIncomeScreen = ({ navigation }) => {
   });
 
   const accounts = accountsQuery.data?.accounts || [];
-  const incomeCategories = (categoriesQuery.data?.categories || []).filter(c => c.type === 'INCOME');
+  const incomeCategories = useMemo(
+    () => getSelectableCategories(categoriesQuery.data?.categories, 'INCOME'),
+    [categoriesQuery.data]
+  );
+  const selectedCategory = incomeCategories.find(c => c.id === categoryId);
 
   // Set default account and category when loaded
   React.useEffect(() => {
@@ -44,18 +51,11 @@ export const AddIncomeScreen = ({ navigation }) => {
     }
   }, [accounts, accountId]);
 
-  React.useEffect(() => {
-    if (!categoryName && incomeCategories.length > 0) {
-      setCategoryName(incomeCategories[0].name);
-      setCategoryId(incomeCategories[0].id);
-    }
-  }, [incomeCategories, categoryName]);
-
   const handleAdd = async () => {
     if (loading) return;
     setError('');
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseAmount(amount);
+    if (numAmount === null) {
       setError('Please provide a valid amount greater than 0.');
       return;
     }
@@ -63,12 +63,16 @@ export const AddIncomeScreen = ({ navigation }) => {
       setError('Please select a destination account.');
       return;
     }
-    if (!date.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+    if (!selectedCategory) {
+      setError('Please select a category.');
+      return;
+    }
+    if (!isValidISODate(date.trim())) {
       setError('Please provide a valid date in YYYY-MM-DD format.');
       return;
     }
 
-    const finalDescription = description.trim() || (categoryName ? `${categoryName} Income` : 'Income');
+    const finalDescription = description.trim() || `${selectedCategory.name} Income`;
 
     setLoading(true);
     try {
@@ -76,8 +80,8 @@ export const AddIncomeScreen = ({ navigation }) => {
         date: date.trim(),
         amount: numAmount,
         accountId,
-        categoryId: categoryId || undefined,
-        category: categoryName || 'Other Income',
+        categoryId: selectedCategory.id,
+        category: selectedCategory.name,
         subcategory: subcatName || undefined,
         description: finalDescription,
         reference: reference.trim() || undefined,
@@ -106,7 +110,7 @@ export const AddIncomeScreen = ({ navigation }) => {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Input
-          label="Amount (BDT) *"
+          label="Amount *"
           placeholder="0.00"
           value={amount}
           onChangeText={setAmount}
@@ -114,52 +118,57 @@ export const AddIncomeScreen = ({ navigation }) => {
           inputStyle={{ fontSize: FONT_SIZE.xl, fontWeight: '700' }}
         />
 
-        <Input
-          label="Date (YYYY-MM-DD) *"
-          placeholder="YYYY-MM-DD"
+        <DateField
+          label="Date *"
           value={date}
-          onChangeText={setDate}
+          onChange={setDate}
         />
 
         {/* Account Selector */}
-        <Text style={styles.fieldLabel}>Destination Account *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {accounts.map(acc => {
-            const isSelected = accountId === acc.id;
-            return (
-              <TouchableOpacity
-                key={acc.id}
-                style={[styles.chip, isSelected && styles.chipActive]}
-                onPress={() => setAccountId(acc.id)}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{acc.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {accountsQuery.isError ? (
+          <QueryErrorBanner message="Could not load accounts." onRetry={() => accountsQuery.refetch()} />
+        ) : null}
+        <Select
+          label="Destination Account *"
+          placeholder="Select an account"
+          value={accountId}
+          options={accounts.map((acc) => ({ value: acc.id, label: acc.name }))}
+          onChange={setAccountId}
+          loading={accountsQuery.isLoading}
+          emptyMessage="No accounts found."
+        />
 
         {/* Category Selector */}
-        <Text style={styles.fieldLabel}>Category *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {incomeCategories.map(cat => {
-            const isSelected = categoryName === cat.name;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[styles.chip, isSelected && styles.chipActive]}
-                onPress={() => {
-                  setCategoryName(cat.name);
-                  setCategoryId(cat.id);
-                }}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{cat.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {categoriesQuery.isError ? (
+          <QueryErrorBanner message="Could not load categories." onRetry={() => categoriesQuery.refetch()} />
+        ) : null}
+        <Select
+          label="Category *"
+          placeholder="Select a category"
+          value={categoryId}
+          options={incomeCategories.map((cat) => ({ value: cat.id, label: cat.name }))}
+          onChange={(id) => {
+            setCategoryId(id);
+            setSubcatName('');
+          }}
+          loading={categoriesQuery.isLoading}
+          emptyMessage="No income categories found. Add one in Settings."
+        />
+
+        {selectedCategory?.subcategories?.length > 0 ? (
+          <Select
+            label="Subcategory"
+            placeholder="Optional"
+            value={subcatName}
+            options={selectedCategory.subcategories.map(name => ({ value: name, label: name }))}
+            onChange={setSubcatName}
+            allowClear
+          />
+        ) : null}
 
         <Input
           label="Description (Optional)"
+          autoCapitalize="sentences"
           placeholder="e.g. Monthly Salary, Freelance project"
           value={description}
           onChangeText={setDescription}
@@ -201,31 +210,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
-  },
-  chipsRow: {
-    gap: SPACING.xs,
-    marginBottom: SPACING.md,
-  },
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    backgroundColor: COLORS.surfaceGhost,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-  },
-  chipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  chipText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#FFF',
-    fontWeight: '600',
   },
   submitBtn: {
     marginTop: SPACING.lg,

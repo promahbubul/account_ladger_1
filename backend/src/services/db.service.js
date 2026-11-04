@@ -1,3 +1,4 @@
+import { PROJECT_SCHEMA_SQL } from './project.schema.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -37,6 +38,8 @@ export const DEFAULT_INCOME_CATEGORIES = [
   { name: 'Rental Income', icon: 'Home', color: '#ec4899', subcategories: ['Residential Rent', 'Commercial Rent', 'Parking Space'] },
   { name: 'Other Income', icon: 'Coins', color: '#64748b', subcategories: ['Gifts & Family Support', 'Tax Refund', 'Reimbursements', 'Asset Liquidation'] },
 ];
+
+const DB_CONNECT_ATTEMPTS = 5;
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
   { name: 'Food & Dining', icon: 'UtensilsCrossed', color: '#f59e0b', subcategories: ['Groceries & Provisions', 'Dining Out & Restaurants', 'Snacks & Cafes', 'Water & Milk'] },
@@ -97,8 +100,8 @@ class DatabaseService {
       foundPath = path.resolve(defaultDir, 'hisabflow_db.json');
     }
 
-    this.localDbPath = foundPath;
-    this.loadLocalDb();
+    this.localDbPath = process.env.LOCAL_DB_PATH || foundPath;
+    if (!config.isProduction) this.loadLocalDb();
   }
 
   loadLocalDb() {
@@ -150,11 +153,22 @@ class DatabaseService {
     }
   }
 
-  async initialize() {
-    const dbUrl = config.databaseUrl;
-    if (dbUrl && !dbUrl.includes('YOUR_ROTATED_NEON_DATABASE_URL') && !dbUrl.includes('user:password@localhost')) {
+  async isDatabaseHealthy() {
+    if (!this.isPostgresConnected || !this.pool) return !config.isProduction;
+    try {
+      await this.pool.query('SELECT 1');
+      return true;
+    } catch (err) {
+      logger.error('Database health check failed:', err);
+      return false;
+    }
+  }
+
+  async connectToPostgres(dbUrl) {
+    // Neon can take a few seconds to wake from idle, so production retries before giving up.
+    const maxAttempts = config.isProduction ? DB_CONNECT_ATTEMPTS : 1;
+    for (let attempt = 1; ; attempt += 1) {
       try {
-        logger.info('Connecting to PostgreSQL database...');
         this.pool = new Pool({
           connectionString: dbUrl,
           ssl: dbUrl.includes('localhost') ? false : { rejectUnauthorized: false },
@@ -165,15 +179,38 @@ class DatabaseService {
         const client = await this.pool.connect();
         const res = await client.query('SELECT NOW()');
         client.release();
+        return res.rows[0].now;
+      } catch (err) {
+        await this.pool?.end().catch(() => {});
+        this.pool = null;
+        if (attempt >= maxAttempts) throw err;
+        logger.warn(`PostgreSQL connection attempt ${attempt} failed, retrying:`, err.message);
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      }
+    }
+  }
+
+  async initialize() {
+    const dbUrl = config.databaseUrl;
+    if (dbUrl && !dbUrl.includes('YOUR_ROTATED_NEON_DATABASE_URL') && !dbUrl.includes('user:password@localhost')) {
+      try {
+        logger.info('Connecting to PostgreSQL database...');
+        const connectedAt = await this.connectToPostgres(dbUrl);
         this.isPostgresConnected = true;
-        logger.info('Connected to PostgreSQL successfully at', res.rows[0].now);
+        logger.info('Connected to PostgreSQL successfully at', connectedAt);
 
         await this.initPostgresSchema();
       } catch (err) {
+        // Serving from an empty local file would look like data loss and split writes away from the database.
+        if (config.isProduction) {
+          throw new Error(`Could not connect to PostgreSQL: ${err.message}`);
+        }
         logger.warn('Could not connect to PostgreSQL:', err.message);
         logger.warn('Running in Local Persistent Mode (data/hisabflow_db.json).');
         this.isPostgresConnected = false;
       }
+    } else if (config.isProduction) {
+      throw new Error('DATABASE_URL is a placeholder. Refusing to start in production.');
     } else {
       logger.info('No external DATABASE_URL active. Operating in Local Persistent Mode.');
       this.isPostgresConnected = false;
@@ -358,6 +395,10 @@ class DatabaseService {
         CREATE INDEX IF NOT EXISTS idx_email_verification_codes_hash ON email_verification_codes(code_hash);
 
         -- Ensure schema integrity columns and constraints
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0 NOT NULL;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128) UNIQUE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'LOCAL' NOT NULL;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE NOT NULL;
         ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
         ALTER TABLE transactions ADD COLUMN IF NOT EXISTS category_id VARCHAR(64) REFERENCES categories(id) ON DELETE SET NULL;
@@ -412,6 +453,7 @@ class DatabaseService {
         -- Ensure full_name is optional (nullable)
         ALTER TABLE users ALTER COLUMN full_name DROP NOT NULL;
       `);
+      await client.query(PROJECT_SCHEMA_SQL);
       logger.info('PostgreSQL schema verification, constraints, and indexes complete.');
     } catch (err) {
       logger.error('Error creating PostgreSQL tables:', err);
@@ -421,7 +463,14 @@ class DatabaseService {
   }
 
   async seedInitialSystemState() {
+    // Known demo accounts must never be created on a production database.
+    if (config.isProduction) return;
+
     const adminPassword = config.adminInitialPassword;
+    if (!adminPassword || !config.userInitialPassword) {
+      logger.warn('ADMIN_INITIAL_PASSWORD or USER_INITIAL_PASSWORD is not set; skipping demo account seeding.');
+      return;
+    }
     const adminHash = await bcrypt.hash(adminPassword, 10);
     const standardPassword = config.userInitialPassword;
     const standardHash = await bcrypt.hash(standardPassword, 10);
@@ -715,7 +764,7 @@ class DatabaseService {
   async getUserById(id) {
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", token_version as "tokenVersion", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1',
         [id]
       );
       return res.rows[0] || null;
@@ -727,7 +776,7 @@ class DatabaseService {
     const clean = identifier.trim().toLowerCase();
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", token_version as "tokenVersion", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
         [clean]
       );
       return res.rows[0] || null;
@@ -743,7 +792,7 @@ class DatabaseService {
     const clean = email.trim().toLowerCase();
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(email) = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", token_version as "tokenVersion", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(email) = $1',
         [clean]
       );
       return res.rows[0] || null;
@@ -755,7 +804,7 @@ class DatabaseService {
     if (!firebaseUid) return null;
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(
-        'SELECT id, username, email, password_hash as "passwordHash", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE firebase_uid = $1',
+        'SELECT id, username, email, password_hash as "passwordHash", token_version as "tokenVersion", firebase_uid as "firebaseUid", auth_provider as "authProvider", avatar_url as "avatarUrl", full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE firebase_uid = $1',
         [firebaseUid]
       );
       return res.rows[0] || null;
@@ -809,6 +858,7 @@ class DatabaseService {
       if (updates.passwordHash !== undefined) {
         fields.push(`password_hash = $${i++}`);
         values.push(updates.passwordHash);
+        fields.push('token_version = token_version + 1');
       }
       if (updates.firebaseUid !== undefined) {
         fields.push(`firebase_uid = $${i++}`);
@@ -859,9 +909,11 @@ class DatabaseService {
 
     const idx = this.inMemoryData.users.findIndex((u) => u.id === id);
     if (idx !== -1) {
+      const current = this.inMemoryData.users[idx];
       this.inMemoryData.users[idx] = {
-        ...this.inMemoryData.users[idx],
+        ...current,
         ...updates,
+        tokenVersion: (current.tokenVersion || 0) + (updates.passwordHash !== undefined ? 1 : 0),
         updatedAt: new Date().toISOString(),
       };
       this.persistLocalDb();
@@ -994,7 +1046,7 @@ class DatabaseService {
 
         // 1. Update user password hash
         await client.query(
-          'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+          'UPDATE users SET password_hash = $1, token_version = token_version + 1, updated_at = NOW() WHERE id = $2',
           [newPasswordHash, user.id]
         );
 
@@ -1055,6 +1107,7 @@ class DatabaseService {
     }
 
     user.passwordHash = newPasswordHash;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     user.updatedAt = new Date().toISOString();
     tokenRecord.usedAt = new Date().toISOString();
 
@@ -1735,6 +1788,106 @@ class DatabaseService {
   // TRANSACTIONS OPERATIONS
   // --------------------------------------------------------------------------
 
+  // Totals are summed by the database, so they neither load every row nor pick up floating point drift.
+  async getTransactionTotals(userId, { startDate, endDate } = {}) {
+    if (this.isPostgresConnected && this.pool) {
+      const res = await this.pool.query(
+        `SELECT
+           COALESCE(SUM(amount) FILTER (WHERE type = 'INCOME'), 0) AS "totalIncome",
+           COALESCE(SUM(amount) FILTER (WHERE type = 'EXPENSE'), 0) AS "totalExpense",
+           COUNT(*) AS "totalTransactions"
+         FROM transactions
+         WHERE user_id = $1
+           AND ($2::date IS NULL OR date >= $2::date)
+           AND ($3::date IS NULL OR date <= $3::date)`,
+        [userId, startDate || null, endDate || null]
+      );
+      const row = res.rows[0];
+      return {
+        totalIncome: Number(row.totalIncome),
+        totalExpense: Number(row.totalExpense),
+        totalTransactions: Number(row.totalTransactions),
+      };
+    }
+
+    const transactions = await this.getTransactions(userId, { startDate, endDate });
+    const sumCents = (type) =>
+      transactions.filter((t) => t.type === type).reduce((sum, t) => sum + Math.round(t.amount * 100), 0);
+    return {
+      totalIncome: sumCents('INCOME') / 100,
+      totalExpense: sumCents('EXPENSE') / 100,
+      totalTransactions: transactions.length,
+    };
+  }
+
+  // byCategory follows the selected period; monthly always spans the 12 months ending at its end,
+  // because a trend over a single month would show only one bar.
+  async getReportAnalytics(userId, { startDate, endDate } = {}) {
+    const today = new Date().toISOString().slice(0, 10);
+    const end = endDate || today;
+    const [endYear, endMonth] = end.split('-').map(Number);
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(Date.UTC(endYear, endMonth - 12 + i, 1));
+      return d.toISOString().slice(0, 7);
+    });
+    const trendStart = `${months[0]}-01`;
+
+    let byCategory;
+    let monthlyRows;
+    if (this.isPostgresConnected && this.pool) {
+      const categories = await this.pool.query(
+        `SELECT COALESCE(NULLIF(category, ''), 'Uncategorized') AS name, SUM(amount)::float8 AS amount, COUNT(*)::int AS count
+         FROM transactions
+         WHERE user_id = $1 AND type = 'EXPENSE'
+           AND ($2::date IS NULL OR date >= $2::date)
+           AND ($3::date IS NULL OR date <= $3::date)
+         GROUP BY 1 ORDER BY amount DESC`,
+        [userId, startDate || null, endDate || null]
+      );
+      byCategory = categories.rows;
+      const monthly = await this.pool.query(
+        `SELECT to_char(date, 'YYYY-MM') AS month,
+                COALESCE(SUM(amount) FILTER (WHERE type = 'INCOME'), 0)::float8 AS income,
+                COALESCE(SUM(amount) FILTER (WHERE type = 'EXPENSE'), 0)::float8 AS expense
+         FROM transactions
+         WHERE user_id = $1 AND date >= $2::date AND date <= $3::date
+         GROUP BY 1`,
+        [userId, trendStart, end]
+      );
+      monthlyRows = monthly.rows;
+    } else {
+      const inPeriod = await this.getTransactions(userId, { startDate, endDate });
+      const cents = new Map();
+      for (const t of inPeriod.filter((tx) => tx.type === 'EXPENSE')) {
+        const name = t.category || 'Uncategorized';
+        const row = cents.get(name) || { cents: 0, count: 0 };
+        row.cents += Math.round(t.amount * 100);
+        row.count += 1;
+        cents.set(name, row);
+      }
+      byCategory = [...cents.entries()]
+        .map(([name, row]) => ({ name, amount: row.cents / 100, count: row.count }))
+        .sort((a, b) => b.amount - a.amount);
+
+      const inTrend = await this.getTransactions(userId, { startDate: trendStart, endDate: end });
+      const byMonth = new Map();
+      for (const t of inTrend) {
+        const month = String(t.date).slice(0, 7);
+        const row = byMonth.get(month) || { income: 0, expense: 0 };
+        if (t.type === 'INCOME') row.income += Math.round(t.amount * 100);
+        if (t.type === 'EXPENSE') row.expense += Math.round(t.amount * 100);
+        byMonth.set(month, row);
+      }
+      monthlyRows = [...byMonth.entries()].map(([month, row]) => ({ month, income: row.income / 100, expense: row.expense / 100 }));
+    }
+
+    const found = new Map(monthlyRows.map((row) => [row.month, row]));
+    return {
+      byCategory,
+      monthly: months.map((month) => found.get(month) || { month, income: 0, expense: 0 }),
+    };
+  }
+
   async getTransactions(userId, filters = {}) {
     let txs = [];
 
@@ -2119,6 +2272,20 @@ class DatabaseService {
         if (updates.subcategory !== undefined) {
           fields.push(`subcategory = $${i++}`);
           values.push(updates.subcategory);
+        }
+        if (updates.category !== undefined || updates.subcategory !== undefined) {
+          // Keep the link in step with the name, the same way a new transaction resolves it.
+          const nextCategory = updates.category !== undefined ? updates.category : existing.category;
+          const nextSubcategory = updates.subcategory !== undefined ? updates.subcategory : existing.subcategory;
+          const catRes = await client.query(
+            `SELECT id FROM categories
+             WHERE user_id = $1
+               AND (LOWER(name) = LOWER($2) OR (LOWER(name) = LOWER($3) AND $3 IS NOT NULL))
+             ORDER BY parent_id NULLS LAST LIMIT 1`,
+            [userId, nextSubcategory || nextCategory, nextCategory]
+          );
+          fields.push(`category_id = $${i++}`);
+          values.push(catRes.rows[0]?.id ?? null);
         }
         if (updates.date !== undefined) {
           fields.push(`date = $${i++}`);

@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
@@ -13,9 +14,24 @@ export const CreateCategoryScreen = ({ route, navigation }) => {
 
   const [name, setName] = useState('');
   const [type, setType] = useState(defaultType); // EXPENSE | INCOME
-  const [subcategories, setSubcategories] = useState('');
+  const [subcategories, setSubcategories] = useState([]);
+  const [subcategoryText, setSubcategoryText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Commas still split, so a pasted list works too. Duplicates are dropped ignoring case.
+  const withPendingSubcategory = () => {
+    const merged = [...subcategories];
+    for (const name of subcategoryText.split(',').map((s) => s.trim()).filter(Boolean)) {
+      if (!merged.some((existing) => existing.toLowerCase() === name.toLowerCase())) merged.push(name);
+    }
+    return merged;
+  };
+
+  const addSubcategory = () => {
+    setSubcategories(withPendingSubcategory());
+    setSubcategoryText('');
+  };
 
   const handleCreate = async () => {
     setError('');
@@ -24,10 +40,7 @@ export const CreateCategoryScreen = ({ route, navigation }) => {
       return;
     }
 
-    const subcats = subcategories
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const subcats = withPendingSubcategory();
 
     setLoading(true);
     try {
@@ -75,17 +88,45 @@ export const CreateCategoryScreen = ({ route, navigation }) => {
 
         <Input
           label="Category Name *"
+          autoCapitalize="words"
           placeholder="e.g. Health & Fitness"
           value={name}
           onChangeText={setName}
         />
 
-        <Input
-          label="Subcategories (Comma-separated, optional)"
-          placeholder="e.g. Gym, Medicine, Doctor"
-          value={subcategories}
-          onChangeText={setSubcategories}
-        />
+        <View style={styles.subcategoryRow}>
+          <Input
+            label="Subcategories (Optional)"
+            placeholder="e.g. Groceries"
+            value={subcategoryText}
+            onChangeText={setSubcategoryText}
+            autoCapitalize="words"
+            style={styles.subcategoryInput}
+          />
+          <Button
+            title="Add"
+            variant="secondary"
+            onPress={addSubcategory}
+            disabled={!subcategoryText.trim()}
+            style={styles.subcategoryAdd}
+          />
+        </View>
+        {subcategories.length > 0 ? (
+          <View style={styles.tags}>
+            {subcategories.map((name) => (
+              <TouchableOpacity
+                key={name}
+                style={styles.tag}
+                onPress={() => setSubcategories((prev) => prev.filter((item) => item !== name))}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${name}`}
+              >
+                <Text style={styles.tagText}>{name}</Text>
+                <Ionicons name="close" size={13} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
 
         <Button
           title="Save Category"
@@ -99,6 +140,38 @@ export const CreateCategoryScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  subcategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+  },
+  subcategoryInput: {
+    flex: 1,
+  },
+  subcategoryAdd: {
+    marginTop: 22,
+    minHeight: 48,
+  },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+    marginBottom: SPACING.md,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  tagText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.text,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

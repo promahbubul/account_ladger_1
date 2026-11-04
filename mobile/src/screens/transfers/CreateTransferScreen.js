@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { showMessage } from '../../utils/notify';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { DateField } from '../../components/common/DateField';
+import { Select } from '../../components/common/Select';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { transfersApi } from '../../services/api/transfers.api';
 import { accountsApi } from '../../services/api/accounts.api';
-import { getTodayISO } from '../../utils/formatters';
+import { getTodayISO, parseAmount } from '../../utils/formatters';
 
 export const CreateTransferScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
@@ -31,15 +35,17 @@ export const CreateTransferScreen = ({ route, navigation }) => {
     if (!sourceId && accounts.length > 0) {
       setSourceId(accounts[0].id);
     }
-    if (!destId && accounts.length > 1) {
-      setDestId(accounts[1].id);
+    const firstSource = sourceId || accounts[0]?.id;
+    if (!destId) {
+      const other = accounts.find((acc) => acc.id !== firstSource);
+      if (other) setDestId(other.id);
     }
   }, [accounts, sourceId, destId]);
 
   const handleTransfer = async () => {
     setError('');
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseAmount(amount);
+    if (numAmount === null) {
       setError('Please provide a valid amount.');
       return;
     }
@@ -67,9 +73,7 @@ export const CreateTransferScreen = ({ route, navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
       queryClient.invalidateQueries({ queryKey: ['reportsSummary'] });
 
-      Alert.alert('Success', 'Transfer recorded successfully.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      showMessage('Success', 'Transfer recorded successfully.', () => navigation.goBack());
     } catch (err) {
       setError(err.message || 'Transfer failed.');
     } finally {
@@ -85,7 +89,7 @@ export const CreateTransferScreen = ({ route, navigation }) => {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Input
-          label="Transfer Amount (BDT) *"
+          label="Transfer Amount *"
           placeholder="0.00"
           value={amount}
           onChangeText={setAmount}
@@ -93,47 +97,44 @@ export const CreateTransferScreen = ({ route, navigation }) => {
           inputStyle={{ fontSize: FONT_SIZE.xl, fontWeight: '700', color: COLORS.warning }}
         />
 
-        <Input
-          label="Date (YYYY-MM-DD) *"
-          placeholder="YYYY-MM-DD"
+        <DateField
+          label="Date *"
           value={date}
-          onChangeText={setDate}
+          onChange={setDate}
         />
 
-        <Text style={styles.fieldLabel}>From (Source Account) *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {accounts.map(acc => {
-            const isSelected = sourceId === acc.id;
-            return (
-              <TouchableOpacity
-                key={acc.id}
-                style={[styles.chip, isSelected && styles.chipActive]}
-                onPress={() => setSourceId(acc.id)}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{acc.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {accountsQuery.isError ? (
+          <QueryErrorBanner message="Could not load accounts." onRetry={() => accountsQuery.refetch()} />
+        ) : null}
+        <Select
+          label="From (Source Account) *"
+          placeholder="Select an account"
+          value={sourceId}
+          options={accounts.map((acc) => ({ value: acc.id, label: acc.name }))}
+          onChange={(id) => {
+            setSourceId(id);
+            if (id === destId) setDestId('');
+          }}
+          loading={accountsQuery.isLoading}
+          emptyMessage="No accounts found."
+        />
 
-        <Text style={styles.fieldLabel}>To (Destination Account) *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {accounts.map(acc => {
-            const isSelected = destId === acc.id;
-            return (
-              <TouchableOpacity
-                key={acc.id}
-                style={[styles.chip, isSelected && styles.chipActiveDest]}
-                onPress={() => setDestId(acc.id)}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{acc.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {accountsQuery.isError ? (
+          <QueryErrorBanner message="Could not load accounts." onRetry={() => accountsQuery.refetch()} />
+        ) : null}
+        <Select
+          label="To (Destination Account) *"
+          placeholder="Select an account"
+          value={destId}
+          options={accounts.filter((acc) => acc.id !== sourceId).map((acc) => ({ value: acc.id, label: acc.name }))}
+          onChange={setDestId}
+          loading={accountsQuery.isLoading}
+          emptyMessage="No accounts found."
+        />
 
         <Input
           label="Description / Note (Optional)"
+          autoCapitalize="sentences"
           placeholder="e.g. ATM cash withdrawal, Bank to bKash"
           value={description}
           onChangeText={setDescription}
@@ -169,35 +170,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
-  },
-  chipsRow: {
-    gap: SPACING.xs,
-    marginBottom: SPACING.md,
-  },
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  chipActive: {
-    backgroundColor: COLORS.danger,
-    borderColor: COLORS.danger,
-  },
-  chipActiveDest: {
-    backgroundColor: COLORS.success,
-    borderColor: COLORS.success,
-  },
-  chipText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
   },
   submitBtn: {
     marginTop: SPACING.md,

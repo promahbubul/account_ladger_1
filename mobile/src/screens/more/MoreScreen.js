@@ -31,7 +31,6 @@ export const MoreScreen = ({ navigation }) => {
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{user?.fullName || user?.username || 'User'}</Text>
             <Text style={styles.userEmail}>{user?.email}</Text>
-            <Text style={styles.userRole}>ROLE: {user?.role || 'USER'}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
         </TouchableOpacity>
@@ -42,15 +41,30 @@ export const MoreScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.menuItem}
             activeOpacity={0.7}
+            onPress={() => navigation.navigate('Projects')}
+          >
+            <View style={styles.menuLeft}>
+              <View style={styles.iconBox}>
+                <Ionicons name="briefcase-outline" size={18} color={COLORS.textSecondary} />
+              </View>
+              <View>
+                <Text style={styles.menuTitle}>Projects</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            activeOpacity={0.7}
             onPress={() => navigation.navigate('CategoriesScreen')}
           >
             <View style={styles.menuLeft}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.primaryLight }]}>
-                <Ionicons name="tags-outline" size={18} color={COLORS.primary} />
+              <View style={styles.iconBox}>
+                <Ionicons name="pricetags-outline" size={18} color={COLORS.textSecondary} />
               </View>
               <View>
                 <Text style={styles.menuTitle}>Categories</Text>
-                <Text style={styles.menuSubtitle}>Income and expense categorization</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
@@ -62,12 +76,11 @@ export const MoreScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('LoansScreen')}
           >
             <View style={styles.menuLeft}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.warningLight }]}>
-                <Ionicons name="cash-outline" size={18} color={COLORS.warning} />
+              <View style={styles.iconBox}>
+                <Ionicons name="cash-outline" size={18} color={COLORS.textSecondary} />
               </View>
               <View>
                 <Text style={styles.menuTitle}>Lending & Borrowing</Text>
-                <Text style={styles.menuSubtitle}>Debts, receivables, and repayments</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
@@ -79,12 +92,11 @@ export const MoreScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('TransfersScreen')}
           >
             <View style={styles.menuLeft}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.successLight }]}>
-                <Ionicons name="swap-horizontal" size={18} color={COLORS.success} />
+              <View style={styles.iconBox}>
+                <Ionicons name="swap-horizontal" size={18} color={COLORS.textSecondary} />
               </View>
               <View>
                 <Text style={styles.menuTitle}>Account Transfers</Text>
-                <Text style={styles.menuSubtitle}>Move funds between your accounts</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
@@ -96,12 +108,11 @@ export const MoreScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('BudgetsScreen')}
           >
             <View style={styles.menuLeft}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.purpleLight }]}>
-                <Ionicons name="pie-chart-outline" size={18} color={COLORS.purple} />
+              <View style={styles.iconBox}>
+                <Ionicons name="pie-chart-outline" size={18} color={COLORS.textSecondary} />
               </View>
               <View>
                 <Text style={styles.menuTitle}>Monthly Budgets</Text>
-                <Text style={styles.menuSubtitle}>Category spending limits & tracking</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
@@ -117,12 +128,11 @@ export const MoreScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Profile')}
           >
             <View style={styles.menuLeft}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.surfaceElevated }]}>
-                <Ionicons name="person-outline" size={18} color={COLORS.text} />
+              <View style={styles.iconBox}>
+                <Ionicons name="person-outline" size={18} color={COLORS.textSecondary} />
               </View>
               <View>
                 <Text style={styles.menuTitle}>Profile & Preferences</Text>
-                <Text style={styles.menuSubtitle}>Currency, timezone, and personal details</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
@@ -139,7 +149,6 @@ export const MoreScreen = ({ navigation }) => {
               </View>
               <View>
                 <Text style={[styles.menuTitle, { color: COLORS.danger }]}>Sign Out</Text>
-                <Text style={styles.menuSubtitle}>Safely end your mobile session</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.danger} />
@@ -149,7 +158,6 @@ export const MoreScreen = ({ navigation }) => {
         {/* Footer info */}
         <View style={styles.appFooter}>
           <Text style={styles.footerText}>{APP_NAME} v{APP_VERSION}</Text>
-          <Text style={styles.subFooterText}>Personal Accounting Ledger & Money Manager</Text>
         </View>
       </ScrollView>
 
@@ -251,6 +259,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconBox: {
+    backgroundColor: COLORS.surfaceElevated,
     width: 36,
     height: 36,
     borderRadius: RADIUS.full,
@@ -263,11 +272,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
   },
-  menuSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: FONT_SIZE.xs - 1,
-    marginTop: 2,
-  },
   appFooter: {
     alignItems: 'center',
     marginTop: SPACING.md,
@@ -277,10 +281,5 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
-  },
-  subFooterText: {
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZE.xs - 2,
-    marginTop: 2,
   },
 });

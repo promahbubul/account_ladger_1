@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
@@ -113,12 +113,10 @@ export const LoginScreen = ({ navigation }) => {
             resizeMode="contain"
           />
           <Text style={styles.appName}>AccountLedger</Text>
-          <Text style={styles.tagline}>Personal Accounting & Money Manager</Text>
         </View>
 
         <View style={styles.formCard}>
           <Text style={styles.welcomeText}>Welcome back</Text>
-          <Text style={styles.instructionText}>Sign in to access your ledger</Text>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -139,7 +137,7 @@ export const LoginScreen = ({ navigation }) => {
 
           <Input
             label="Password"
-            placeholder="••••••••"
+            placeholder="Enter your password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -216,25 +214,15 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     letterSpacing: -0.3,
   },
-  tagline: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
   formCard: {
     backgroundColor: 'transparent',
   },
   welcomeText: {
+    marginBottom: SPACING.lg,
     fontSize: FONT_SIZE.xl,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.3,
-  },
-  instructionText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.lg,
-    marginTop: 2,
   },
   errorBox: {
     flexDirection: 'row',

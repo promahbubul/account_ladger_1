@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus,
   FileSpreadsheet,
@@ -11,7 +11,6 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
-import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -146,7 +145,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [items, setItems] = useState<Transaction[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const {
@@ -549,13 +548,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
       {/* Tabs & Actions */}
-      <div className="flex items-center justify-between border-b border-[#22252c] text-xs flex-shrink-0 gap-2">
+      <div className="flex items-center justify-between border-b border-line text-xs flex-shrink-0 gap-2">
         <div className="flex">
           <button
             onClick={() => setActiveTab('RECORDS')}
             className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
               activeTab === 'RECORDS'
-                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                ? 'border-blue-500 text-blue-400 bg-surface'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -565,7 +564,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             onClick={() => setActiveTab('BULK_ENTRY')}
             className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
               activeTab === 'BULK_ENTRY'
-                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                ? 'border-blue-500 text-blue-400 bg-surface'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -590,7 +589,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       {activeTab === 'RECORDS' ? (
         <>
           {/* Search & Filter Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+          <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
             <div className="relative w-full md:w-72">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
               <input
@@ -598,7 +597,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search expenses..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
 
@@ -606,7 +605,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <select
                 value={categoryFilter}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+                className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Categories</option>
                 {allExpenseCategories.map((c) => (
@@ -619,7 +618,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <select
                 value={accountFilter}
                 onChange={(e) => handleAccountChange(e.target.value)}
-                className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+                className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Accounts</option>
                 {accounts.map((a) => (
@@ -630,11 +629,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           </div>
 
           {/* Seamless Table Section with Integrated Pinned Footer */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-                  <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+                  <tr className="border-b border-line text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Date</th>
                     <th className="py-2.5 px-3">Description</th>
                     <th className="py-2.5 px-3">Category & Subcategory</th>
@@ -644,7 +643,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                     <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#20232a]">
+                <tbody className="divide-y divide-divider">
                   {errorMsg ? (
                     <TableErrorRow
                       colSpan={7}
@@ -664,7 +663,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                       description={
                         searchQuery || categoryFilter !== 'ALL' || accountFilter !== 'ALL' || dateFilter.startDate
                           ? 'No expense transactions match your filters or selected date range.'
-                          : 'No expenses recorded yet. Click "Add Expense" to log your first expenditure.'
+                          : undefined
                       }
                       action={{
                         label: 'Add Expense',
@@ -673,7 +672,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                     />
                   ) : (
                     items.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
+                      <tr key={tx.id} className="hover:bg-surface-hover transition-colors">
                         <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                           {formatDate(tx.date)}
                         </td>
@@ -682,7 +681,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         </td>
                         <td className="py-2.5 px-3 text-gray-400">
                           <div className="flex flex-col gap-0.5">
-                            <span className="px-1.5 py-0.5 rounded bg-[#111317] border border-[#242730] text-[11px] text-gray-300 w-max">
+                            <span className="px-1.5 py-0.5 rounded bg-app border border-[#242730] text-[11px] text-gray-300 w-max">
                               {tx.category || 'General Expense'}
                             </span>
                             {tx.subcategory && (
@@ -706,21 +705,21 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                             <button
                               onClick={() => handleOpenEdit(tx)}
                               title="Edit Expense"
-                              className="p-1 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded"
+                              className="p-1 text-gray-400 hover:text-blue-400 hover:bg-line-soft rounded"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setSelectedTx(tx)}
                               title="View Details"
-                              className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                              className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setTxToDelete(tx)}
                               title="Delete Record"
-                              className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                              className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -762,7 +761,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           )}
 
           <form onSubmit={handleSaveBulkBatch} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#16181d] border border-[#22252c] rounded p-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-surface border border-line rounded p-3">
               <div>
                 <label className="block text-xs text-gray-300 font-medium mb-1">
                   Transaction Date *
@@ -786,7 +785,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 <select
                   value={bulkAccount}
                   onChange={(e) => setBulkAccount(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   {accounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
@@ -797,24 +796,24 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               </div>
             </div>
 
-            <div className="border border-[#22252c] rounded bg-[#16181d] overflow-hidden">
+            <div className="border border-line rounded bg-surface overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium text-[10px] uppercase">
+                  <tr className="border-b border-line bg-surface-sunken text-gray-400 font-medium text-[10px] uppercase">
                     <th className="py-2.5 px-3">Category</th>
                     <th className="py-2.5 px-3">Description / Item</th>
                     <th className="py-2.5 px-3 text-right">Amount (৳)</th>
                     <th className="py-2.5 px-3 text-center w-12">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#20232a]">
+                <tbody className="divide-y divide-divider">
                   {bulkRows.map((row) => (
                     <tr key={row.id}>
                       <td className="py-2 px-3 w-48">
                         <select
                           value={row.category}
                           onChange={(e) => handleBulkRowChange(row.id, 'category', e.target.value)}
-                          className="w-full bg-[#111317] border border-[#262932] rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                          className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                         >
                           {mainExpenseCategories.map((cat) => (
                             <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -826,7 +825,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           type="text"
                           value={row.desc}
                           onChange={(e) => handleBulkRowChange(row.id, 'desc', e.target.value)}
-                          className="w-full bg-[#111317] border border-[#262932] rounded px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                          className="w-full bg-app border border-line-strong rounded px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                         />
                       </td>
                       <td className="py-2 px-3 text-right">
@@ -836,7 +835,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           value={row.amount || ''}
                           onChange={(e) => handleBulkRowChange(row.id, 'amount', e.target.value)}
                           placeholder="0.00"
-                          className="w-full bg-[#111317] border border-[#262932] rounded px-2.5 py-1 text-xs text-gray-200 text-right font-mono focus:outline-none focus:border-blue-500"
+                          className="w-full bg-app border border-line-strong rounded px-2.5 py-1 text-xs text-gray-200 text-right font-mono focus:outline-none focus:border-blue-500"
                         />
                       </td>
                       <td className="py-2 px-3 text-center">
@@ -854,11 +853,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 </tbody>
               </table>
 
-              <div className="p-3 border-t border-[#22252c] bg-[#121417] flex items-center justify-between">
+              <div className="p-3 border-t border-line bg-surface-sunken flex items-center justify-between">
                 <button
                   type="button"
                   onClick={handleAddBulkRow}
-                  className="px-3 py-1.5 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+                  className="px-3 py-1.5 bg-field hover:bg-surface-raised text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
                 >
                   + Add Row
                 </button>
@@ -873,7 +872,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('RECORDS')}
-                className="px-4 py-2 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-4 py-2 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Cancel
               </button>
@@ -921,7 +920,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 value={singleAmount}
                 onChange={(e) => setSingleAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -934,7 +933,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <select
                 value={singleAccount}
                 onChange={(e) => setSingleAccount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -952,7 +951,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   setSingleCat(e.target.value);
                   setSingleSubcat('');
                 }}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {mainExpenseCategories.map((cat) => (
                   <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -970,7 +969,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <select
                 value={singleSubcat}
                 onChange={(e) => setSingleSubcat(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="">No subcategory</option>
                 {singleSubcategories.map((sub, idx) => (
@@ -989,7 +988,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               required
               value={singleDesc}
               onChange={(e) => setSingleDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -1001,15 +1000,15 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               type="text"
               value={singleRef}
               onChange={(e) => setSingleRef(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setIsAddExpenseOpen(false)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -1061,7 +1060,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -1074,7 +1073,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <select
                 value={editAccount}
                 onChange={(e) => setEditAccount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
@@ -1094,7 +1093,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   setEditCat(e.target.value);
                   setEditSubcat('');
                 }}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {mainExpenseCategories.map((cat) => (
                   <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -1112,7 +1111,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <select
                 value={editSubcat}
                 onChange={(e) => setEditSubcat(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="">No subcategory</option>
                 {editSubcategories.map((sub, idx) => (
@@ -1131,7 +1130,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               required
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -1143,18 +1142,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               type="text"
               value={editRef}
               onChange={(e) => setEditRef(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => {
                 setIsEditModalOpen(false);
                 setEditingTx(null);
               }}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -1178,7 +1177,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       >
         {selectedTx && (
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-2 bg-[#111317] border border-[#22252c] p-3 rounded">
+            <div className="grid grid-cols-2 gap-2 bg-app border border-line p-3 rounded">
               <div>
                 <span className="text-gray-500 text-[10px] uppercase font-mono block">Date</span>
                 <span className="font-semibold text-gray-200">{formatDate(selectedTx.date)}</span>
@@ -1202,7 +1201,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
             <div>
               <span className="text-gray-500 text-[10px] uppercase font-mono block mb-1">Description</span>
-              <p className="p-2.5 bg-[#111317] border border-[#22252c] rounded text-gray-300">
+              <p className="p-2.5 bg-app border border-line rounded text-gray-300">
                 {selectedTx.description && selectedTx.description !== 'Daily Expense' ? selectedTx.description : ((selectedTx as any).desc || (selectedTx.category ? `${selectedTx.category} Expense` : 'Expense'))}
               </p>
             </div>
@@ -1210,14 +1209,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             {selectedTx.reference && (
               <div>
                 <span className="text-gray-500 text-[10px] uppercase font-mono block mb-1">Reference</span>
-                <p className="p-2 bg-[#111317] border border-[#22252c] rounded font-mono text-gray-400">{selectedTx.reference}</p>
+                <p className="p-2 bg-app border border-line rounded font-mono text-gray-400">{selectedTx.reference}</p>
               </div>
             )}
 
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setSelectedTx(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded transition-colors"
               >
                 Close
               </button>
@@ -1262,7 +1261,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               value={quickAccName}
               onChange={(e) => setQuickAccName(e.target.value)}
               placeholder="e.g. City Bank Salary, bKash Personal"
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -1272,7 +1271,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <select
                 value={quickAccType}
                 onChange={(e) => setQuickAccType(e.target.value as any)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="BANK">Bank Account</option>
                 <option value="MOBILE_BANKING">Mobile Banking (bKash/Nagad)</option>
@@ -1288,12 +1287,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 value={quickAccBalance}
                 onChange={(e) => setQuickAccBalance(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#22252c]">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
             <button
               type="button"
               onClick={() => setIsAddAccountModalOpen(false)}

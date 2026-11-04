@@ -43,7 +43,7 @@ export const SettingsScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('CategoriesScreen')}
           >
             <View style={styles.menuLeft}>
-              <Ionicons name="tags-outline" size={20} color={COLORS.primary} />
+              <Ionicons name="pricetags-outline" size={20} color={COLORS.primary} />
               <Text style={styles.menuText}>Categories & Subcategories</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
@@ -140,7 +140,6 @@ export const SettingsScreen = ({ navigation }) => {
 
         <View style={styles.appFooter}>
           <Text style={styles.footerText}>{APP_NAME} v{APP_VERSION}</Text>
-          <Text style={styles.subFooterText}>Personal Accounting Ledger & Money Manager</Text>
         </View>
       </ScrollView>
 
@@ -249,10 +248,5 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
     color: COLORS.textMuted,
-  },
-  subFooterText: {
-    fontSize: FONT_SIZE.xs - 1,
-    color: COLORS.textMuted,
-    marginTop: 2,
   },
 });

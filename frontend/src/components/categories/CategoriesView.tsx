@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
-  Loader2,
   Search,
   Edit2,
   Archive,
@@ -12,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { formatBDT } from '../../lib/formatters';
-import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { Category } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
@@ -64,7 +62,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
   const [items, setItems] = useState<Category[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const {
@@ -333,7 +331,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
       )}
 
       {/* Search & Filter Toolbar */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+      <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-80">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
@@ -341,7 +339,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search categories..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+            className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
@@ -349,7 +347,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
           <select
             value={typeFilter}
             onChange={(e) => handleTypeChange(e.target.value as any)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Types</option>
             <option value="EXPENSE">Expenses Only</option>
@@ -359,7 +357,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
           <select
             value={statusFilter}
             onChange={(e) => handleStatusChange(e.target.value as any)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Status</option>
             <option value="ACTIVE">Active Only</option>
@@ -369,11 +367,11 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
       </div>
 
       {/* Seamless Table Section with Integrated Pinned Footer */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+              <tr className="border-b border-line text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Category Name & Hierarchy</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3">Subcategories</th>
@@ -382,7 +380,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#20232a]">
+            <tbody className="divide-y divide-divider">
               {errorMsg ? (
                 <TableErrorRow
                   colSpan={6}
@@ -399,7 +397,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                   description={
                     searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL'
                       ? 'No categories match your filters.'
-                      : 'No categories created yet.'
+                      : undefined
                   }
                   action={{
                     label: 'Add Category',
@@ -413,7 +411,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                   const isSub = Boolean(c.parentId);
 
                   return (
-                    <tr key={c.id} className="hover:bg-[#1a1d24] transition-colors">
+                    <tr key={c.id} className="hover:bg-surface-hover transition-colors">
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-2">
                           <span
@@ -452,7 +450,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                             c.subcategories.map((sub, idx) => (
                               <span
                                 key={idx}
-                                className="px-1.5 py-0.2 rounded bg-[#111317] border border-[#262932] text-gray-300 text-[11px]"
+                                className="px-1.5 py-0.2 rounded bg-app border border-line-strong text-gray-300 text-[11px]"
                               >
                                 {sub}
                               </span>
@@ -466,7 +464,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                             <button
                               onClick={() => setSubcatModalCat(c)}
                               title="Add Subcategory"
-                              className="p-0.5 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded ml-1"
+                              className="p-0.5 text-gray-400 hover:text-blue-400 hover:bg-line-soft rounded ml-1"
                             >
                               <FolderPlus className="w-3.5 h-3.5" />
                             </button>
@@ -498,14 +496,14 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                               setModalError(null);
                             }}
                             title="Edit Category"
-                            className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                            className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleToggleArchive(c)}
                             title={c.isArchived ? 'Restore Category' : 'Archive Category'}
-                            className="p-1 text-gray-400 hover:text-amber-400 hover:bg-[#22252e] rounded"
+                            className="p-1 text-gray-400 hover:text-amber-400 hover:bg-line-soft rounded"
                           >
                             {c.isArchived ? (
                               <ArchiveRestore className="w-3.5 h-3.5" />
@@ -516,7 +514,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                           <button
                             onClick={() => setCatToDelete(c)}
                             title="Delete Category"
-                            className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                            className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -571,7 +569,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               required
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -586,7 +584,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                   setNewCatType(e.target.value as any);
                   setNewCatParentId('');
                 }}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="EXPENSE">Expense Category</option>
                 <option value="INCOME">Income Category</option>
@@ -600,7 +598,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               <select
                 value={newCatParentId}
                 onChange={(e) => setNewCatParentId(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="">No Parent Category (Main Category)</option>
                 {availableParentsForAdd.map((parent) => (
@@ -620,7 +618,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               type="text"
               value={initialSubcats}
               onChange={(e) => setInitialSubcats(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -634,16 +632,16 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                 step="0.01"
                 value={initialBudget}
                 onChange={(e) => setInitialBudget(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setIsAddCatOpen(false)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -681,7 +679,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                 required
                 value={editCat.name}
                 onChange={(e) => setEditCat({ ...editCat, name: e.target.value })}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -693,7 +691,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                 <select
                   value={editCat.type}
                   disabled
-                  className="w-full bg-[#111317]/60 border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-400 cursor-not-allowed"
+                  className="w-full bg-app/60 border border-line-strong rounded px-3 py-1.5 text-xs text-gray-400 cursor-not-allowed"
                 >
                   <option value="EXPENSE">Expense Category</option>
                   <option value="INCOME">Income Category</option>
@@ -707,7 +705,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
                 <select
                   value={editCat.parentId || ''}
                   onChange={(e) => setEditCat({ ...editCat, parentId: e.target.value || null })}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">No Parent Category (Main Category)</option>
                   {availableParentsForEdit.map((parent) => (
@@ -719,11 +717,11 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+            <div className="flex justify-end gap-2 pt-3 border-t border-line">
               <button
                 type="button"
                 onClick={() => setEditCat(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Cancel
               </button>
@@ -754,15 +752,15 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               required
               value={newSubcatName}
               onChange={(e) => setNewSubcatName(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setSubcatModalCat(null)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>

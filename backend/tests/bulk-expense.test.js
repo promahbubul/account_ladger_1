@@ -5,11 +5,6 @@ import { dbService } from '../src/services/db.service.js';
 
 test('Bulk expense API', async (t) => {
   await dbService.initialize();
-  if (dbService.isPostgresConnected) {
-    t.skip('Writes transactions, so it only runs in Local Persistent Mode (empty DATABASE_URL).');
-    await dbService.pool.end();
-    return;
-  }
 
   const app = createApp();
   let server;
@@ -48,6 +43,9 @@ test('Bulk expense API', async (t) => {
   const { categories } = await get('/api/categories');
   const food = categories.find((c) => c.name === 'Food & Dining');
   const transport = categories.find((c) => c.name === 'Transportation');
+  // The endpoint toggles the current state.
+  const toggleArchived = (category) =>
+    fetch(`${baseUrl}/api/categories/${category.id}/archive`, { method: 'PATCH', headers });
   const batchId = () => `test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   await t.test('saves multiple items per category and deducts the exact total', async () => {
@@ -124,18 +122,14 @@ test('Bulk expense API', async (t) => {
     });
     assert.equal(badDate.status, 400);
 
-    const archive = await fetch(`${baseUrl}/api/categories/${transport.id}/archive`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ isArchived: true }),
-    });
-    assert.equal(archive.status, 200);
+    assert.equal((await toggleArchived(transport)).status, 200);
     const archived = await postBulk({
       accountId,
       date: '2026-11-03',
       items: [{ categoryId: transport.id, amount: 10 }],
     });
     assert.equal(archived.status, 400);
+    assert.equal((await toggleArchived(transport)).status, 200);
   });
 
   await t.test('items sent by category name only still save, as the web app does', async () => {

@@ -8,7 +8,7 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { navigationRef } from './navigationRef';
 
 export const RootNavigator = () => {
-  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
 
   if (isLoading) {
     return <LoadingSpinner message="Starting AccountLedger..." fullScreen />;
@@ -21,7 +21,7 @@ export const RootNavigator = () => {
       ) : isAdmin ? (
         <AdminNavigator />
       ) : (
-        <AppNavigator />
+        <AppNavigator key={user?.currency} />
       )}
     </NavigationContainer>
   );

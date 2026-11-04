@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
-  Loader2,
   Search,
   Eye,
   Trash2,
   History,
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
-import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Loan, LoanRepayment } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -65,7 +63,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
   const [loanItems, setLoanItems] = useState<Loan[]>([]);
   const [loanTotalCount, setLoanTotalCount] = useState<number>(0);
   const [loanNextCursor, setLoanNextCursor] = useState<string | null>(null);
-  const [isLoansLoading, setIsLoansLoading] = useState<boolean>(false);
+  const [isLoansLoading, setIsLoansLoading] = useState<boolean>(true);
   const [loanError, setLoanError] = useState<string | null>(null);
 
   const loanPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'loanPage', pageSizeKey: 'loanPageSize' });
@@ -74,7 +72,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
   const [repItems, setRepItems] = useState<LoanRepayment[]>([]);
   const [repTotalCount, setRepTotalCount] = useState<number>(0);
   const [repNextCursor, setRepNextCursor] = useState<string | null>(null);
-  const [isRepsLoading, setIsRepsLoading] = useState<boolean>(false);
+  const [isRepsLoading, setIsRepsLoading] = useState<boolean>(true);
   const [repError, setRepError] = useState<string | null>(null);
 
   const repPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'repPage', pageSizeKey: 'repPageSize' });
@@ -321,13 +319,13 @@ export const LoansView: React.FC<LoansViewProps> = ({
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
       {/* Tabs & Actions */}
-      <div className="flex items-center justify-between border-b border-[#22252c] text-xs flex-shrink-0 gap-2">
+      <div className="flex items-center justify-between border-b border-line text-xs flex-shrink-0 gap-2">
         <div className="flex">
           <button
             onClick={() => setActiveTab('LOANS')}
             className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px ${
               activeTab === 'LOANS'
-                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                ? 'border-blue-500 text-blue-400 bg-surface'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -337,7 +335,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
             onClick={() => setActiveTab('REPAYMENTS')}
             className={`py-2 px-4 font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
               activeTab === 'REPAYMENTS'
-                ? 'border-blue-500 text-blue-400 bg-[#16181d]'
+                ? 'border-blue-500 text-blue-400 bg-surface'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -359,7 +357,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
       {activeTab === 'LOANS' ? (
         <>
           {/* Search & Filter Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+          <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
             <div className="relative w-full md:w-72">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
               <input
@@ -367,7 +365,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 value={searchQuery}
                 onChange={(e) => handleLoanSearchChange(e.target.value)}
                 placeholder="Search loans..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
 
@@ -375,7 +373,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               <select
                 value={typeFilter}
                 onChange={(e) => handleTypeFilterChange(e.target.value as any)}
-                className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+                className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Loan Types</option>
                 <option value="LENT">Money Lent (Receivable)</option>
@@ -385,7 +383,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               <select
                 value={statusFilter}
                 onChange={(e) => handleStatusFilterChange(e.target.value as any)}
-                className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+                className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="ACTIVE">Active / Unsettled</option>
@@ -395,11 +393,11 @@ export const LoansView: React.FC<LoansViewProps> = ({
           </div>
 
           {/* Viewport-based Scrollable Table */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-                  <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+                  <tr className="border-b border-line text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Counterparty</th>
                     <th className="py-2.5 px-3">Type</th>
                     <th className="py-2.5 px-3">Disbursed From</th>
@@ -411,7 +409,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                     <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#20232a]">
+                <tbody className="divide-y divide-divider">
                   {loanError ? (
                     <TableErrorRow
                       colSpan={9}
@@ -431,7 +429,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                       description={
                         searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL'
                           ? 'No loans match the current filters.'
-                          : 'No loans recorded yet.'
+                          : undefined
                       }
                       action={{
                         label: 'New Loan',
@@ -440,7 +438,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                     />
                   ) : (
                     loanItems.map((loan) => (
-                      <tr key={loan.id} className="hover:bg-[#1a1d24] transition-colors">
+                      <tr key={loan.id} className="hover:bg-surface-hover transition-colors">
                         <td className="py-2.5 px-3">
                           <div className="font-medium text-gray-200">{loan.counterpartyName}</div>
                           {loan.counterpartyContact && (
@@ -501,14 +499,14 @@ export const LoansView: React.FC<LoansViewProps> = ({
                             <button
                               onClick={() => setViewHistoryLoan(loan)}
                               title="Repayment History"
-                              className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                              className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setLoanToDelete(loan)}
                               title="Delete Loan"
-                              className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                              className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -544,7 +542,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
         /* Repayments History Table */
         <>
           {/* Repayments Search Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex items-center justify-between flex-shrink-0">
+          <div className="bg-surface border border-line rounded p-2.5 flex items-center justify-between flex-shrink-0">
             <div className="relative w-full md:w-72">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
               <input
@@ -552,16 +550,16 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 value={repSearchQuery}
                 onChange={(e) => handleRepSearchChange(e.target.value)}
                 placeholder="Search repayments..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
           </div>
 
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-                  <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+                  <tr className="border-b border-line text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Date</th>
                     <th className="py-2.5 px-3">Counterparty</th>
                     <th className="py-2.5 px-3">Account</th>
@@ -569,7 +567,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                     <th className="py-2.5 px-3 text-right">Repayment Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#20232a]">
+                <tbody className="divide-y divide-divider">
                   {repError ? (
                     <TableErrorRow
                       colSpan={5}
@@ -589,12 +587,12 @@ export const LoansView: React.FC<LoansViewProps> = ({
                       description={
                         repSearchQuery
                           ? 'No repayments match your search query.'
-                          : 'No repayments recorded yet.'
+                          : undefined
                       }
                     />
                   ) : (
                     repItems.map((rep) => (
-                      <tr key={rep.id} className="hover:bg-[#1a1d24]">
+                      <tr key={rep.id} className="hover:bg-surface-hover">
                         <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                           {formatDate(rep.date)}
                         </td>
@@ -659,7 +657,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               <select
                 value={loanType}
                 onChange={(e) => setLoanType(e.target.value as any)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="LENT">Money Lent (Receivable)</option>
                 <option value="BORROWED">Money Borrowed (Payable)</option>
@@ -677,7 +675,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 value={principal}
                 onChange={(e) => setPrincipal(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -692,7 +690,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 required
                 value={counterparty}
                 onChange={(e) => setCounterparty(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -704,7 +702,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 type="text"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -717,7 +715,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               <select
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -734,7 +732,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 required
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -747,7 +745,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               type="text"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -759,15 +757,15 @@ export const LoansView: React.FC<LoansViewProps> = ({
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setIsAddLoanOpen(false)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -789,7 +787,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
       >
         {repaymentTargetLoan && (
           <form onSubmit={handleExecuteRepayment} className="space-y-3">
-            <div className="p-2.5 bg-[#111317] border border-[#22252c] rounded text-xs flex justify-between">
+            <div className="p-2.5 bg-app border border-line rounded text-xs flex justify-between">
               <div>
                 <span className="text-gray-400">Total Principal:</span>
                 <span className="font-mono text-gray-200 ml-1.5">{formatBDT(repaymentTargetLoan.principalAmount)}</span>
@@ -813,7 +811,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   value={repAmount}
                   onChange={(e) => setRepAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -824,7 +822,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                 <select
                   value={repAccount}
                   onChange={(e) => setRepAccount(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                     <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -843,7 +841,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   required
                   value={repDate}
                   onChange={(e) => setRepDate(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -855,16 +853,16 @@ export const LoansView: React.FC<LoansViewProps> = ({
                   type="text"
                   value={repNotes}
                   onChange={(e) => setRepNotes(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+            <div className="flex justify-end gap-2 pt-3 border-t border-line">
               <button
                 type="button"
                 onClick={() => setRepaymentTargetLoan(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Cancel
               </button>
@@ -887,9 +885,9 @@ export const LoansView: React.FC<LoansViewProps> = ({
       >
         {viewHistoryLoan && (
           <div className="space-y-3">
-            <div className="overflow-x-auto max-h-60 border border-[#22252c] rounded">
+            <div className="overflow-x-auto max-h-60 border border-line rounded">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#121417] text-gray-400 border-b border-[#22252c] text-[10px] uppercase">
+                <thead className="bg-surface-sunken text-gray-400 border-b border-line text-[10px] uppercase">
                   <tr>
                     <th className="py-2 px-3">Date</th>
                     <th className="py-2 px-3">Account</th>
@@ -908,7 +906,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                     repItems
                       .filter(r => r.loanId === viewHistoryLoan.id)
                       .map((rep) => (
-                        <tr key={rep.id} className="hover:bg-[#1a1d24]">
+                        <tr key={rep.id} className="hover:bg-surface-hover">
                           <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">{formatDate(rep.date)}</td>
                           <td className="py-2 px-3 text-gray-300">{rep.accountName}</td>
                           <td className="py-2 px-3 text-gray-400">{rep.notes || '-'}</td>
@@ -926,7 +924,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewHistoryLoan(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Close
               </button>

@@ -113,7 +113,7 @@ export const SettingsView: React.FC = () => {
       )}
 
       {/* Database Connection */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      <div className="bg-surface border border-line rounded p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="font-medium text-gray-200 flex items-center gap-2">
           <Server className="w-4 h-4 text-emerald-400" />
           <span>Database Connection</span>
@@ -123,7 +123,7 @@ export const SettingsView: React.FC = () => {
         </div>
         <button
           onClick={handleSyncDatabase}
-          className="px-3 py-1.5 bg-[#1b1e25] hover:bg-[#232833] border border-[#2c313e] text-xs text-gray-200 rounded flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+          className="px-3 py-1.5 bg-field hover:bg-[#232833] border border-[#2c313e] text-xs text-gray-200 rounded flex items-center gap-1.5 transition-colors self-start sm:self-auto"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Sync State</span>
@@ -131,7 +131,7 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* User Profile */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 flex items-center justify-between text-xs">
+      <div className="bg-surface border border-line rounded p-3.5 flex items-center justify-between text-xs">
         <div className="space-y-0.5">
           <div className="font-medium text-gray-200 flex items-center gap-2">
             <User className="w-4 h-4 text-gray-400" />
@@ -154,13 +154,13 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Currency & Preferences */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 space-y-3 text-xs">
+      <div className="bg-surface border border-line rounded p-3.5 space-y-3 text-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="font-medium text-gray-200 flex items-center gap-2">
             <Coins className="w-4 h-4 text-amber-400" />
             <span>Currency & Preferences</span>
           </div>
-          <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#1b1e25] text-amber-300 border border-[#2b2f3a] self-start sm:self-auto">
+          <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-field text-amber-300 border border-field-line self-start sm:self-auto">
             Current: {user?.currency || 'BDT'}
           </span>
         </div>
@@ -169,7 +169,7 @@ export const SettingsView: React.FC = () => {
           <select
             value={selectedCurrency}
             onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="flex-1 bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
           >
             <option value="BDT">BDT (৳) - Bangladeshi Taka (Default)</option>
             <option value="USD">USD ($) - US Dollar</option>
@@ -192,7 +192,7 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Backup Export */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      <div className="bg-surface border border-line rounded p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="font-medium text-gray-200">Export Backup</div>
         <button
           onClick={handleDownloadBackup}
@@ -204,11 +204,11 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Backup Import */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-3.5 space-y-3 text-xs">
+      <div className="bg-surface border border-line rounded p-3.5 space-y-3 text-xs">
         <div className="font-medium text-gray-200">Restore Backup</div>
 
         <div className="flex items-center gap-2">
-          <label className="cursor-pointer px-3 py-1.5 bg-[#1b1e25] hover:bg-[#232833] border border-[#2c313e] text-gray-200 rounded flex items-center gap-1.5 transition-colors">
+          <label className="cursor-pointer px-3 py-1.5 bg-field hover:bg-[#232833] border border-[#2c313e] text-gray-200 rounded flex items-center gap-1.5 transition-colors">
             <Upload className="w-3.5 h-3.5" />
             <span>Upload Backup</span>
             <input
@@ -226,13 +226,13 @@ export const SettingsView: React.FC = () => {
             value={importJsonText}
             onChange={(e) => setImportJsonText(e.target.value)}
             placeholder="Paste backup JSON..."
-            className="w-full bg-[#111317] border border-[#262932] rounded p-2 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+            className="w-full bg-app border border-line-strong rounded p-2 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
           />
           <div className="flex justify-end">
             <button
               type="submit"
               disabled={!importJsonText.trim()}
-              className="px-3 py-1.5 bg-[#1b1e25] hover:bg-[#232833] disabled:opacity-40 border border-[#2c313e] text-gray-200 rounded transition-colors"
+              className="px-3 py-1.5 bg-field hover:bg-[#232833] disabled:opacity-40 border border-[#2c313e] text-gray-200 rounded transition-colors"
             >
               Restore Backup
             </button>

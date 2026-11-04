@@ -8,6 +8,7 @@ WebBrowser.maybeCompleteAuthSession();
 import { AuthProvider } from './src/context/AuthContext';
 import { DateFilterProvider } from './src/context/DateFilterContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 
 // Optimized QueryClient with standard 5-minute cache and single retry
 const queryClient = new QueryClient({
@@ -28,7 +29,9 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider queryClient={queryClient}>
           <DateFilterProvider>
-            <RootNavigator />
+            <ErrorBoundary>
+              <RootNavigator />
+            </ErrorBoundary>
           </DateFilterProvider>
         </AuthProvider>
       </QueryClientProvider>

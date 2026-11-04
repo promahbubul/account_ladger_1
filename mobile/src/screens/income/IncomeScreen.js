@@ -1,13 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, FlatList, RefreshControl, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { View, FlatList, RefreshControl, StyleSheet } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { TransactionRow } from '../../components/lists/TransactionRow';
 import { EmptyState } from '../../components/common/EmptyState';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
+import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { transactionsApi } from '../../services/api/transactions.api';
 import { useDateFilter } from '../../context/DateFilterContext';
@@ -17,13 +20,15 @@ export const IncomeScreen = ({ navigation }) => {
   const { startDate, endDate } = useDateFilter();
   const [search, setSearch] = useState('');
 
-  const incomeQuery = useQuery({
+  const incomeQuery = usePagedQuery({
     queryKey: ['incomeList', startDate, endDate, search],
-    queryFn: () => transactionsApi.getTransactions({
+    fetchPage: (page) => transactionsApi.getTransactions({
       type: 'INCOME',
       startDate,
       endDate,
       search,
+      page,
+      limit: 50,
     }),
   });
 
@@ -31,7 +36,7 @@ export const IncomeScreen = ({ navigation }) => {
     queryClient.invalidateQueries({ queryKey: ['incomeList'] });
   }, [queryClient]);
 
-  const items = incomeQuery.data?.items || [];
+  const items = incomeQuery.items;
 
   return (
     <View style={styles.container}>
@@ -80,14 +85,18 @@ export const IncomeScreen = ({ navigation }) => {
               tintColor={COLORS.primary}
             />
           }
+          ListFooterComponent={<LoadMoreFooter query={incomeQuery} />}
           ListEmptyComponent={
-            <EmptyState
-              icon="arrow-down-circle-outline"
-              title="No income records"
-              description="No income found for the selected period or search criteria."
-              actionTitle="Add Income"
-              onAction={() => navigation.navigate('AddIncome')}
-            />
+            incomeQuery.isError ? (
+              <QueryErrorState title="Could not load income" onRetry={() => incomeQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="arrow-down-circle-outline"
+                title="No income records"
+                actionTitle="Add Income"
+                onAction={() => navigation.navigate('AddIncome')}
+              />
+            )
           }
         />
       )}

@@ -42,8 +42,8 @@ export const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Modal Dialog */}
-      <div className={`relative w-full ${maxWidth} bg-[#16181d] border border-[#262932] rounded shadow-xl overflow-hidden z-10 flex flex-col max-h-[90vh]`}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#22252c] bg-[#121417]">
+      <div className={`relative w-full ${maxWidth} bg-surface border border-line-strong rounded shadow-xl overflow-hidden z-10 flex flex-col max-h-[90vh]`}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line bg-surface-sunken">
           <h3 className="text-sm font-semibold text-gray-100">{title}</h3>
           <button
             onClick={onClose}
@@ -86,7 +86,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/75 transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-[#16181d] border border-[#262932] rounded shadow-xl overflow-hidden z-10 p-4 space-y-3">
+      <div className="relative w-full max-w-sm bg-surface border border-line-strong rounded shadow-xl overflow-hidden z-10 p-4 space-y-3">
         <h4 className="text-sm font-semibold text-gray-100">{title}</h4>
         <p className="text-xs text-gray-300 leading-relaxed">{message}</p>
         <div className="flex items-center justify-end gap-2 pt-2">

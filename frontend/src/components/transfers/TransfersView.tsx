@@ -7,7 +7,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
-import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 export interface TransferItem {
   id: string;
@@ -64,7 +63,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   const [items, setItems] = useState<TransferItem[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const {
@@ -244,7 +243,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+      <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
@@ -252,7 +251,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search transfers..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+            className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
@@ -260,7 +259,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
           <select
             value={sourceFilter}
             onChange={(e) => handleSourceFilterChange(e.target.value)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Source Accounts</option>
             {accounts.map((a) => (
@@ -271,7 +270,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
           <select
             value={destFilter}
             onChange={(e) => handleDestFilterChange(e.target.value)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Destination Accounts</option>
             {accounts.map((a) => (
@@ -288,11 +287,11 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
       )}
 
       {/* Transfers Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+              <tr className="border-b border-line text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Description</th>
                 <th className="py-2.5 px-3">From Account</th>
@@ -302,7 +301,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#20232a]">
+            <tbody className="divide-y divide-divider">
               {errorMsg ? (
                 <TableErrorRow
                   colSpan={7}
@@ -322,7 +321,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                   description={
                     searchQuery || sourceFilter !== 'ALL' || destFilter !== 'ALL'
                       ? 'No transfers match the selected filters.'
-                      : 'No inter-account transfers performed yet.'
+                      : undefined
                   }
                   action={{
                     label: 'New Transfer',
@@ -331,7 +330,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                 />
               ) : (
                 items.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
+                  <tr key={tx.id} className="hover:bg-surface-hover transition-colors">
                     <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                       {formatDate(tx.date)}
                     </td>
@@ -359,7 +358,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                             destinationAccountName: tx.destinationAccountName,
                           })}
                           title="View Details"
-                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -370,7 +369,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                             destinationAccountName: tx.destinationAccountName,
                           })}
                           title="Reverse Transfer"
-                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -417,7 +416,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               <select
                 value={fromAccId}
                 onChange={(e) => setFromAccId(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>
@@ -434,7 +433,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               <select
                 value={toAccId}
                 onChange={(e) => setToAccId(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>
@@ -464,7 +463,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -477,7 +476,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               type="text"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -489,16 +488,16 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               type="text"
               value={refNum}
               onChange={(e) => setRefNum(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
               disabled={isSubmitting}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -522,7 +521,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
       >
         {selectedTx && (
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-2 bg-[#111317] border border-[#22252c] p-3 rounded">
+            <div className="grid grid-cols-2 gap-2 bg-app border border-line p-3 rounded">
               <div>
                 <span className="text-gray-400">Date</span>
                 <p className="font-mono text-gray-200">{formatDate(selectedTx.date)}</p>
@@ -555,7 +554,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedTx(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Close
               </button>

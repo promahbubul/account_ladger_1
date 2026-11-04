@@ -1,8 +1,24 @@
+import { CURRENCIES } from '../constants/preferences';
+
+const CURRENCY_SYMBOLS = Object.fromEntries(CURRENCIES.map((c) => [c.code, c.symbol]));
+
+// Set from the signed-in user's profile, so every amount and "today" follows their preferences.
+let displayCurrency = 'BDT';
+let displayTimezone = null;
+
+export const setDisplayPreferences = ({ currency, timezone } = {}) => {
+  displayCurrency = currency || 'BDT';
+  displayTimezone = timezone || null;
+};
+
 /**
  * Format number as currency (BDT or custom)
  */
-export const formatCurrency = (amount, currency = 'BDT') => {
-  const num = Number(amount) || 0;
+export const formatCurrency = (amount, currency = displayCurrency) => {
+  // A missing value must not read as a real zero balance.
+  if (amount === null || amount === undefined || amount === '' || Number.isNaN(Number(amount))) return '—';
+
+  const num = Number(amount);
   const isNegative = num < 0;
   const absNum = Math.abs(num);
 
@@ -11,7 +27,7 @@ export const formatCurrency = (amount, currency = 'BDT') => {
     maximumFractionDigits: 2,
   });
 
-  const symbol = currency === 'BDT' ? '৳' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : `${currency} `;
+  const symbol = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
   return `${isNegative ? '-' : ''}${symbol}${formatted}`;
 };
 
@@ -47,6 +63,20 @@ export const formatDate = (dateInput) => {
  * Get today's date formatted as YYYY-MM-DD
  */
 export const getTodayISO = () => {
+  if (displayTimezone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: displayTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(new Date());
+      const part = (type) => parts.find((p) => p.type === type).value;
+      return `${part('year')}-${part('month')}-${part('day')}`;
+    } catch {
+      // Some Android engines lack full timezone data; the device date is the safe fallback.
+    }
+  }
   const d = new Date();
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');

@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Badge } from '../../components/common/Badge';
 import { EmptyState } from '../../components/common/EmptyState';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { adminApi } from '../../services/api/admin.api';
 import { formatDate } from '../../utils/formatters';
@@ -57,10 +58,14 @@ export const AdminLogsScreen = ({ navigation }) => {
             />
           }
           ListEmptyComponent={
-            <EmptyState
-              icon="shield-outline"
-              title="No audit logs"
-            />
+            logsQuery.isError ? (
+              <QueryErrorState title="Could not load audit logs" onRetry={() => logsQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="shield-outline"
+                title="No audit logs"
+              />
+            )
           }
         />
       )}

@@ -120,7 +120,6 @@ export const RegisterScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <Text style={styles.heading}>Create Account</Text>
-          <Text style={styles.subheading}>Start your personal finance journey with AccountLedger</Text>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -131,6 +130,7 @@ export const RegisterScreen = ({ navigation }) => {
 
           <Input
             label="Full Name (Optional)"
+            autoCapitalize="words"
             placeholder="e.g. Mahbubul Alam"
             value={fullName}
             onChangeText={setFullName}
@@ -161,7 +161,7 @@ export const RegisterScreen = ({ navigation }) => {
 
           <Input
             label="Password (min 6 chars) *"
-            placeholder="••••••••"
+            placeholder="Create a password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -230,16 +230,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   heading: {
+    marginBottom: SPACING.lg,
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
     color: COLORS.text,
     letterSpacing: -0.3,
-  },
-  subheading: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.lg,
-    marginTop: 2,
   },
   errorBox: {
     flexDirection: 'row',
