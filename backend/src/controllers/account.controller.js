@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger.js';
 import { dbService } from '../services/db.service.js';
+import { validateLimit } from '../utils/cursor.js';
 
 export async function getAccounts(req, res) {
   try {
@@ -25,8 +26,8 @@ export async function getAccounts(req, res) {
     const isPaginate = req.query.paginate === 'true';
 
     if (isPaginate) {
-      const limit = Number(req.query.limit) || 50;
-      const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : 1;
+      const limit = validateLimit(req.query.limit);
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
       const startIndex = (page - 1) * limit;
       const items = accounts.slice(startIndex, startIndex + limit);
       const hasNextPage = startIndex + limit < totalCount;
@@ -44,6 +45,10 @@ export async function getAccounts(req, res) {
 
     res.json({ success: true, accounts, items: accounts, totalCount });
   } catch (err) {
+    if (err.message && err.message.includes('Invalid limit')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to fetch accounts.' });
   }

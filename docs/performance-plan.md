@@ -20,8 +20,8 @@
 | 1 | Backend: আসল SQL paging, index, gzip | ✅ শেষ (`2b1e3a2`) |
 | 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (branch `perf/web-stop-loading-all-transactions`) |
 | 3 | Mobile: admin paging, list-এর গতি | ✅ শেষ |
-| 4 | Backend: ছোট বাকি কাজ | ⬜ পরের কাজ |
-| 5 | Test ও CI | ⬜ বাকি |
+| 4 | Backend: ছোট বাকি কাজ | 🟡 1-2 শেষ; 3-4 পরে, 5 মালিকের সিদ্ধান্ত |
+| 5 | Test ও CI | ⬜ পরের কাজ |
 | 6 | Structure পরিষ্কার | ⬜ বাকি, সবচেয়ে কম জরুরি |
 
 ## কেন এই plan
@@ -107,7 +107,19 @@
 
 **শেষ বোঝার উপায়:** ৫০-এর বেশি user ও log থাকলে mobile admin থেকে সব দেখা যায়। Phone-এ list scroll মসৃণ হয়।
 
-## ধাপ 4: Backend-এর ছোট কাজ
+## ধাপ 4: Backend-এর ছোট কাজ 🟡
+
+**যা হয়েছে:**
+
+- 1: Accounts আর Categories-এর `paginate=true` এখন `validateLimit` ব্যবহার করে, ভুল limit-এ 400 দেয়। `page=abc` আর `NaN` হয় না।
+- 2: `getPaginatedUsers` Postgres-এ `queryPage` দিয়ে চলে (`USER_SELECT`, `userFilters`)। Role, status, search SQL-এ। Password hash কখনো select হয় না।
+- Test: `backend/tests/pagination.test.js`-এ admin users cursor paging, filter, 403, আর accounts/categories limit।
+
+**যা বাকি, কেন:**
+
+- 3 (Project paging): plan অনুযায়ী জরুরি নয়।
+- 4 (`pg_trgm`): ৫০,০০০ row-এ এখন 42 ms। Data বাড়লে, আর Neon-এ extension চলে কি না দেখে করুন।
+- 5 (Audit log মেয়াদ): মালিক কত দিন রাখবেন বললে করা হবে।
 
 1. **Limit যাচাই:** `account.controller.js` আর `category.controller.js`-এ `Number(req.query.limit) || 50` আছে, মানে যেকোনো সংখ্যা চলে। `validateLimit` দিন।
 2. **Users list:** `getPaginatedUsers` এখনো সব এনে কাটে। `queryPage` ব্যবহার করুন।

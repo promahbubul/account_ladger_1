@@ -172,6 +172,17 @@ const repaymentFilters = (userId, filters = {}) => {
   return query;
 };
 
+const USER_SELECT =
+  'SELECT id, username, email, full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users';
+
+const userFilters = (filters = {}) => {
+  const query = sqlFilters();
+  if (filters.role && filters.role !== 'ALL') query.add('role', '=', filters.role);
+  if (filters.status && filters.status !== 'ALL') query.add('is_active', '=', filters.status === 'ACTIVE');
+  query.addSearch(filters.search, ['username', 'email', 'full_name']);
+  return query;
+};
+
 const auditFilters = (filters = {}) => {
   const query = sqlFilters();
   if (filters.action && filters.action !== 'ALL') query.add('action', '=', filters.action);
@@ -1467,16 +1478,20 @@ class DatabaseService {
   }
 
   async getPaginatedUsers(options) {
+    if (this.isPostgresConnected && this.pool) {
+      return this.queryPage({
+        table: 'users',
+        select: USER_SELECT,
+        filters: userFilters(options),
+        dateColumn: null,
+        options,
+        mapRow: (r) => r,
+        cursorField: 'createdAt',
+      });
+    }
     const limit = options.limit || 50;
     const direction = options.direction || 'forward';
     let users = [...this.inMemoryData.users];
-
-    if (this.isPostgresConnected && this.pool) {
-      const res = await this.pool.query(
-        'SELECT id, username, email, full_name as "fullName", role, is_active as "isActive", email_verified as "emailVerified", currency, timezone, date_format as "dateFormat", created_at as "createdAt", updated_at as "updatedAt" FROM users ORDER BY created_at DESC'
-      );
-      users = res.rows;
-    }
 
     if (options.role && options.role !== 'ALL') {
       users = users.filter((u) => u.role === options.role);
