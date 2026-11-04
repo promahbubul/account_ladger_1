@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -15,7 +16,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://accountladger-api.nutrimedbd.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "170169573200-81p7gq2ftufuoddisdjp26acet2ntk4i.apps.googleusercontent.com"
-      }
+      },
+      "autoIncrement": true
     },
     "production": {
       "android": {
@@ -24,7 +26,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://accountladger-api.nutrimedbd.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "170169573200-81p7gq2ftufuoddisdjp26acet2ntk4i.apps.googleusercontent.com"
-      }
+      },
+      "autoIncrement": true
     }
   },
   "submit": {

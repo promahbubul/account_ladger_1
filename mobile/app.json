@@ -35,6 +35,12 @@
       "expo-web-browser",
       "expo-sharing",
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2a226db5-7779-4f6a-979a-a09d16feb9d7"
+      }
+    },
+    "owner": "promahbubul"
   }
 }

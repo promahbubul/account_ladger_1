@@ -1,0 +1,39 @@
+# Builds the Android app on Expo's servers. EAS free builds are limited, so this runs only when
+# started by hand (Actions → Build Mobile App → Run workflow) or by pushing a tag like mobile-v1.0.1.
+#
+# Repository secret: EXPO_TOKEN (expo.dev → Settings → Access Tokens).
+# The first build must be run once from a terminal, so EAS can create the signing key:
+#   cd mobile && npx eas-cli@latest build --platform android --profile preview
+name: Build Mobile App
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "preview gives an APK to install; production gives an AAB for the Play Store"
+        type: choice
+        options: [preview, production]
+        default: preview
+  push:
+    tags: ["mobile-v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - name: Start the build on Expo
+        run: eas build --platform android --profile ${{ inputs.profile || 'preview' }} --non-interactive --no-wait
