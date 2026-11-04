@@ -149,6 +149,8 @@ AccountLedger/
 
 ---
 
+> Pending performance and structure work is tracked in [docs/performance-plan.md](docs/performance-plan.md).
+
 ## 4. Root Convenience Scripts
 
 From the repository root, you can manage both services:
