@@ -6,18 +6,23 @@ import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { categoriesApi } from '../../services/api/categories.api';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const CreateCategoryScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
-  const defaultType = route.params?.defaultType || 'EXPENSE';
+  const category = route.params?.category;
+  const defaultType = category?.type || route.params?.defaultType || 'EXPENSE';
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(category?.name || '');
   const [type, setType] = useState(defaultType); // EXPENSE | INCOME
-  const [subcategories, setSubcategories] = useState([]);
+  const [subcategories, setSubcategories] = useState(category?.subcategories || []);
   const [subcategoryText, setSubcategoryText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [busyAction, setBusyAction] = useState('');
+  const [deleteVisible, setDeleteVisible] = useState(false);
 
   // Commas still split, so a pasted list works too. Duplicates are dropped ignoring case.
   const withPendingSubcategory = () => {
@@ -44,30 +49,51 @@ export const CreateCategoryScreen = ({ route, navigation }) => {
 
     setLoading(true);
     try {
-      await categoriesApi.createCategory({
-        name: name.trim(),
-        type,
-        subcategories: subcats.length > 0 ? subcats : undefined,
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['categoriesList'] });
+      if (category) {
+        await categoriesApi.updateCategory(category.id, { name: name.trim(), subcategories: subcats });
+        // A rename also changes past transactions and budgets, so every list must reload.
+        queryClient.invalidateQueries();
+      } else {
+        await categoriesApi.createCategory({
+          name: name.trim(),
+          type,
+          subcategories: subcats.length > 0 ? subcats : undefined,
+        });
+        queryClient.invalidateQueries({ queryKey: ['categoriesList'] });
+      }
       navigation.goBack();
     } catch (err) {
-      setError(err.message || 'Failed to create category.');
+      setError(err.message || 'Failed to save category.');
     } finally {
       setLoading(false);
     }
   };
 
+  const runAction = async (action, run) => {
+    setError('');
+    setBusyAction(action);
+    try {
+      await run();
+      queryClient.invalidateQueries({ queryKey: ['categoriesList'] });
+      navigation.goBack();
+    } catch (err) {
+      setError(err.message || 'Please try again.');
+    } finally {
+      setBusyAction('');
+      setDeleteVisible(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Header title="New Category" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
+      <Header title={category ? 'Edit Category' : 'New Category'} showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <Text style={styles.fieldLabel}>Type</Text>
-        <View style={styles.typeSelector}>
+        {category ? null : <Text style={styles.fieldLabel}>Type</Text>}
+        {category ? null : <View style={styles.typeSelector}>
           <TouchableOpacity
             style={[styles.typeOption, type === 'EXPENSE' && styles.typeOptionActive]}
             onPress={() => setType('EXPENSE')}
@@ -84,7 +110,7 @@ export const CreateCategoryScreen = ({ route, navigation }) => {
               Income
             </Text>
           </TouchableOpacity>
-        </View>
+        </View>}
 
         <Input
           label="Category Name *"
@@ -134,7 +160,36 @@ export const CreateCategoryScreen = ({ route, navigation }) => {
           loading={loading}
           style={styles.submitBtn}
         />
+
+        {category ? (
+          <>
+            <Button
+              title={category.isArchived ? 'Restore Category' : 'Archive Category'}
+              variant="secondary"
+              onPress={() => runAction('archive', () => categoriesApi.archiveCategory(category.id))}
+              loading={busyAction === 'archive'}
+              style={styles.secondaryAction}
+            />
+            <Button
+              title="Delete Category"
+              variant="danger"
+              onPress={() => setDeleteVisible(true)}
+              style={styles.secondaryAction}
+            />
+          </>
+        ) : null}
       </ScrollView>
+      </KeyboardView>
+
+      <ConfirmModal
+        visible={deleteVisible}
+        title="Delete Category"
+        message={`Delete "${category?.name}"? A category with transactions cannot be deleted, but it can be archived.`}
+        confirmText="Delete"
+        loading={busyAction === 'delete'}
+        onConfirm={() => runAction('delete', () => categoriesApi.deleteCategory(category.id))}
+        onCancel={() => setDeleteVisible(false)}
+      />
     </View>
   );
 };
@@ -218,5 +273,8 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: SPACING.md,
+  },
+  secondaryAction: {
+    marginTop: SPACING.sm,
   },
 });

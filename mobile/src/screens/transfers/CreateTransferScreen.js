@@ -12,6 +12,7 @@ import { Button } from '../../components/common/Button';
 import { transfersApi } from '../../services/api/transfers.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { getTodayISO, parseAmount } from '../../utils/formatters';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const CreateTransferScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
@@ -85,7 +86,8 @@ export const CreateTransferScreen = ({ route, navigation }) => {
     <View style={styles.container}>
       <Header title="Transfer Funds" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Input
@@ -148,6 +150,7 @@ export const CreateTransferScreen = ({ route, navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TIMEZONES } from '../../lib/preferences';
+import { DATE_FORMATS, TIMEZONES } from '../../lib/preferences';
 import {
   Download,
   Upload,
@@ -17,6 +17,7 @@ export const SettingsView: React.FC = () => {
 
   const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'BDT');
   const [selectedTimezone, setSelectedTimezone] = useState(user?.timezone || 'Asia/Dhaka');
+  const [selectedDateFormat, setSelectedDateFormat] = useState(user?.dateFormat || 'DD MMM YYYY');
   const [isSavingCurrency, setIsSavingCurrency] = useState(false);
 
   useEffect(() => {
@@ -26,7 +27,10 @@ export const SettingsView: React.FC = () => {
     if (user?.timezone) {
       setSelectedTimezone(user.timezone);
     }
-  }, [user?.currency, user?.timezone]);
+    if (user?.dateFormat) {
+      setSelectedDateFormat(user.dateFormat);
+    }
+  }, [user?.currency, user?.timezone, user?.dateFormat]);
 
   // Keeps a timezone saved before this list existed selectable.
   const timezoneOptions = TIMEZONES.some((t) => t.value === selectedTimezone)
@@ -39,7 +43,7 @@ export const SettingsView: React.FC = () => {
   const handleSaveCurrency = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingCurrency(true);
-    const res = await updateProfile({ currency: selectedCurrency, timezone: selectedTimezone });
+    const res = await updateProfile({ currency: selectedCurrency, timezone: selectedTimezone, dateFormat: selectedDateFormat });
     setIsSavingCurrency(false);
     if (res.success) {
       await refreshData();
@@ -201,9 +205,19 @@ export const SettingsView: React.FC = () => {
               <option key={tz.value} value={tz.value}>{tz.label}</option>
             ))}
           </select>
+          <select
+            aria-label="Date format"
+            value={selectedDateFormat}
+            onChange={(e) => setSelectedDateFormat(e.target.value)}
+            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+          >
+            {DATE_FORMATS.map((format) => (
+              <option key={format.value} value={format.value}>{format.label}</option>
+            ))}
+          </select>
           <button
             type="submit"
-            disabled={isSavingCurrency || (selectedCurrency === user?.currency && selectedTimezone === user?.timezone)}
+            disabled={isSavingCurrency || (selectedCurrency === user?.currency && selectedTimezone === user?.timezone && selectedDateFormat === user?.dateFormat)}
             className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded text-xs font-medium transition-colors"
           >
             {isSavingCurrency ? 'Saving...' : 'Save'}

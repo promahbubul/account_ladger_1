@@ -18,14 +18,13 @@ export const TransactionsScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
   const { startDate, endDate } = useDateFilter();
 
-  const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | INCOME | EXPENSE | TRANSFER
+  const [typeFilter, setTypeFilter] = useState('ALL'); // ALL | INCOME | EXPENSE
   const [search, setSearch] = useState('');
 
   const filters = [
     { id: 'ALL', label: 'All' },
     { id: 'INCOME', label: 'Income' },
     { id: 'EXPENSE', label: 'Expense' },
-    { id: 'TRANSFER', label: 'Transfer' },
   ];
 
   const transactionsQuery = usePagedQuery({

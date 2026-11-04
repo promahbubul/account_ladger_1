@@ -5,10 +5,27 @@ const CURRENCY_SYMBOLS = Object.fromEntries(CURRENCIES.map((c) => [c.code, c.sym
 // Set from the signed-in user's profile, so every amount and "today" follows their preferences.
 let displayCurrency = 'BDT';
 let displayTimezone = null;
+let displayDateFormat = 'DD MMM YYYY';
 
-export const setDisplayPreferences = ({ currency, timezone } = {}) => {
+export const setDisplayPreferences = ({ currency, timezone, dateFormat } = {}) => {
   displayCurrency = currency || 'BDT';
   displayTimezone = timezone || null;
+  displayDateFormat = dateFormat || 'DD MMM YYYY';
+};
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const applyDateFormat = (d, m, y) => {
+  switch (displayDateFormat) {
+    case 'DD/MM/YYYY':
+      return `${d}/${m}/${y}`;
+    case 'MM/DD/YYYY':
+      return `${m}/${d}/${y}`;
+    case 'YYYY-MM-DD':
+      return `${y}-${m}-${d}`;
+    default:
+      return `${d} ${MONTH_NAMES[Number(m) - 1]} ${y}`;
+  }
 };
 
 /**
@@ -32,7 +49,7 @@ export const formatCurrency = (amount, currency = displayCurrency) => {
 };
 
 /**
- * Format any date into standard DD/MM/YYYY
+ * Format any date using the profile's date format
  */
 export const formatDate = (dateInput) => {
   if (!dateInput) return '-';
@@ -40,12 +57,13 @@ export const formatDate = (dateInput) => {
   if (!str) return '-';
 
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-    return str;
+    const [d, m, y] = str.split('/');
+    return applyDateFormat(d, m, y);
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const [y, m, d] = str.split('-');
-    return `${d}/${m}/${y}`;
+    return applyDateFormat(d, m, y);
   }
 
   const d = new Date(str);
@@ -53,7 +71,7 @@ export const formatDate = (dateInput) => {
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    return applyDateFormat(day, month, year);
   }
 
   return str;

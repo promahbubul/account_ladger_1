@@ -156,6 +156,21 @@ export const projectService = {
     return { id, name, phone };
   },
 
+  async updatePerson(userId, projectId, personId, { name, phone }) {
+    const db = pool();
+    await assertOwned(db, userId, projectId);
+    try {
+      const res = await db.query(
+        'UPDATE project_people SET name = $1, phone = $2 WHERE id = $3 AND project_id = $4',
+        [name, phone, personId, projectId]
+      );
+      if (res.rowCount === 0) throw new ProjectError(404, 'Person not found.');
+    } catch (err) {
+      throw translateConstraint(err, 'A person with this name already exists in the project.');
+    }
+    return { id: personId, name, phone };
+  },
+
   async deletePerson(userId, projectId, personId) {
     const db = pool();
     await assertOwned(db, userId, projectId);
@@ -178,6 +193,18 @@ export const projectService = {
       throw translateConstraint(err, 'This head already exists in the project.');
     }
     return { id, name };
+  },
+
+  async updateHead(userId, projectId, headId, { name }) {
+    const db = pool();
+    await assertOwned(db, userId, projectId);
+    try {
+      const res = await db.query('UPDATE project_heads SET name = $1 WHERE id = $2 AND project_id = $3', [name, headId, projectId]);
+      if (res.rowCount === 0) throw new ProjectError(404, 'Head not found.');
+    } catch (err) {
+      throw translateConstraint(err, 'This head already exists in the project.');
+    }
+    return { id: headId, name };
   },
 
   async deleteHead(userId, projectId, headId) {

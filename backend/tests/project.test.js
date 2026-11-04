@@ -217,6 +217,33 @@ test('Projects and report analytics', async (t) => {
     assert.equal((await (await owner.get(`${base}/entries?all=true`)).json()).items.length, 120);
   });
 
+  await t.test('people and heads can be renamed, and entries follow the new name', postgresOnly, async () => {
+    const { project } = await (await owner.send('POST', '/projects', { name: 'Rename check' })).json();
+    const { person } = await (await owner.send('POST', `/projects/${project.id}/people`, { name: 'Karim' })).json();
+    await owner.send('POST', `/projects/${project.id}/people`, { name: 'Rahim' });
+    const { head } = await (await owner.send('POST', `/projects/${project.id}/heads`, { name: 'Tiles' })).json();
+    const entry = await owner.send('POST', `/projects/${project.id}/entries`, {
+      entries: [{ type: 'EXPENSE', amount: 10, date: '2026-01-05', personId: person.id, headId: head.id }],
+      batchId: `rename_${unique}`.slice(0, 40),
+    });
+    assert.equal(entry.status, 201);
+
+    const renamed = await owner.send('PUT', `/projects/${project.id}/people/${person.id}`, { name: 'Karim Mia', phone: '017' });
+    assert.equal(renamed.status, 200);
+    assert.equal((await owner.send('PUT', `/projects/${project.id}/heads/${head.id}`, { name: 'Floor Tiles' })).status, 200);
+
+    const { items } = await (await owner.get(`/projects/${project.id}/entries?all=true`)).json();
+    assert.equal(items[0].personName, 'Karim Mia');
+    assert.equal(items[0].headName, 'Floor Tiles');
+
+    const duplicate = await owner.send('PUT', `/projects/${project.id}/people/${person.id}`, { name: 'Rahim' });
+    assert.equal(duplicate.status, 409);
+    const missing = await owner.send('PUT', `/projects/${project.id}/heads/nope`, { name: 'Other name' });
+    assert.equal(missing.status, 404);
+    const foreign = await stranger.send('PUT', `/projects/${project.id}/people/${person.id}`, { name: 'Hacked' });
+    assert.equal(foreign.status, 404);
+  });
+
   await t.test('the JSON store reports projects as unavailable', { skip: Boolean(process.env.TEST_DATABASE_URL) }, async () => {
     assert.equal((await owner.get('/projects')).status, 503);
   });

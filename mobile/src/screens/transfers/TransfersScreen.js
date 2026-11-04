@@ -12,11 +12,16 @@ import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
 import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
+import { showMessage } from '../../utils/notify';
+import { formatCurrency } from '../../utils/formatters';
 import { transfersApi } from '../../services/api/transfers.api';
 
 export const TransfersScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [reversing, setReversing] = useState(null);
+  const [reverseLoading, setReverseLoading] = useState(false);
 
   const transfersQuery = usePagedQuery({
     queryKey: ['transfersList', search],
@@ -28,6 +33,21 @@ export const TransfersScreen = ({ navigation }) => {
   }, [queryClient]);
 
   const items = transfersQuery.items;
+
+  const handleReverse = async () => {
+    setReverseLoading(true);
+    try {
+      await transfersApi.deleteTransfer(reversing.id);
+      // Balances changed, so everything that shows them must reload.
+      queryClient.invalidateQueries();
+      setReversing(null);
+    } catch (err) {
+      setReversing(null);
+      showMessage('Could not reverse', err.message || 'Please try again.');
+    } finally {
+      setReverseLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -65,7 +85,7 @@ export const TransfersScreen = ({ navigation }) => {
           renderItem={({ item }) => (
             <TransferRow
               item={item}
-              onPress={() => {}}
+              onPress={() => setReversing(item)}
             />
           )}
           contentContainerStyle={styles.listContent}
@@ -91,6 +111,16 @@ export const TransfersScreen = ({ navigation }) => {
           }
         />
       )}
+
+      <ConfirmModal
+        visible={Boolean(reversing)}
+        title="Reverse Transfer"
+        message={reversing ? `Move ${formatCurrency(reversing.amount)} back to ${reversing.sourceAccountName || 'the source account'} and delete this transfer?` : ''}
+        confirmText="Reverse"
+        loading={reverseLoading}
+        onConfirm={handleReverse}
+        onCancel={() => setReversing(null)}
+      />
     </View>
   );
 };

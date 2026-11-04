@@ -25,7 +25,10 @@ export const CategoriesScreen = ({ navigation }) => {
   }, [queryClient]);
 
   const allCategories = categoriesQuery.data?.categories || [];
-  const filtered = allCategories.filter((c) => c.type === tab);
+  // Archived categories sort last so they can still be found and restored.
+  const filtered = allCategories
+    .filter((c) => c.type === tab)
+    .sort((a, b) => Number(Boolean(a.isArchived)) - Number(Boolean(b.isArchived)));
 
   return (
     <View style={styles.container}>
@@ -68,7 +71,13 @@ export const CategoriesScreen = ({ navigation }) => {
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={styles.categoryRow}>
+            <TouchableOpacity
+              style={[styles.categoryRow, item.isArchived && styles.archivedRow]}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('CreateCategory', { category: item })}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${item.name}`}
+            >
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: item.type === 'INCOME' ? COLORS.successLight : COLORS.dangerLight }]}>
                   <Ionicons
@@ -87,11 +96,15 @@ export const CategoriesScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              <Badge
-                label={item.type}
-                variant={item.type === 'INCOME' ? 'success' : 'danger'}
-              />
-            </View>
+              {item.isArchived ? (
+                <Badge label="Archived" variant="default" />
+              ) : (
+                <Badge
+                  label={item.type}
+                  variant={item.type === 'INCOME' ? 'success' : 'danger'}
+                />
+              )}
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -165,6 +178,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderHairline,
+  },
+  archivedRow: {
+    opacity: 0.55,
   },
   rowLeft: {
     flexDirection: 'row',

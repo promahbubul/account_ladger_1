@@ -16,6 +16,7 @@ import { Input } from '../../components/common/Input';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { formatCurrency, formatDate, parseAmount } from '../../utils/formatters';
 import { transactionsApi } from '../../services/api/transactions.api';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const TransactionDetailScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
@@ -213,7 +214,7 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
 
       {/* Edit Modal */}
       <Modal visible={editVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+        <KeyboardView style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Transaction</Text>
             <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
@@ -297,7 +298,7 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
               />
             </View>
           </View>
-        </View>
+        </KeyboardView>
       </Modal>
 
       <ConfirmModal

@@ -14,6 +14,7 @@ import { accountsApi } from '../../services/api/accounts.api';
 import { categoriesApi } from '../../services/api/categories.api';
 import { getTodayISO, parseAmount, isValidISODate } from '../../utils/formatters';
 import { getSelectableCategories } from '../../utils/categories';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const AddExpenseScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -106,7 +107,8 @@ export const AddExpenseScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header title="Add Expense" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <TouchableOpacity style={styles.multipleLink} onPress={() => navigation.replace('BulkExpense')}>
@@ -196,6 +198,7 @@ export const AddExpenseScreen = ({ navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

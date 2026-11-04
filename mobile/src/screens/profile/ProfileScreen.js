@@ -5,11 +5,12 @@ import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Select } from '../../components/common/Select';
-import { CURRENCIES, TIMEZONES } from '../../constants/preferences';
+import { CURRENCIES, TIMEZONES, DATE_FORMATS } from '../../constants/preferences';
 import { showMessage } from '../../utils/notify';
 import { Card } from '../../components/common/Card';
 import { useAuth } from '../../context/AuthContext';
 import { userApi } from '../../services/api/user.api';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 const CURRENCY_OPTIONS = CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} (${c.symbol}) - ${c.name}` }));
 
@@ -19,6 +20,7 @@ export const ProfileScreen = ({ navigation }) => {
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [currency, setCurrency] = useState(user?.currency || 'BDT');
   const [timezone, setTimezone] = useState(user?.timezone || 'Asia/Dhaka');
+  const [dateFormat, setDateFormat] = useState(user?.dateFormat || 'DD MMM YYYY');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -37,6 +39,7 @@ export const ProfileScreen = ({ navigation }) => {
         fullName: fullName.trim(),
         currency,
         timezone,
+        dateFormat,
       });
 
       if (res.user) {
@@ -57,7 +60,8 @@ export const ProfileScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header title="Profile & Preferences" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {success ? <Text style={styles.successText}>{success}</Text> : null}
 
@@ -92,6 +96,13 @@ export const ProfileScreen = ({ navigation }) => {
             onChange={setTimezone}
           />
 
+          <Select
+            label="Date Format"
+            value={dateFormat}
+            options={DATE_FORMATS}
+            onChange={setDateFormat}
+          />
+
           <Button
             title="Save Changes"
             onPress={handleSave}
@@ -100,6 +111,7 @@ export const ProfileScreen = ({ navigation }) => {
           />
         </Card>
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

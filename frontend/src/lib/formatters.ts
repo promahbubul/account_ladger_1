@@ -55,6 +55,27 @@ export const formatBDT = (amount: number | null | undefined, showSign: boolean =
   return `${isNegative ? '-' : ''}${currencySymbol}${formattedNumber}`;
 };
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const applyDateFormat = (d: string, m: string, y: string | number): string => {
+  let format = 'DD MMM YYYY';
+  try {
+    format = JSON.parse(localStorage.getItem('hisabflow_auth_user_v2') || '{}').dateFormat || format;
+  } catch {
+    // ignore
+  }
+  switch (format) {
+    case 'DD/MM/YYYY':
+      return `${d}/${m}/${y}`;
+    case 'MM/DD/YYYY':
+      return `${m}/${d}/${y}`;
+    case 'YYYY-MM-DD':
+      return `${y}-${m}-${d}`;
+    default:
+      return `${d} ${MONTH_NAMES[Number(m) - 1]} ${y}`;
+  }
+};
+
 export const formatDate = (dateInput?: string | Date | null): string => {
   if (!dateInput) return '-';
   const str = String(dateInput).trim();
@@ -62,13 +83,14 @@ export const formatDate = (dateInput?: string | Date | null): string => {
 
   // Already formatted as DD/MM/YYYY
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-    return str;
+    const [d, m, y] = str.split('/');
+    return applyDateFormat(d, m, y);
   }
 
   // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const [y, m, d] = str.split('-');
-    return `${d}/${m}/${y}`;
+    return applyDateFormat(d, m, y);
   }
 
   // Parse general Date / ISO string
@@ -77,7 +99,7 @@ export const formatDate = (dateInput?: string | Date | null): string => {
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    return applyDateFormat(day, month, year);
   }
 
   return str;

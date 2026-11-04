@@ -122,7 +122,22 @@ export async function updateCategory(req, res) {
     const { name, icon, color, subcategories, isArchived, parentId } = req.body;
 
     const updates = {};
-    if (name !== undefined) updates.name = String(name).trim();
+    if (name !== undefined) {
+      updates.name = String(name).trim();
+      if (!updates.name) {
+        res.status(400).json({ error: 'Category name is required.' });
+        return;
+      }
+      const userCats = await dbService.getCategories(req.user.id);
+      const current = userCats.find((c) => c.id === id);
+      const taken = current && userCats.some(
+        (c) => c.id !== id && c.type === current.type && c.name.toLowerCase() === updates.name.toLowerCase()
+      );
+      if (taken) {
+        res.status(409).json({ error: 'A category with this name already exists.' });
+        return;
+      }
+    }
     if (icon !== undefined) updates.icon = icon;
     if (color !== undefined) updates.color = color;
     if (subcategories !== undefined) updates.subcategories = subcategories;

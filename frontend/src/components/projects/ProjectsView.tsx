@@ -465,14 +465,17 @@ const EntriesTable: React.FC<{
 
 const NamedList: React.FC<{
   title: string;
+  saveLabel: string;
   placeholder: string;
   withPhone?: boolean;
   items: { id: string; name: string; phone?: string | null }[];
   emptyTitle: string;
   onAdd: (data: { name: string; phone?: string | null }) => Promise<void>;
+  onUpdate: (id: string, data: { name: string; phone?: string | null }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-}> = ({ title, placeholder, withPhone, items, emptyTitle, onAdd, onDelete }) => {
+}> = ({ title, saveLabel, placeholder, withPhone, items, emptyTitle, onAdd, onUpdate, onDelete }) => {
   const toast = useToast();
+  const [editingId, setEditingId] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -484,7 +487,10 @@ const NamedList: React.FC<{
     setSaving(true);
     setError('');
     try {
-      await onAdd({ name: name.trim(), ...(withPhone ? { phone: phone.trim() || null } : {}) });
+      const data = { name: name.trim(), ...(withPhone ? { phone: phone.trim() || null } : {}) };
+      if (editingId) await onUpdate(editingId, data);
+      else await onAdd(data);
+      setEditingId('');
       setName('');
       setPhone('');
     } catch (err: any) {
@@ -512,9 +518,23 @@ const NamedList: React.FC<{
             <input type="text" aria-label="Phone" placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} className={FIELD} />
           )}
           <button type="submit" disabled={saving || !name.trim()} className={PRIMARY}>
-            <Plus className="w-3.5 h-3.5" />
-            Add
+            {!editingId && <Plus className="w-3.5 h-3.5" />}
+            {editingId ? saveLabel : 'Add'}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId('');
+                setName('');
+                setPhone('');
+                setError('');
+              }}
+              className={SECONDARY}
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </form>
       <div className="bg-surface border border-line rounded divide-y divide-divider">
@@ -527,9 +547,24 @@ const NamedList: React.FC<{
                 <div className="font-medium text-gray-200 truncate">{item.name}</div>
                 {item.phone && <div className="text-gray-500 font-mono text-[11px]">{item.phone}</div>}
               </div>
-              <button type="button" aria-label={`Remove ${item.name}`} onClick={() => handleDelete(item.id)} className="p-1 text-gray-500 hover:text-red-400 rounded">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  aria-label={`Edit ${item.name}`}
+                  onClick={() => {
+                    setEditingId(item.id);
+                    setName(item.name);
+                    setPhone(item.phone || '');
+                    setError('');
+                  }}
+                  className="p-1 text-gray-500 hover:text-blue-400 rounded"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" aria-label={`Remove ${item.name}`} onClick={() => handleDelete(item.id)} className="p-1 text-gray-500 hover:text-red-400 rounded">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -726,12 +761,17 @@ const ProjectDetail: React.FC<{ projectId: string; onBack: () => void }> = ({ pr
       {tab === 'PEOPLE' && (
         <NamedList
           title="Add person"
+          saveLabel="Save"
           placeholder="Person's name"
           withPhone
           items={project.people}
           emptyTitle="No people added yet."
           onAdd={async (data) => {
             await api(`/${project.id}/people`, 'POST', data);
+            await load();
+          }}
+          onUpdate={async (id, data) => {
+            await api(`/${project.id}/people/${id}`, 'PUT', data);
             await load();
           }}
           onDelete={async (id) => {
@@ -744,11 +784,16 @@ const ProjectDetail: React.FC<{ projectId: string; onBack: () => void }> = ({ pr
       {tab === 'HEADS' && (
         <NamedList
           title="Add head"
+          saveLabel="Save"
           placeholder="Head name, e.g. Tiles"
           items={project.heads}
           emptyTitle="No heads added yet."
           onAdd={async (data) => {
             await api(`/${project.id}/heads`, 'POST', data);
+            await load();
+          }}
+          onUpdate={async (id, data) => {
+            await api(`/${project.id}/heads/${id}`, 'PUT', data);
             await load();
           }}
           onDelete={async (id) => {

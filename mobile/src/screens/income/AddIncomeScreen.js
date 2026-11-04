@@ -13,6 +13,7 @@ import { transactionsApi } from '../../services/api/transactions.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { categoriesApi } from '../../services/api/categories.api';
 import { getTodayISO, isValidISODate, parseAmount } from '../../utils/formatters';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const AddIncomeScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -106,7 +107,8 @@ export const AddIncomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header title="Add Income" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Input
@@ -188,6 +190,7 @@ export const AddIncomeScreen = ({ navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

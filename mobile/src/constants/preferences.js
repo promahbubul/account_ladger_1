@@ -48,3 +48,10 @@ export const BANK_PROVIDERS = [
 ];
 
 export const MOBILE_PROVIDERS = ['bKash', 'Nagad', 'Rocket', 'Upay', 'Tap'];
+
+export const DATE_FORMATS = [
+  { value: 'DD MMM YYYY', label: '04 Nov 2026' },
+  { value: 'DD/MM/YYYY', label: '04/11/2026' },
+  { value: 'MM/DD/YYYY', label: '11/04/2026' },
+  { value: 'YYYY-MM-DD', label: '2026-11-04' },
+];

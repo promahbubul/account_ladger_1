@@ -12,6 +12,7 @@ import { Button } from '../../components/common/Button';
 import { loansApi } from '../../services/api/loans.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { getTodayISO, parseAmount } from '../../utils/formatters';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const CreateLoanScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -86,7 +87,8 @@ export const CreateLoanScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header title="New Loan Record" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Text style={styles.fieldLabel}>Loan Type</Text>
@@ -175,6 +177,7 @@ export const CreateLoanScreen = ({ navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

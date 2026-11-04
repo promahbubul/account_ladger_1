@@ -13,6 +13,7 @@ import { Card } from '../../components/common/Card';
 import { loansApi } from '../../services/api/loans.api';
 import { accountsApi } from '../../services/api/accounts.api';
 import { getTodayISO, formatCurrency, parseAmount } from '../../utils/formatters';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const AddRepaymentScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
@@ -83,7 +84,8 @@ export const AddRepaymentScreen = ({ route, navigation }) => {
     <View style={styles.container}>
       <Header title="Record Repayment" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Card style={styles.loanOverview}>
           <Text style={styles.person}>{loan.counterpartyName}</Text>
           <Text style={styles.type}>
@@ -140,6 +142,7 @@ export const AddRepaymentScreen = ({ route, navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

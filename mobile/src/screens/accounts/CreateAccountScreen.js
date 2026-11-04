@@ -7,6 +7,7 @@ import { ProviderField } from '../../components/common/ProviderField';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { accountsApi } from '../../services/api/accounts.api';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 export const CreateAccountScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -64,7 +65,8 @@ export const CreateAccountScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header title="New Account" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Text style={styles.typeLabel}>Account Type</Text>
@@ -123,6 +125,7 @@ export const CreateAccountScreen = ({ navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

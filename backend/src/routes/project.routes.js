@@ -6,8 +6,10 @@ import {
   updateProject,
   deleteProject,
   addPerson,
+  updatePerson,
   deletePerson,
   addHead,
+  updateHead,
   deleteHead,
   listEntries,
   createEntries,
@@ -27,9 +29,11 @@ projectRouter.put('/:id', updateProject);
 projectRouter.delete('/:id', deleteProject);
 
 projectRouter.post('/:id/people', addPerson);
+projectRouter.put('/:id/people/:personId', updatePerson);
 projectRouter.delete('/:id/people/:personId', deletePerson);
 
 projectRouter.post('/:id/heads', addHead);
+projectRouter.put('/:id/heads/:headId', updateHead);
 projectRouter.delete('/:id/heads/:headId', deleteHead);
 
 projectRouter.get('/:id/entries', listEntries);

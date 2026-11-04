@@ -9,6 +9,7 @@ import { Select } from '../../components/common/Select';
 import { DateField } from '../../components/common/DateField';
 import { projectsApi } from '../../services/api/projects.api';
 import { parseAmount } from '../../utils/formatters';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
@@ -70,7 +71,8 @@ export const ProjectFormScreen = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       <Header title={project ? 'Edit Project' : 'New Project'} showBack onBack={() => navigation.goBack()} showDateFilter={false} />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Input label="Project Name *" placeholder="e.g. Dhaka Building" value={name} onChangeText={setName} autoCapitalize="words" />
         <Input label="Client (Optional)" value={clientName} onChangeText={setClientName} autoCapitalize="words" />
@@ -80,6 +82,7 @@ export const ProjectFormScreen = ({ route, navigation }) => {
         {project ? <Select label="Status" value={status} options={STATUS_OPTIONS} onChange={setStatus} /> : null}
         <Button title={project ? 'Save Changes' : 'Create Project'} onPress={handleSave} loading={loading} style={styles.submitBtn} />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };

@@ -17,6 +17,7 @@ import { projectsApi } from '../../services/api/projects.api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { exportProjectCsv, exportProjectPdf } from '../../utils/projectExport';
 import { showMessage } from '../../utils/notify';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 const TABS = [
   { key: 'OVERVIEW', label: 'Overview' },
@@ -62,22 +63,38 @@ const EntriesTab = ({ projectId, type, navigation }) => {
   );
 };
 
-const NamedListTab = ({ title, items, placeholder, withPhone, onAdd, onDelete, emptyTitle, emptyIcon }) => {
+const NamedListTab = ({ title, editTitle, items, placeholder, withPhone, onAdd, onUpdate, onDelete, emptyTitle, emptyIcon }) => {
+  const [editing, setEditing] = useState(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleAdd = async () => {
+  const startEdit = (item) => {
+    setEditing(item);
+    setName(item.name);
+    setPhone(item.phone || '');
+    setError('');
+  };
+
+  const resetForm = () => {
+    setEditing(null);
+    setName('');
+    setPhone('');
+    setError('');
+  };
+
+  const handleSave = async () => {
     if (!name.trim() || loading) return;
     setLoading(true);
     setError('');
     try {
-      await onAdd({ name: name.trim(), ...(withPhone ? { phone: phone.trim() || null } : {}) });
-      setName('');
-      setPhone('');
+      const data = { name: name.trim(), ...(withPhone ? { phone: phone.trim() || null } : {}) };
+      if (editing) await onUpdate(editing, data);
+      else await onAdd(data);
+      resetForm();
     } catch (err) {
-      setError(err.message || 'Could not add this.');
+      setError(err.message || 'Could not save this.');
     } finally {
       setLoading(false);
     }
@@ -87,19 +104,26 @@ const NamedListTab = ({ title, items, placeholder, withPhone, onAdd, onDelete, e
     <View>
       <View style={styles.addCard}>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <Input label={title} placeholder={placeholder} value={name} onChangeText={setName} autoCapitalize="words" />
+        <Input label={editing ? editTitle : title} placeholder={placeholder} value={name} onChangeText={setName} autoCapitalize="words" />
         {withPhone ? <Input label="Phone (Optional)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" /> : null}
-        <Button title="Add" variant="secondary" onPress={handleAdd} loading={loading} disabled={!name.trim()} />
+        <Button title={editing ? 'Save' : 'Add'} variant="secondary" onPress={handleSave} loading={loading} disabled={!name.trim()} />
+        {editing ? <Button title="Cancel" variant="ghost" onPress={resetForm} style={styles.cancelEdit} /> : null}
       </View>
       {items.length === 0 ? (
         <EmptyState icon={emptyIcon} title={emptyTitle} />
       ) : (
         items.map((item) => (
           <View key={item.id} style={styles.listRow}>
-            <View style={styles.listRowInfo}>
+            <TouchableOpacity
+              style={styles.listRowInfo}
+              activeOpacity={0.7}
+              onPress={() => startEdit(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${item.name}`}
+            >
               <Text style={styles.listRowTitle} numberOfLines={1}>{item.name}</Text>
               {item.phone ? <Text style={styles.listRowSub}>{item.phone}</Text> : null}
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => onDelete(item)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -285,6 +309,7 @@ export const ProjectDetailScreen = ({ route, navigation }) => {
           <EntriesTab key={tab} projectId={projectId} type={tab} navigation={navigation} />
         </View>
       ) : (
+        <KeyboardView>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -335,6 +360,7 @@ export const ProjectDetailScreen = ({ route, navigation }) => {
           {tab === 'PEOPLE' ? (
             <NamedListTab
               title="Add Person"
+              editTitle="Edit Person"
               placeholder="e.g. Karim"
               withPhone
               items={project.people}
@@ -344,6 +370,10 @@ export const ProjectDetailScreen = ({ route, navigation }) => {
                 await projectsApi.addPerson(projectId, data);
                 refresh();
               }}
+              onUpdate={async (item, data) => {
+                await projectsApi.updatePerson(projectId, item.id, data);
+                refresh();
+              }}
               onDelete={(item) => removeNamed(() => projectsApi.deletePerson(projectId, item.id))}
             />
           ) : null}
@@ -351,6 +381,7 @@ export const ProjectDetailScreen = ({ route, navigation }) => {
           {tab === 'HEADS' ? (
             <NamedListTab
               title="Add Head"
+              editTitle="Edit Head"
               placeholder="e.g. Tiles"
               items={project.heads}
               emptyIcon="pricetags-outline"
@@ -359,10 +390,15 @@ export const ProjectDetailScreen = ({ route, navigation }) => {
                 await projectsApi.addHead(projectId, data);
                 refresh();
               }}
+              onUpdate={async (item, data) => {
+                await projectsApi.updateHead(projectId, item.id, data);
+                refresh();
+              }}
               onDelete={(item) => removeNamed(() => projectsApi.deleteHead(projectId, item.id))}
             />
           ) : null}
         </ScrollView>
+        </KeyboardView>
       )}
 
       <ConfirmModal
@@ -379,6 +415,9 @@ export const ProjectDetailScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  cancelEdit: {
+    marginTop: SPACING.xs,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

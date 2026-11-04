@@ -11,8 +11,10 @@ export const projectsApi = {
   deleteProject: (id) => send('DELETE', `/api/projects/${id}`),
 
   addPerson: (id, data) => send('POST', `/api/projects/${id}/people`, data),
+  updatePerson: (id, personId, data) => send('PUT', `/api/projects/${id}/people/${personId}`, data),
   deletePerson: (id, personId) => send('DELETE', `/api/projects/${id}/people/${personId}`),
   addHead: (id, data) => send('POST', `/api/projects/${id}/heads`, data),
+  updateHead: (id, headId, data) => send('PUT', `/api/projects/${id}/heads/${headId}`, data),
   deleteHead: (id, headId) => send('DELETE', `/api/projects/${id}/heads/${headId}`),
 
   getEntries: (id, { type, page = 1, limit = 50, all = false } = {}) => {

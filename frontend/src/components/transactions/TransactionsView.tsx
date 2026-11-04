@@ -355,7 +355,6 @@ export const TransactionsView: React.FC = () => {
             <option value="ALL">All Types</option>
             <option value="INCOME">Income</option>
             <option value="EXPENSE">Expense</option>
-            <option value="TRANSFER">Transfer</option>
             <option value="LOAN_LENT">Loan Given</option>
             <option value="LOAN_BORROWED">Loan Borrowed</option>
             <option value="LOAN_REPAYMENT">Loan Repayment</option>

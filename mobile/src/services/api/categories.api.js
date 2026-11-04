@@ -22,7 +22,7 @@ export const categoriesApi = {
   addSubcategory: async (id, name) => {
     return apiClient(`/api/categories/${id}/subcategories`, {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ subcategory: name }),
     });
   },
 

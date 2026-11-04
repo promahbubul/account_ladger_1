@@ -12,6 +12,7 @@ import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { projectsApi } from '../../services/api/projects.api';
 import { formatCurrency, getTodayISO, isValidISODate, parseAmount } from '../../utils/formatters';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 const newKey = () => `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 const newRow = () => ({ key: newKey(), headId: '', personId: '', amount: '', description: '' });
@@ -126,7 +127,8 @@ export const ProjectEntriesScreen = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       <Header title={title} showBack onBack={() => navigation.goBack()} showDateFilter={false} />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {projectQuery.isError && !project ? (
           <QueryErrorBanner message="Could not load this project." onRetry={() => projectQuery.refetch()} />
@@ -211,6 +213,7 @@ export const ProjectEntriesScreen = ({ route, navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
 
       <ConfirmModal
         visible={deleteVisible}

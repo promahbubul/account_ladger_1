@@ -104,6 +104,14 @@ export const addPerson = handle(async (req, res) => {
   res.status(201).json({ success: true, person });
 });
 
+export const updatePerson = handle(async (req, res) => {
+  const person = await projectService.updatePerson(req.user.id, req.params.id, req.params.personId, {
+    name: requiredText(req.body.name, 'Name', 128),
+    phone: optionalText(req.body.phone, 'Phone', 32),
+  });
+  res.json({ success: true, person });
+});
+
 export const deletePerson = handle(async (req, res) => {
   await projectService.deletePerson(req.user.id, req.params.id, req.params.personId);
   res.json({ success: true });
@@ -112,6 +120,13 @@ export const deletePerson = handle(async (req, res) => {
 export const addHead = handle(async (req, res) => {
   const head = await projectService.addHead(req.user.id, req.params.id, { name: requiredText(req.body.name, 'Head name', 128) });
   res.status(201).json({ success: true, head });
+});
+
+export const updateHead = handle(async (req, res) => {
+  const head = await projectService.updateHead(req.user.id, req.params.id, req.params.headId, {
+    name: requiredText(req.body.name, 'Head', 128),
+  });
+  res.json({ success: true, head });
 });
 
 export const deleteHead = handle(async (req, res) => {

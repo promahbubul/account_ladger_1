@@ -839,6 +839,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { success: false, error: data.error || 'Failed to update category' };
       }
       setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...data.category } : c)));
+      // A rename also moves past transactions and budgets to the new name on the server.
+      if (updates.name !== undefined) await refreshData();
       return { success: true, category: data.category };
     } catch (err: any) {
       console.error('Error updating category:', err);

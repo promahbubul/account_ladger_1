@@ -15,6 +15,7 @@ import { categoriesApi } from '../../services/api/categories.api';
 import { getTodayISO, formatCurrency, parseAmount, isValidISODate } from '../../utils/formatters';
 import { getSelectableCategories } from '../../utils/categories';
 import { showMessage } from '../../utils/notify';
+import { KeyboardView } from '../../components/common/KeyboardView';
 
 const newKey = () => `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 const newRow = () => ({ key: newKey(), subcategory: '', description: '', amount: '' });
@@ -195,7 +196,8 @@ export const BulkExpenseScreen = ({ navigation }) => {
     <View style={styles.container}>
       <Header title="Add Multiple Expenses" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardView>
+<ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <DateField
@@ -357,6 +359,7 @@ export const BulkExpenseScreen = ({ navigation }) => {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardView>
     </View>
   );
 };
