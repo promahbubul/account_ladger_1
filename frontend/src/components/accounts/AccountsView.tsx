@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
-import { Account } from '../../mock/data';
+import { Account, Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
@@ -30,7 +30,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
   onSuccessNotification,
 }) => {
   const toast = useToast();
-  const { transactions, addAccount, editAccount, toggleArchiveAccount, deleteAccount, authFetch } = useFinance();
+  const { addAccount, editAccount, toggleArchiveAccount, deleteAccount, authFetch, ledgerVersion } = useFinance();
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,6 +117,61 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
   useEffect(() => {
     fetchAccounts();
   }, [fetchAccounts]);
+
+  // Transaction history of the account open in the detail modal, read one page at a time.
+  const viewAccountId = viewAccount?.id;
+  const [history, setHistory] = useState<Transaction[]>([]);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+  const [historyReloadKey, setHistoryReloadKey] = useState(0);
+
+  const fetchHistoryPage = useCallback(
+    async (accountId: string, after: string | null) => {
+      const params = new URLSearchParams({ accountId, limit: '50' });
+      if (after) params.set('cursor', after);
+      const res = await authFetch(`/api/transactions?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to load account history');
+      const data = await res.json();
+      return { items: (data.items || []) as Transaction[], nextCursor: (data.hasNextPage && data.nextCursor) || null };
+    },
+    [authFetch]
+  );
+
+  useEffect(() => {
+    if (!viewAccountId) return;
+    let active = true;
+    setHistory([]);
+    setHistoryCursor(null);
+    setHistoryStatus('loading');
+    fetchHistoryPage(viewAccountId, null)
+      .then((page) => {
+        if (!active) return;
+        setHistory(page.items);
+        setHistoryCursor(page.nextCursor);
+        setHistoryStatus('ready');
+      })
+      .catch(() => {
+        if (active) setHistoryStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [viewAccountId, fetchHistoryPage, ledgerVersion, historyReloadKey]);
+
+  const loadMoreHistory = async () => {
+    if (!viewAccountId || !historyCursor) return;
+    setIsLoadingMoreHistory(true);
+    try {
+      const page = await fetchHistoryPage(viewAccountId, historyCursor);
+      setHistory((prev) => [...prev, ...page.items]);
+      setHistoryCursor(page.nextCursor);
+    } catch {
+      toast.error('Could not load more transactions.');
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  };
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
@@ -671,15 +726,22 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1e2129]">
-                  {transactions.filter(t => t.accountId === viewAccount.id || t.destinationAccountId === viewAccount.id).length === 0 ? (
+                  {historyStatus === 'loading' ? (
+                    <TableLoadingRow colSpan={4} message="Loading transactions..." />
+                  ) : historyStatus === 'error' ? (
+                    <TableErrorRow
+                      colSpan={4}
+                      title="Could not load transactions"
+                      onRetry={() => setHistoryReloadKey((key) => key + 1)}
+                    />
+                  ) : history.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-6 text-center text-gray-500">
                         No transactions recorded for this account.
                       </td>
                     </tr>
                   ) : (
-                    transactions
-                      .filter(t => t.accountId === viewAccount.id || t.destinationAccountId === viewAccount.id)
+                    history
                       .map((tx) => (
                         <tr key={tx.id} className="hover:bg-surface-hover">
                           <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">{formatDate(tx.date)}</td>
@@ -694,6 +756,19 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {historyStatus === 'ready' && historyCursor && (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={loadMoreHistory}
+                  disabled={isLoadingMoreHistory}
+                  className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors disabled:opacity-60"
+                >
+                  {isLoadingMoreHistory ? 'Loading...' : 'Load More'}
+                </button>
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <button

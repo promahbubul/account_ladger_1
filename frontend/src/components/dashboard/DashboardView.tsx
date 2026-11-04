@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -12,12 +12,23 @@ import { useFinance } from '../../context/FinanceContext';
 import { useDateFilter } from '../../context/DateFilterContext';
 import {
   DataLoadErrorBanner,
+  DataStatus,
   LoadedValue,
   TableEmptyRow,
   TableErrorRow,
   TableLoadingRow,
 } from '../common/StateViews';
-import { normalizeToISODate } from '../common/DatePicker';
+import { Transaction } from '../../mock/data';
+
+const RECENT_COUNT = 6;
+
+interface PeriodLedger {
+  rangeKey: string;
+  totalIncome: number;
+  totalExpense: number;
+  recent: Transaction[];
+  totalCount: number;
+}
 
 interface DashboardViewProps {
   onOpenQuickAction: (actionType: 'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk') => void;
@@ -30,22 +41,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateTab,
   selectedPeriod,
 }) => {
-  const { accounts, transactions, loans, budgetAlerts, dataStatus, refreshData } = useFinance();
+  const { accounts, loans, budgetAlerts, dataStatus, refreshData, authFetch, ledgerVersion } = useFinance();
   const { dateFilter } = useDateFilter();
 
-  const filteredTransactions = React.useMemo(() => {
-    return transactions.filter(t => {
-      const txDate = normalizeToISODate(t.date);
-      if (!txDate) return false;
-      if (dateFilter.startDate && txDate < dateFilter.startDate) return false;
-      if (dateFilter.endDate && txDate > dateFilter.endDate) return false;
-      return true;
-    });
-  }, [transactions, dateFilter.startDate, dateFilter.endDate]);
+  // Period totals and the newest rows come from the server, so the full ledger is never loaded here.
+  const rangeKey = `${dateFilter.startDate || ''}|${dateFilter.endDate || ''}`;
+  const [ledger, setLedger] = useState<PeriodLedger | null>(null);
+  const [ledgerFailed, setLedgerFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setLedgerFailed(false);
+    const range = new URLSearchParams();
+    if (dateFilter.startDate) range.set('startDate', dateFilter.startDate);
+    if (dateFilter.endDate) range.set('endDate', dateFilter.endDate);
+    const page = new URLSearchParams(range);
+    page.set('limit', '50');
+    Promise.all([authFetch(`/api/reports/summary?${range}`), authFetch(`/api/transactions?${page}`)])
+      .then(async ([summaryRes, txRes]) => {
+        if (!summaryRes.ok || !txRes.ok) throw new Error('Could not load the dashboard.');
+        const [summary, txPage] = await Promise.all([summaryRes.json(), txRes.json()]);
+        if (!active) return;
+        setLedger({
+          rangeKey,
+          totalIncome: Number(summary.totalIncome) || 0,
+          totalExpense: Number(summary.totalExpense) || 0,
+          recent: (txPage.items || []).slice(0, RECENT_COUNT),
+          totalCount: Number(txPage.totalCount) || 0,
+        });
+      })
+      .catch(() => {
+        if (active) setLedgerFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [authFetch, dateFilter.startDate, dateFilter.endDate, rangeKey, ledgerVersion]);
+
+  // Figures for an older date range are never shown; a refetch after an edit keeps the current ones.
+  const ledgerStatus: DataStatus = ledgerFailed ? 'error' : ledger?.rangeKey === rangeKey ? 'ready' : 'loading';
+  const recentTransactions = ledgerStatus === 'ready' && ledger ? ledger.recent : [];
+  const periodCount = ledgerStatus === 'ready' && ledger ? ledger.totalCount : 0;
 
   const totalBalance = accounts.filter(a => a.status === 'ACTIVE').reduce((sum, a) => sum + a.currentBalance, 0);
-  const totalIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = ledger?.totalIncome ?? 0;
+  const totalExpense = ledger?.totalExpense ?? 0;
   const netCashFlow = totalIncome - totalExpense;
 
   const totalReceivables = loans
@@ -83,7 +122,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
-      {dataStatus === 'error' && (
+      {(dataStatus === 'error' || ledgerStatus === 'error') && (
         <DataLoadErrorBanner message="Could not load your financial data." onRetry={refreshData} />
       )}
 
@@ -99,21 +138,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Total Income</div>
           <div className="text-lg font-bold font-mono text-gray-100 mt-1">
-            <LoadedValue status={dataStatus}>+{formatBDT(totalIncome)}</LoadedValue>
+            <LoadedValue status={ledgerStatus}>+{formatBDT(totalIncome)}</LoadedValue>
           </div>
         </div>
 
         <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Total Expenses</div>
           <div className="text-lg font-bold font-mono text-gray-200 mt-1">
-            <LoadedValue status={dataStatus}>-{formatBDT(totalExpense)}</LoadedValue>
+            <LoadedValue status={ledgerStatus}>-{formatBDT(totalExpense)}</LoadedValue>
           </div>
         </div>
 
         <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Net Flow</div>
-          <div className={`text-lg font-bold font-mono mt-1 ${dataStatus !== 'ready' || netCashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            <LoadedValue status={dataStatus}>{formatBDT(netCashFlow, true)}</LoadedValue>
+          <div className={`text-lg font-bold font-mono mt-1 ${ledgerStatus !== 'ready' || netCashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <LoadedValue status={ledgerStatus}>{formatBDT(netCashFlow, true)}</LoadedValue>
           </div>
         </div>
       </div>
@@ -262,9 +301,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
                 Recent Transactions
               </h3>
-              {filteredTransactions.length > 0 && (
+              {periodCount > 0 && (
                 <span className="text-[10px] text-gray-400 font-mono">
-                  ({Math.min(6, filteredTransactions.length)} of {filteredTransactions.length})
+                  ({recentTransactions.length} of {periodCount})
                 </span>
               )}
             </div>
@@ -286,18 +325,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {dataStatus === 'loading' ? (
+                {ledgerStatus === 'loading' ? (
                   <TableLoadingRow colSpan={4} message="Loading transactions..." minHeightClass="min-h-[160px]" />
-                ) : dataStatus === 'error' ? (
+                ) : ledgerStatus === 'error' ? (
                   <TableErrorRow colSpan={4} title="Could not load transactions" onRetry={refreshData} minHeightClass="min-h-[160px]" />
-                ) : filteredTransactions.length === 0 ? (
+                ) : recentTransactions.length === 0 ? (
                   <TableEmptyRow
                     colSpan={4}
                     title="No transactions recorded"
                     minHeightClass="min-h-[160px]"
                   />
                 ) : (
-                  filteredTransactions.slice(0, 6).map((tx) => (
+                  recentTransactions.map((tx) => (
                     <tr key={tx.id} className="hover:bg-surface-hover">
                       <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                         {formatDate(tx.date)}

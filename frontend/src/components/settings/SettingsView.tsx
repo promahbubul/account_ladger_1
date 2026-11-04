@@ -54,7 +54,13 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleDownloadBackup = async () => {
-    const jsonStr = await exportData();
+    let jsonStr: string;
+    try {
+      jsonStr = await exportData();
+    } catch (err: any) {
+      setImportStatus({ success: false, message: err.message || 'Could not create the backup.' });
+      return;
+    }
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

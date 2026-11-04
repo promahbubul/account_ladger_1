@@ -1,6 +1,6 @@
 # Performance ও Structure Plan
 
-শেষ হালনাগাদ: 2026-11-04
+শেষ হালনাগাদ: 2026-11-05
 
 এই ফাইল দেখে যেকোনো PC থেকে কাজ চালানো যাবে। Claude Code-কে বলুন:
 
@@ -18,8 +18,8 @@
 | ধাপ | কাজ | অবস্থা |
 |---|---|---|
 | 1 | Backend: আসল SQL paging, index, gzip | ✅ শেষ (`2b1e3a2`) |
-| 2 | Web: login-এ সব transaction আনা বন্ধ | ⬜ পরের কাজ |
-| 3 | Mobile: admin paging, list-এর গতি | ⬜ বাকি |
+| 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (branch `perf/web-stop-loading-all-transactions`) |
+| 3 | Mobile: admin paging, list-এর গতি | ⬜ পরের কাজ |
 | 4 | Backend: ছোট বাকি কাজ | ⬜ বাকি |
 | 5 | Test ও CI | ⬜ বাকি |
 | 6 | Structure পরিষ্কার | ⬜ বাকি, সবচেয়ে কম জরুরি |
@@ -42,7 +42,26 @@
 
 এই ধাপে ইচ্ছা করে যা রাখা হয়েছে: Audit log-এ `items` আর `logs` দুটোই আছে, কারণ web `items` পড়ে আর mobile `logs` পড়ে। Users list এখনো পুরোনো পদ্ধতিতে চলে (ধাপ 4)।
 
-## ধাপ 2: Web login-এ সব transaction আনা বন্ধ
+## ধাপ 2: Web login-এ সব transaction আনা বন্ধ ✅ শেষ
+
+**যা হয়েছে:**
+
+- `getReportAnalytics` এখন `totals` (direction ধরে inflow/outflow) আর `byAccount` পাঠায়। পুরোনো `TRANSFER` row আগের মতোই উৎসের outflow আর গন্তব্যের inflow ধরা হয়। Test: `backend/tests/project.test.js`।
+- `FinanceContext`-এ আর `transactions` state নেই। Login-এ `all=true` চলে না। `monthCategorySpend` (এই মাসের category খরচ) আর `ledgerVersion` (transaction বদলালে বাড়ে) যোগ হয়েছে। Screen-গুলো `ledgerVersion` বদলালে আবার আনে।
+- Budgets ও budget alert: `monthCategorySpend`। Dashboard: `/api/reports/summary` আর `/api/transactions?limit=50`। Accounts-এর বিস্তারিত: `accountId` দিয়ে paged, Load More সহ। Reports: একটাই `/api/reports/analytics` call।
+- Edit/delete-এর পর balance `/api/accounts` থেকে আবার আনা হয়। Transfer delete-এর পর আগে balance বদলাত না, এখন বদলায়।
+- Backup download (`exportData`) শুধু চাপলে `all=true` আনে, CSV export-এর মতো।
+- `FinanceContext`-এর `value` এখন `useMemo`, action-গুলো `useStableActions` দিয়ে স্থির।
+- আগে-পরে মিলানো: local JSON store-এ দুই account, তিন মাস, transfer সহ data দিয়ে Dashboard, Reports, Accounts-এর ৩০টা সংখ্যা আর তালিকা হুবহু মিলেছে।
+
+**ইচ্ছা করে যা বদলেছে:**
+
+- Budgets-এর "Spent to Date" আগে সব সময়ের খরচ দেখাত, এখন শুধু এই মাসের, যাতে মাসিক limit আর alert-এর সাথে মেলে।
+- Category খালি থাকলে Reports-এ নাম আগে "Other Expenses" ছিল, এখন server-এর "Uncategorized"। নতুন transaction-এ category খালি থাকে না।
+- Accounts-এর বিস্তারিত থেকে পুরোনো `TRANSFER` row-এর গন্তব্য-দিক বাদ পড়ে, কারণ server-এর `accountId` filter শুধু `account_id` দেখে। নতুন transfer `transfers` table-এ থাকে, তাই এখানে আগেও দেখা যেত না।
+- Transfer করার পর Dashboard-এর Recent Transactions-এ আর নকল "Internal Transfer" row আসে না; আগে page reload করলেই ওটা চলে যেত।
+
+**বাকি যাচাই:** Postgres mode-এর test CI-তে চলবে (এই PC-তে Docker নেই)। Live-এ login করে network tab-এ `all=true` নেই কিনা দেখা।
 
 **কেন:** `FinanceContext.refreshData` login-এই `/api/transactions?all=true` আনে, কোনো সীমা ছাড়া। `ReportsView` আবার আলাদা করে আনে। সবচেয়ে বড় ডেটা খরচ এখানেই। এটা ঝুঁকির কাজও, কারণ অনেক screen এই list-এর উপর চলে।
 
