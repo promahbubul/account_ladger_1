@@ -1,5 +1,5 @@
 /**
- * HisabFlow Frontend API Service Client
+ * AccountLedger Frontend API Service Client
  * Configured to communicate with the Express.js REST API via NEXT_PUBLIC_API_URL.
  */
 

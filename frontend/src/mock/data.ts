@@ -1,4 +1,4 @@
-// HisabFlow Data Models & Types
+// AccountLedger Data Models & Types
 // Production Schema (No Mock Financial Records)
 
 export interface Account {

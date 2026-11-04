@@ -4,13 +4,12 @@ import {
   AlertTriangle,
   Edit2,
   Trash2,
-  Loader2,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useToast } from '../../context/ToastContext';
 import { formatBDT } from '../../lib/formatters';
 import { Modal, ConfirmModal } from '../common/Modal';
-import { TableEmptyRow } from '../common/StateViews';
+import { DataLoadErrorBanner, LoadedValue, TableEmptyRow, TableErrorRow, TableLoadingRow } from '../common/StateViews';
 
 interface BudgetsViewProps {
   onSuccessNotification: (msg: string) => void;
@@ -21,7 +20,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   onSuccessNotification,
   onNavigateTab,
 }) => {
-  const { budgets, transactions, categories, setCategoryBudget, deleteBudget } = useFinance();
+  const { budgets, transactions, categories, setCategoryBudget, deleteBudget, dataStatus, refreshData } = useFinance();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -123,36 +122,40 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
         </div>
       )}
 
+      {dataStatus === 'error' && (
+        <DataLoadErrorBanner message="Could not load your budgets." onRetry={refreshData} />
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Monthly Budget</div>
           <div className="text-lg font-semibold font-mono text-gray-100 mt-0.5">
-            {formatBDT(totalMonthlyBudget)}
+            <LoadedValue status={dataStatus}>{formatBDT(totalMonthlyBudget)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Total Spent</div>
           <div className="text-lg font-semibold font-mono text-gray-200 mt-0.5">
-            {formatBDT(totalBudgetedSpent)}
+            <LoadedValue status={dataStatus}>{formatBDT(totalBudgetedSpent)}</LoadedValue>
           </div>
         </div>
 
-        <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+        <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Over Limit</div>
           <div className={`text-lg font-semibold font-mono mt-0.5 ${overBudgetCategories.length > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-            {overBudgetCategories.length}
+            <LoadedValue status={dataStatus}>{overBudgetCategories.length}</LoadedValue>
           </div>
         </div>
       </div>
 
       {/* Budgets Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden">
+      <div className="bg-surface border border-line rounded overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-[#22252c] bg-[#121417] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+              <tr className="border-b border-line bg-surface-sunken text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Category</th>
                 <th className="py-2.5 px-3 text-right">Monthly Limit</th>
                 <th className="py-2.5 px-3 text-right">Spent to Date</th>
@@ -162,8 +165,12 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#20232a]">
-              {budgetDetails.length === 0 ? (
+            <tbody className="divide-y divide-divider">
+              {dataStatus === 'loading' ? (
+                <TableLoadingRow colSpan={7} message="Loading budgets..." />
+              ) : dataStatus === 'error' ? (
+                <TableErrorRow colSpan={7} title="Could not load budgets" onRetry={refreshData} />
+              ) : budgetDetails.length === 0 ? (
                 <TableEmptyRow
                   colSpan={7}
                   title="No category budgets defined"
@@ -174,7 +181,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                 />
               ) : (
                 budgetDetails.map((b) => (
-                  <tr key={b.categoryName} className="hover:bg-[#1a1d24] transition-colors">
+                  <tr key={b.categoryName} className="hover:bg-surface-hover transition-colors">
                     <td className="py-2.5 px-3 font-medium text-gray-200">
                       {b.categoryName}
                     </td>
@@ -191,7 +198,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                     </td>
                     <td className="py-2.5 px-3 w-40">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-[#121417] h-1.5 rounded-full overflow-hidden border border-[#242730]">
+                        <div className="flex-1 bg-surface-sunken h-1.5 rounded-full overflow-hidden border border-[#242730]">
                           <div
                             className={`h-full rounded-full ${
                               b.isOver ? 'bg-red-500' : b.isWarning ? 'bg-amber-400' : 'bg-blue-500'
@@ -222,14 +229,14 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                         <button
                           onClick={() => handleOpenEdit(b.categoryName, b.limit)}
                           title="Edit Budget"
-                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setBudgetToDelete(b.categoryName)}
                           title="Remove Budget"
-                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -242,7 +249,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
           </table>
         </div>
 
-        <div className="py-2 px-3 border-t border-[#22252c] bg-[#121417] text-gray-400 text-xs flex justify-between items-center">
+        <div className="py-2 px-3 border-t border-line bg-surface-sunken text-gray-400 text-xs flex justify-between items-center">
           <span>{budgets.length} budgeted categories</span>
         </div>
       </div>
@@ -261,7 +268,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             >
               {expenseCategories.map((c) => (
                 <option key={c.id} value={c.name}>{c.name}</option>
@@ -279,15 +286,15 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
               required
               value={budgetLimitInput}
               onChange={(e) => setBudgetLimitInput(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>

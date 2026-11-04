@@ -436,7 +436,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 required
                 value={incomeAmount}
                 onChange={(e) => setIncomeAmount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -447,7 +447,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={incomeAccount}
                 onChange={(e) => setIncomeAccount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -460,7 +460,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={incomeCategory}
                 onChange={(e) => setIncomeCategory(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {incomeCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -476,7 +476,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               required
               value={incomeDesc}
               onChange={(e) => setIncomeDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -486,16 +486,16 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={incomeRef}
               onChange={(e) => setIncomeRef(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -532,7 +532,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 required
                 value={expenseAmount}
                 onChange={(e) => setExpenseAmount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -543,7 +543,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={expenseAccount}
                 onChange={(e) => setExpenseAccount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -556,7 +556,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={expenseCategory}
                 onChange={(e) => setExpenseCategory(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {expenseCategories.map((c) => (
                   <option key={c.id} value={c.name}>{c.name}</option>
@@ -572,7 +572,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               required
               value={expenseDesc}
               onChange={(e) => setExpenseDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -582,16 +582,16 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={expenseRef}
               onChange={(e) => setExpenseRef(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -626,7 +626,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={sourceAccId}
                 onChange={(e) => setSourceAccId(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -639,7 +639,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={destAccId}
                 onChange={(e) => setDestAccId(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -663,7 +663,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 value={transferAmount}
                 onChange={(e) => setTransferAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -674,7 +674,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={transferDesc}
               onChange={(e) => setTransferDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -684,16 +684,16 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={transferRef}
               onChange={(e) => setTransferRef(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -728,7 +728,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={loanType}
                 onChange={(e) => setLoanType(e.target.value as any)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="LENT">Money Lent (Receivable)</option>
                 <option value="BORROWED">Money Borrowed (Payable)</option>
@@ -744,7 +744,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 value={loanAmount}
                 onChange={(e) => setLoanAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -757,7 +757,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 required
                 value={counterparty}
                 onChange={(e) => setCounterparty(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -767,7 +767,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 type="text"
                 value={loanContact}
                 onChange={(e) => setLoanContact(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -778,7 +778,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={loanAccount}
                 onChange={(e) => setLoanAccount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -803,16 +803,16 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               type="text"
               value={loanNote}
               onChange={(e) => setLoanNote(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -842,7 +842,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               </div>
             )}
 
-            <div className="p-2.5 bg-[#111317] border border-[#22252c] rounded text-xs flex justify-between">
+            <div className="p-2.5 bg-app border border-line rounded text-xs flex justify-between">
               <div>
                 <span className="text-gray-400">Total Principal:</span>
                 <span className="font-mono text-gray-200 ml-1.5">{formatBDT(selectedLoanForRepayment.principalAmount)}</span>
@@ -864,7 +864,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                   value={repaymentAmount}
                   onChange={(e) => setRepaymentAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -873,7 +873,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                 <select
                   value={repaymentAccount}
                   onChange={(e) => setRepaymentAccount(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                     <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -894,17 +894,17 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                   type="text"
                   value={repaymentNote}
                   onChange={(e) => setRepaymentNote(e.target.value)}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+            <div className="flex justify-end gap-2 pt-3 border-t border-line">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
               >
                 Cancel
               </button>
@@ -935,7 +935,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 bg-[#111317] border border-[#22252c] p-2.5 rounded">
+          <div className="grid grid-cols-2 gap-3 bg-app border border-line p-2.5 rounded">
             <div>
               <label className="block text-xs text-gray-300 font-medium mb-1">Date *</label>
               <DatePicker value={bulkDate} onChange={setBulkDate} />
@@ -946,7 +946,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
               <select
                 value={bulkAccount}
                 onChange={(e) => setBulkAccount(e.target.value)}
-                className="w-full bg-[#16181d] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-surface border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -955,9 +955,9 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             </div>
           </div>
 
-          <div className="border border-[#22252c] rounded overflow-hidden max-h-60 overflow-y-auto">
+          <div className="border border-line rounded overflow-hidden max-h-60 overflow-y-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#121417] text-gray-400 text-[10px] uppercase border-b border-[#22252c]">
+              <thead className="bg-surface-sunken text-gray-400 text-[10px] uppercase border-b border-line">
                 <tr>
                   <th className="py-2 px-2.5 w-1/3">Category</th>
                   <th className="py-2 px-2.5 w-1/2">Description</th>
@@ -972,7 +972,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                       <select
                         value={line.category}
                         onChange={(e) => handleUpdateBulkLine(line.id, 'category', e.target.value)}
-                        className="w-full bg-[#111317] border border-[#262932] rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                        className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                       >
                         {expenseCategories.map((c) => (
                           <option key={c.id} value={c.name}>{c.name}</option>
@@ -984,7 +984,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                         type="text"
                         value={line.desc}
                         onChange={(e) => handleUpdateBulkLine(line.id, 'desc', e.target.value)}
-                        className="w-full bg-[#111317] border border-[#262932] rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                        className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                       />
                     </td>
                     <td className="p-1.5 text-right">
@@ -994,7 +994,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
                         value={line.amount || ''}
                         onChange={(e) => handleUpdateBulkLine(line.id, 'amount', e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-[#111317] border border-[#262932] rounded px-2 py-1 text-xs text-gray-200 text-right font-mono focus:outline-none focus:border-blue-500"
+                        className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 text-right font-mono focus:outline-none focus:border-blue-500"
                       />
                     </td>
                     <td className="p-1.5 text-center">
@@ -1017,7 +1017,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             <button
               type="button"
               onClick={handleAddBulkLine}
-              className="px-2.5 py-1 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+              className="px-2.5 py-1 bg-field hover:bg-surface-raised text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
             >
               + Add Row
             </button>
@@ -1027,12 +1027,12 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised disabled:opacity-50 text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>

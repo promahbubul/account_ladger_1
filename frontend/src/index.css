@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@theme {
+  --color-app: #111317;
+  --color-surface-sunken: #121417;
+  --color-surface-raised: #222631;
+  --color-line-strong: #262932;
+  --color-line: #22252c;
+  --color-surface: #16181d;
+  --color-surface-hover: #1a1d24;
+  --color-field-line: #2b2f3a;
+  --color-slate-line: #1f2937;
+  --color-field: #1b1e25;
+  --color-line-soft: #22252e;
+  --color-divider: #20232a;
+}
+
 @layer base {
   :root {
     --bg-main: #121214;

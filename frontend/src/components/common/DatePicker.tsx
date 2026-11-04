@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DatePickerProps {
   value: string; // ISO date string: YYYY-MM-DD
@@ -213,7 +213,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         id={id}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full bg-[#111317] border border-[#262932] hover:border-[#383d4a] focus:border-blue-500 rounded px-3 py-1.5 flex items-center justify-between text-xs transition-colors ${
+        className={`w-full bg-app border border-line-strong hover:border-[#383d4a] focus:border-blue-500 rounded px-3 py-1.5 flex items-center justify-between text-xs transition-colors ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
         } ${isOpen ? 'border-blue-500 ring-1 ring-blue-500/30' : ''}`}
         aria-haspopup="dialog"
@@ -228,17 +228,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       {/* Popover Calendar */}
       {isOpen && (
         <div
-          className="absolute z-50 mt-1 bg-[#16181d] border border-[#262932] rounded-lg shadow-2xl p-3 w-64 select-none animate-in fade-in zoom-in-95 duration-100"
+          className="absolute z-50 mt-1 bg-surface border border-line-strong rounded-lg shadow-2xl p-3 w-64 select-none animate-in fade-in zoom-in-95 duration-100"
           style={{ minWidth: '16rem' }}
           role="dialog"
           aria-label="Calendar date picker"
         >
           {/* Header with Month/Year Navigation */}
-          <div className="flex items-center justify-between mb-2 pb-2 border-b border-[#22252c]">
+          <div className="flex items-center justify-between mb-2 pb-2 border-b border-line">
             <button
               type="button"
               onClick={prevMonth}
-              className="p-1 text-gray-400 hover:text-gray-100 hover:bg-[#20232a] rounded transition-colors"
+              className="p-1 text-gray-400 hover:text-gray-100 hover:bg-divider rounded transition-colors"
               title="Previous month"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -249,7 +249,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <button
               type="button"
               onClick={nextMonth}
-              className="p-1 text-gray-400 hover:text-gray-100 hover:bg-[#20232a] rounded transition-colors"
+              className="p-1 text-gray-400 hover:text-gray-100 hover:bg-divider rounded transition-colors"
               title="Next month"
             >
               <ChevronRight className="w-4 h-4" />
@@ -281,8 +281,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     isSelected
                       ? 'bg-blue-600 text-white font-bold shadow-sm'
                       : cell.isCurrentMonth
-                      ? 'text-gray-200 hover:bg-[#222631] hover:text-white'
-                      : 'text-gray-600 hover:bg-[#1a1d24] hover:text-gray-400'
+                      ? 'text-gray-200 hover:bg-surface-raised hover:text-white'
+                      : 'text-gray-600 hover:bg-surface-hover hover:text-gray-400'
                   } ${isToday && !isSelected ? 'border border-blue-500/70 text-blue-400 font-semibold' : ''}`}
                 >
                   {cell.day}
@@ -292,7 +292,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           </div>
 
           {/* Footer Quick Actions */}
-          <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-[#22252c] text-[11px]">
+          <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-line text-[11px]">
             <button
               type="button"
               onClick={handleSelectToday}
@@ -304,7 +304,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-2 py-1 rounded text-gray-400 hover:text-gray-200 hover:bg-[#20232a] transition-colors"
+              className="px-2 py-1 rounded text-gray-400 hover:text-gray-200 hover:bg-divider transition-colors"
             >
               Close
             </button>

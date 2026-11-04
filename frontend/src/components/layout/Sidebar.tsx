@@ -113,20 +113,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-[#0d0f12] border-r border-[#22252c] flex flex-col transition-transform duration-150 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-[#0d0f12] border-r border-line flex flex-col transition-transform duration-150 ease-in-out lg:translate-x-0 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="h-14 flex items-center justify-between px-4 border-b border-[#22252c]">
+        <div className="h-14 flex items-center justify-between px-4 border-b border-line">
           <div className="flex items-center gap-2.5">
             <img
               src="/logo.png"
-              alt="Account Ladger Logo"
+              alt="AccountLedger Logo"
               className="w-7 h-7 object-contain"
             />
             <div>
-              <span className="font-semibold text-sm tracking-tight text-gray-100">Account Ladger</span>
+              <span className="font-semibold text-sm tracking-tight text-gray-100">AccountLedger</span>
             </div>
           </div>
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#181a20] text-gray-300 border border-[#2b2e37]">
@@ -203,7 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* User profile footer */}
-        <div className="p-3 border-t border-[#22252c] bg-[#0a0c0e]">
+        <div className="p-3 border-t border-line bg-[#0a0c0e]">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-7 h-7 rounded bg-[#20232b] border border-[#2b2e37] flex items-center justify-center text-xs font-medium text-gray-300 flex-shrink-0">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus,
   Search,
@@ -9,7 +9,6 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
-import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -71,7 +70,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
   const [items, setItems] = useState<Transaction[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const {
@@ -401,7 +400,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+      <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
@@ -409,7 +408,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search income..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+            className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
@@ -417,7 +416,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
           <select
             value={categoryFilter}
             onChange={(e) => handleCategoryChange(e.target.value)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Categories</option>
             {incomeCategoriesList(allIncomeCategories).map((c) => (
@@ -428,7 +427,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
           <select
             value={accountFilter}
             onChange={(e) => handleAccountChange(e.target.value)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Accounts</option>
             {accounts.map((a) => (
@@ -439,11 +438,11 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       </div>
 
       {/* Main Income Table with Integrated Pagination Footer */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+              <tr className="border-b border-line text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Description</th>
                 <th className="py-2.5 px-3">Category</th>
@@ -453,7 +452,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#20232a]">
+            <tbody className="divide-y divide-divider">
               {errorMsg ? (
                 <TableErrorRow
                   colSpan={7}
@@ -473,7 +472,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                   description={
                     searchQuery || categoryFilter !== 'ALL' || accountFilter !== 'ALL' || dateFilter.startDate
                       ? 'No income transactions match your filters or selected date range.'
-                      : 'No income logged yet. Click "Record Income" to deposit funds.'
+                      : undefined
                   }
                   action={{
                     label: 'Record Income',
@@ -486,7 +485,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                 />
               ) : (
                 items.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-[#1a1d24] transition-colors">
+                  <tr key={tx.id} className="hover:bg-surface-hover transition-colors">
                     <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                       {formatDate(tx.date)}
                     </td>
@@ -494,7 +493,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                       {tx.description}
                     </td>
                     <td className="py-2.5 px-3 text-gray-400">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#111317] border border-[#242730] text-[11px]">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-app border border-[#242730] text-[11px]">
                         <span>{tx.category || 'General Income'}</span>
                         {tx.subcategory && (
                           <>
@@ -518,21 +517,21 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                         <button
                           onClick={() => handleOpenEdit(tx)}
                           title="Edit Income"
-                          className="p-1 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded transition-colors"
+                          className="p-1 text-gray-400 hover:text-blue-400 hover:bg-line-soft rounded transition-colors"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setSelectedTx(tx)}
                           title="View Details"
-                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setTxToDelete(tx)}
                           title="Delete Record"
-                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -599,7 +598,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                 value={formAmount}
                 onChange={(e) => setFormAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -612,7 +611,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               <select
                 value={formAccId}
                 onChange={(e) => setFormAccId(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
                   <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
@@ -630,7 +629,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                   setFormCat(e.target.value);
                   setFormSubcat('');
                 }}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {mainIncomeCategories.map((cat) => (
                   <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -648,7 +647,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               <select
                 value={formSubcat}
                 onChange={(e) => setFormSubcat(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="">No Subcategory</option>
                 {formSubcategories.map((sub) => (
@@ -667,7 +666,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               required
               value={formDesc}
               onChange={(e) => setFormDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -679,7 +678,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               type="text"
               value={formRef}
               onChange={(e) => setFormRef(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -688,7 +687,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               type="button"
               disabled={isSavingAdd}
               onClick={() => setIsRecordModalOpen(false)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -744,7 +743,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -757,7 +756,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               <select
                 value={editAccount}
                 onChange={(e) => setEditAccount(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
@@ -777,7 +776,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                   setEditCat(e.target.value);
                   setEditSubcat('');
                 }}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 {mainIncomeCategories.map((cat) => (
                   <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -795,7 +794,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               <select
                 value={editSubcat}
                 onChange={(e) => setEditSubcat(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="">No Subcategory</option>
                 {editSubcategories.map((sub) => (
@@ -814,7 +813,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               required
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -826,7 +825,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               type="text"
               value={editRef}
               onChange={(e) => setEditRef(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -838,7 +837,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                 setIsEditModalOpen(false);
                 setEditingTx(null);
               }}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -862,7 +861,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       >
         {selectedTx && (
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-2 bg-[#111317] border border-[#22252c] p-3 rounded">
+            <div className="grid grid-cols-2 gap-2 bg-app border border-line p-3 rounded">
               <div>
                 <span className="text-gray-400">Date</span>
                 <p className="font-mono text-gray-200">{formatDate(selectedTx.date)}</p>
@@ -900,7 +899,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedTx(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Close
               </button>

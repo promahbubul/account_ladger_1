@@ -3,15 +3,10 @@ import {
   Download,
   Smartphone,
   ShieldCheck,
-  Zap,
   TrendingUp,
   Wallet,
-  CreditCard,
   ArrowRight,
-  CheckCircle2,
   QrCode,
-  HelpCircle,
-  ExternalLink,
   Copy,
   Check,
   Layers,
@@ -19,12 +14,9 @@ import {
   Laptop,
   ChevronDown,
   Sparkles,
-  ArrowUpRight,
   CheckCircle,
-  FileCheck,
   RefreshCw,
   BarChart3,
-  Coins
 } from 'lucide-react';
 import { useRouter } from '../../lib/router';
 

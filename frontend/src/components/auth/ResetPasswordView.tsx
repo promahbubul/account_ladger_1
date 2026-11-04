@@ -109,14 +109,14 @@ export const ResetPasswordView: React.FC = () => {
         <div className="text-center mb-6">
           <img
             src="/logo.png"
-            alt="Account Ladger Logo"
+            alt="AccountLedger Logo"
             className="w-12 h-12 object-contain mx-auto mb-3"
           />
-          <h1 className="text-xl font-bold tracking-tight text-white">Account Ladger</h1>
+          <h1 className="text-xl font-bold tracking-tight text-white">AccountLedger</h1>
         </div>
 
         {/* Card */}
-        <div className="bg-[#14171d] border border-[#22252c] rounded p-6 shadow-sm">
+        <div className="bg-[#14171d] border border-line rounded p-6 shadow-sm">
           {isVerifying ? (
             <div className="py-8 flex flex-col items-center justify-center text-center">
               <Loader2 className="w-6 h-6 animate-spin text-blue-500 mb-3" />
@@ -142,7 +142,7 @@ export const ResetPasswordView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => router.push('/')}
-                  className="w-full py-2 px-3 bg-[#1a1d24] hover:bg-[#222631] border border-[#2b2f3a] text-gray-300 hover:text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2 px-3 bg-surface-hover hover:bg-surface-raised border border-field-line text-gray-300 hover:text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Return to Sign In</span>
@@ -187,7 +187,7 @@ export const ResetPasswordView: React.FC = () => {
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="At least 6 characters"
                     disabled={isSubmitting}
-                    className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
+                    className="w-full bg-field border border-field-line rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
                   />
                   <button
                     type="button"
@@ -211,7 +211,7 @@ export const ResetPasswordView: React.FC = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={isSubmitting}
-                    className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
+                    className="w-full bg-field border border-field-line rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
                   />
                   <button
                     type="button"

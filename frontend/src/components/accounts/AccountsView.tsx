@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ProviderSelect } from '../common/ProviderSelect';
 import {
   Plus,
-  Loader2,
   ArrowRightLeft,
   Search,
   Eye,
@@ -11,7 +11,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
-import { getQueryParam, updateQueryParams } from '../../lib/queryState';
 import { useFinance } from '../../context/FinanceContext';
 import { Account } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
@@ -57,7 +56,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
   const [items, setItems] = useState<Account[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const {
@@ -250,7 +249,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       <div className="flex items-center justify-end gap-2 flex-shrink-0">
         <button
           onClick={() => onOpenTransferModal()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1b1e25] hover:bg-[#222631] text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-field hover:bg-surface-raised text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
         >
           <ArrowRightLeft className="w-3.5 h-3.5" />
           <span>Transfer Funds</span>
@@ -265,7 +264,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+      <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
           <input
@@ -273,7 +272,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search accounts..."
-            className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+            className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
 
@@ -281,7 +280,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
           <select
             value={filterType}
             onChange={(e) => handleTypeChange(e.target.value as any)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Account Types</option>
             <option value="BANK">Bank Accounts</option>
@@ -292,7 +291,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
           <select
             value={filterStatus}
             onChange={(e) => handleStatusChange(e.target.value as any)}
-            className="bg-[#111317] border border-[#262932] rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ACTIVE">Active Accounts</option>
             <option value="ARCHIVED">Archived Accounts</option>
@@ -308,11 +307,11 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       )}
 
       {/* Main Standard Table */}
-      <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-              <tr className="border-b border-[#22252c] text-gray-400 font-medium uppercase tracking-wider text-[10px]">
+            <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+              <tr className="border-b border-line text-gray-400 font-medium uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Account Name</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3">Institution / Provider</th>
@@ -323,7 +322,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#20232a]">
+            <tbody className="divide-y divide-divider">
               {errorMsg ? (
                 <TableErrorRow
                   colSpan={8}
@@ -343,7 +342,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                   description={
                     searchQuery || filterType !== 'ALL' || filterStatus !== 'ALL'
                       ? 'No accounts match the selected filters.'
-                      : 'No financial accounts created yet. Add cash or bank accounts to get started.'
+                      : undefined
                   }
                   action={{
                     label: 'Create Account',
@@ -352,7 +351,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 />
               ) : (
                 items.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-[#1a1d24] transition-colors">
+                  <tr key={acc.id} className="hover:bg-surface-hover transition-colors">
                     <td className="py-2.5 px-3 font-medium text-gray-200">
                       {acc.name}
                     </td>
@@ -387,28 +386,28 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                         <button
                           onClick={() => setViewAccount(acc)}
                           title="View Ledger"
-                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => onOpenTransferModal(acc.id)}
                           title="Transfer Funds"
-                          className="p-1 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-blue-400 hover:bg-line-soft rounded"
                         >
                           <ArrowRightLeft className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setEditAccountState(acc)}
                           title="Edit Account"
-                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleToggleArchive(acc.id, acc.status)}
                           title={acc.status === 'ACTIVE' ? 'Archive Account' : 'Restore Account'}
-                          className="p-1 text-gray-400 hover:text-amber-400 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-amber-400 hover:bg-line-soft rounded"
                         >
                           {acc.status === 'ACTIVE' ? (
                             <Archive className="w-3.5 h-3.5" />
@@ -419,7 +418,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                         <button
                           onClick={() => setAccountToDelete(acc)}
                           title="Delete Account"
-                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                          className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -467,7 +466,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               required
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -479,7 +478,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value as any)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="BANK">Bank Account</option>
                 <option value="MOBILE_BANKING">Mobile Banking (MFS)</option>
@@ -491,12 +490,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               <label className="block text-xs text-gray-300 font-medium mb-1">
                 Institution / Provider
               </label>
-              <input
-                type="text"
-                value={newProvider}
-                onChange={(e) => setNewProvider(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              />
+              <ProviderSelect key={newType} accountType={newType} value={newProvider} onChange={setNewProvider} className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500" />
             </div>
           </div>
 
@@ -509,7 +503,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 type="text"
                 value={newNumber}
                 onChange={(e) => setNewNumber(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -522,16 +516,16 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 step="0.01"
                 value={newOpeningBalance}
                 onChange={(e) => setNewOpeningBalance(e.target.value)}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button
               type="button"
               onClick={() => setIsAddOpen(false)}
-              className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
             >
               Cancel
             </button>
@@ -562,7 +556,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 required
                 value={editAccountState.name}
                 onChange={(e) => setEditAccountState({ ...editAccountState, name: e.target.value })}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -574,7 +568,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 <select
                   value={editAccountState.type}
                   onChange={(e) => setEditAccountState({ ...editAccountState, type: e.target.value as any })}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="BANK">Bank Account</option>
                   <option value="MOBILE_BANKING">Mobile Banking (MFS)</option>
@@ -586,11 +580,11 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 <label className="block text-xs text-gray-300 font-medium mb-1">
                   Institution / Provider
                 </label>
-                <input
-                  type="text"
+                <ProviderSelect
+                  accountType={editAccountState.type}
                   value={editAccountState.providerName || ''}
-                  onChange={(e) => setEditAccountState({ ...editAccountState, providerName: e.target.value })}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  onChange={(value) => setEditAccountState({ ...editAccountState, providerName: value })}
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
@@ -604,7 +598,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                   type="text"
                   value={editAccountState.accountNumber || ''}
                   onChange={(e) => setEditAccountState({ ...editAccountState, accountNumber: e.target.value })}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -615,7 +609,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 <select
                   value={editAccountState.status}
                   onChange={(e) => setEditAccountState({ ...editAccountState, status: e.target.value as any })}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="ACTIVE">Active</option>
                   <option value="ARCHIVED">Archived</option>
@@ -623,11 +617,11 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#22252c]">
+            <div className="flex justify-end gap-2 pt-3 border-t border-line">
               <button
                 type="button"
                 onClick={() => setEditAccountState(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Cancel
               </button>
@@ -651,7 +645,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       >
         {viewAccount && (
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2 p-2.5 bg-[#111317] border border-[#22252c] rounded text-xs">
+            <div className="grid grid-cols-3 gap-2 p-2.5 bg-app border border-line rounded text-xs">
               <div>
                 <div className="text-gray-400">Opening Balance</div>
                 <div className="font-mono text-gray-200 mt-0.5">{formatBDT(viewAccount.openingBalance)}</div>
@@ -666,9 +660,9 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-72 border border-[#22252c] rounded">
+            <div className="overflow-x-auto max-h-72 border border-line rounded">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#121417] text-gray-400 border-b border-[#22252c] text-[10px] uppercase">
+                <thead className="bg-surface-sunken text-gray-400 border-b border-line text-[10px] uppercase">
                   <tr>
                     <th className="py-2 px-3">Date</th>
                     <th className="py-2 px-3">Description</th>
@@ -687,7 +681,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                     transactions
                       .filter(t => t.accountId === viewAccount.id || t.destinationAccountId === viewAccount.id)
                       .map((tx) => (
-                        <tr key={tx.id} className="hover:bg-[#1a1d24]">
+                        <tr key={tx.id} className="hover:bg-surface-hover">
                           <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">{formatDate(tx.date)}</td>
                           <td className="py-2 px-3 text-gray-200">{tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : '-'))}</td>
                           <td className="py-2 px-3 text-gray-400 text-[10px]">{tx.type}</td>
@@ -705,7 +699,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewAccount(null)}
-                className="px-3 py-1.5 bg-[#1a1d24] hover:bg-[#222631] text-gray-300 rounded text-xs transition-colors"
+                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
               >
                 Close
               </button>

@@ -136,16 +136,16 @@ export const LoginView: React.FC = () => {
         <div className="text-center mb-6">
           <img
             src="/logo.png"
-            alt="Account Ladger Logo"
+            alt="AccountLedger Logo"
             className="w-12 h-12 object-contain mx-auto mb-3"
           />
-          <h1 className="text-xl font-bold tracking-tight text-white">Account Ladger</h1>
+          <h1 className="text-xl font-bold tracking-tight text-white">AccountLedger</h1>
         </div>
 
         {/* Card */}
-        <div className="bg-[#14171d] border border-[#22252c] rounded p-6 shadow-sm">
+        <div className="bg-[#14171d] border border-line rounded p-6 shadow-sm">
           {/* Mode switch */}
-          <div className="flex border-b border-[#22252c] mb-5 pb-1">
+          <div className="flex border-b border-line mb-5 pb-1">
             <button
               type="button"
               onClick={() => {
@@ -214,7 +214,7 @@ export const LoginView: React.FC = () => {
             aria-label="Continue with Google"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}
-            className="w-full mb-4 py-2 px-3 bg-[#1a1d24] hover:bg-[#222631] border border-[#2b2f3a] text-gray-200 hover:text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full mb-4 py-2 px-3 bg-surface-hover hover:bg-surface-raised border border-field-line text-gray-200 hover:text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {isGoogleLoading ? (
               <>
@@ -248,11 +248,11 @@ export const LoginView: React.FC = () => {
 
           {/* Divider */}
           <div className="relative flex items-center justify-center mb-4">
-            <div className="border-t border-[#22252c] w-full"></div>
+            <div className="border-t border-line w-full"></div>
             <span className="bg-[#14171d] px-2 text-[10px] text-gray-400 uppercase tracking-wider">
               or
             </span>
-            <div className="border-t border-[#22252c] w-full"></div>
+            <div className="border-t border-line w-full"></div>
           </div>
 
           {mode === 'signin' ? (
@@ -267,7 +267,7 @@ export const LoginView: React.FC = () => {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full bg-field border border-field-line rounded px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
 
@@ -291,7 +291,7 @@ export const LoginView: React.FC = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full bg-field border border-field-line rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <button
                     type="button"
@@ -327,7 +327,7 @@ export const LoginView: React.FC = () => {
                   required
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
-                  className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full bg-field border border-field-line rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
 
@@ -342,7 +342,7 @@ export const LoginView: React.FC = () => {
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="At least 6 characters"
-                    className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full bg-field border border-field-line rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <button
                     type="button"

@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { formatBDT } from '../../lib/formatters';
+import { LoadedValue } from '../common/StateViews';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
 import { useDateFilter, DatePreset } from '../../context/DateFilterContext';
@@ -29,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const { accounts } = useFinance();
+  const { accounts, dataStatus } = useFinance();
   const { filter, setPreset, setCustomRange, clearFilter, formattedRangeLabel } = useDateFilter();
 
   const [isActionsOpen, setIsActionsOpen] = useState(false);
@@ -68,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-[#121417] border-b border-[#22252c] px-4 lg:px-6 py-2.5">
+    <header className="sticky top-0 z-30 bg-surface-sunken border-b border-line px-4 lg:px-6 py-2.5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         {/* Left side: Mobile Toggle & Page Title */}
         <div className="flex items-center gap-2.5">
@@ -174,7 +175,7 @@ export const Header: React.FC<HeaderProps> = ({
                             value={customStart}
                             onChange={(e) => setCustomStart(e.target.value)}
                             required
-                            className="w-full bg-[#121417] border border-[#2a2d36] rounded px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full bg-surface-sunken border border-[#2a2d36] rounded px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
                           />
                         </div>
 
@@ -187,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
                             value={customEnd}
                             onChange={(e) => setCustomEnd(e.target.value)}
                             required
-                            className="w-full bg-[#121417] border border-[#2a2d36] rounded px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full bg-surface-sunken border border-[#2a2d36] rounded px-2.5 py-1.5 text-gray-100 text-xs focus:outline-none focus:border-blue-500"
                           />
                         </div>
 
@@ -236,7 +237,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Wallet className="w-3.5 h-3.5 text-gray-400" />
               <span className="text-gray-400">Liquid:</span>
               <span className="font-semibold text-gray-200 font-mono">
-                {formatBDT(totalBalance)}
+                <LoadedValue status={dataStatus} skeletonClassName="w-20 h-3.5">{formatBDT(totalBalance)}</LoadedValue>
               </span>
             </div>
 
@@ -263,7 +264,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onOpenQuickAction('income');
                         setIsActionsOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-[#222631] transition-colors"
+                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-surface-raised transition-colors"
                     >
                       Add Income
                     </button>
@@ -272,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onOpenQuickAction('expense');
                         setIsActionsOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-[#222631] transition-colors"
+                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-surface-raised transition-colors"
                     >
                       Add Expense
                     </button>
@@ -281,7 +282,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onOpenQuickAction('daily_bulk');
                         setIsActionsOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-[#222631] transition-colors"
+                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-surface-raised transition-colors"
                     >
                       Daily Expenses
                     </button>
@@ -290,7 +291,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onOpenQuickAction('transfer');
                         setIsActionsOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-[#222631] transition-colors border-t border-[#252832]"
+                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-surface-raised transition-colors border-t border-[#252832]"
                     >
                       Transfer Money
                     </button>
@@ -299,7 +300,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onOpenQuickAction('loan');
                         setIsActionsOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-[#222631] transition-colors"
+                      className="w-full text-left px-3 py-2 text-gray-200 hover:bg-surface-raised transition-colors"
                     >
                       Add Loan
                     </button>

@@ -1,4 +1,4 @@
-// Formatting utilities for HisabFlow
+// Formatting utilities for AccountLedger
 // Default currency: BDT (৳ - Taka)
 
 export const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -32,7 +32,10 @@ export const getCurrencySymbol = (currencyCode?: string): string => {
   return '৳';
 };
 
-export const formatBDT = (amount: number, showSign: boolean = false, customCurrency?: string): string => {
+export const formatBDT = (amount: number | null | undefined, showSign: boolean = false, customCurrency?: string): string => {
+  // A missing value must not read as a real zero balance.
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return '—';
+
   const isNegative = amount < 0;
   const absAmount = Math.abs(amount);
   

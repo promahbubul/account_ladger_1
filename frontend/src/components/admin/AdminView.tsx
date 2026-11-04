@@ -1,4 +1,4 @@
-import { formatDate } from '../../lib/formatters';
+import { formatDate, CURRENCY_SYMBOLS } from '../../lib/formatters';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../services/api';
@@ -17,9 +17,6 @@ import {
   FileText,
   Sliders,
   CheckCircle2,
-  AlertCircle,
-  Clock,
-  Globe,
 } from 'lucide-react';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
@@ -93,7 +90,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [settings, setSettings] = useState<SystemSettings>({
-    appName: 'Account Ladger',
+    appName: 'AccountLedger',
     maintenanceMode: false,
     allowUserRegistration: true,
     defaultCurrency: 'BDT',
@@ -130,7 +127,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [userItems, setUserItems] = useState<ManagedUser[]>([]);
   const [userTotalCount, setUserTotalCount] = useState<number>(0);
   const [userNextCursor, setUserNextCursor] = useState<string | null>(null);
-  const [isUsersLoading, setIsUsersLoading] = useState(false);
+  const [isUsersLoading, setIsUsersLoading] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);
 
   const userPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'userPage', pageSizeKey: 'userPageSize' });
@@ -139,7 +136,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [logItems, setLogItems] = useState<AuditLog[]>([]);
   const [logTotalCount, setLogTotalCount] = useState<number>(0);
   const [logNextCursor, setLogNextCursor] = useState<string | null>(null);
-  const [isLogsLoading, setIsLogsLoading] = useState(false);
+  const [isLogsLoading, setIsLogsLoading] = useState(true);
   const [logError, setLogError] = useState<string | null>(null);
 
   const logPagination = useCursorPagination({ initialPageSize: 50, pageKey: 'logPage', pageSizeKey: 'logPageSize' });
@@ -435,7 +432,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
       {/* Admin Section Tabs */}
-      <div className="flex border-b border-[#22252c] gap-1 pb-px overflow-x-auto flex-shrink-0">
+      <div className="flex border-b border-line gap-1 pb-px overflow-x-auto flex-shrink-0">
         <button
           onClick={() => {
             setActiveSection('dashboard');
@@ -443,7 +440,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           }}
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'dashboard'
-              ? 'text-purple-400 border-purple-500 bg-[#16181d]'
+              ? 'text-purple-400 border-purple-500 bg-surface'
               : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
           }`}
         >
@@ -458,14 +455,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
           }}
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'users'
-              ? 'text-purple-400 border-purple-500 bg-[#16181d]'
+              ? 'text-purple-400 border-purple-500 bg-surface'
               : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
           <span>User Management</span>
           {stats?.totalUsers !== undefined && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#22252e] text-gray-300">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-line-soft text-gray-300">
               {stats.totalUsers}
             </span>
           )}
@@ -478,7 +475,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           }}
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'logs'
-              ? 'text-purple-400 border-purple-500 bg-[#16181d]'
+              ? 'text-purple-400 border-purple-500 bg-surface'
               : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
           }`}
         >
@@ -493,7 +490,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           }}
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'settings'
-              ? 'text-purple-400 border-purple-500 bg-[#16181d]'
+              ? 'text-purple-400 border-purple-500 bg-surface'
               : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
           }`}
         >
@@ -509,7 +506,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               if (activeSection === 'logs') fetchLogs();
             }}
             disabled={isStatsLoading || isUsersLoading || isLogsLoading}
-            className="px-2.5 py-1 text-xs text-gray-400 hover:text-white bg-[#171a20] hover:bg-[#20242e] border border-[#2b2f3a] rounded flex items-center gap-1.5 transition-colors"
+            className="px-2.5 py-1 text-xs text-gray-400 hover:text-white bg-[#171a20] hover:bg-[#20242e] border border-field-line rounded flex items-center gap-1.5 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isStatsLoading || isUsersLoading || isLogsLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -521,7 +518,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {activeSection === 'dashboard' && (
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+            <div className="bg-surface border border-line rounded p-3">
               <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>Total Users</span>
                 <Users className="w-4 h-4 text-gray-500" />
@@ -531,7 +528,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+            <div className="bg-surface border border-line rounded p-3">
               <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>Active Accounts</span>
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -541,7 +538,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+            <div className="bg-surface border border-line rounded p-3">
               <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>System Admins</span>
                 <Shield className="w-4 h-4 text-purple-400" />
@@ -551,7 +548,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-[#16181d] border border-[#22252c] rounded p-3">
+            <div className="bg-surface border border-line rounded p-3">
               <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>Database Engine</span>
                 <Database className="w-4 h-4 text-blue-400" />
@@ -562,7 +559,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </div>
           </div>
 
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-4">
+          <div className="bg-surface border border-line rounded p-4">
             <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Server className="w-4 h-4 text-blue-400" />
               <span>Storage Architecture</span>
@@ -580,7 +577,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {activeSection === 'users' && (
         <div className="flex-1 min-h-0 flex flex-col space-y-2.5">
           {/* Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+          <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
             <div className="relative w-full md:w-80">
               <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
               <input
@@ -588,7 +585,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 value={userSearchQuery}
                 onChange={(e) => handleUserSearchChange(e.target.value)}
                 placeholder="Search users..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
 
@@ -604,11 +601,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </div>
 
           {/* Viewport-based Users Table */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-                  <tr className="border-b border-[#22252c] text-gray-400 uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+                  <tr className="border-b border-line text-gray-400 uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">User</th>
                     <th className="py-2.5 px-3">Email</th>
                     <th className="py-2.5 px-3">Role</th>
@@ -618,7 +615,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#20232a]">
+                <tbody className="divide-y divide-divider">
                   {userError ? (
                     <TableErrorRow
                       colSpan={7}
@@ -638,7 +635,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       description={
                         userSearchQuery
                           ? 'No users match your search query.'
-                          : 'No user accounts found in the system.'
+                          : undefined
                       }
                       action={{
                         label: 'Create User',
@@ -659,7 +656,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     userItems.map((u) => {
                       const isCurrent = u.id === currentUser?.id;
                       return (
-                        <tr key={u.id} className="hover:bg-[#1a1d24] transition-colors">
+                        <tr key={u.id} className="hover:bg-surface-hover transition-colors">
                           <td className="py-2.5 px-3">
                             <div className="font-medium text-gray-200 flex items-center gap-1.5">
                               {u.fullName}
@@ -709,7 +706,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   setFormError(null);
                                 }}
                                 title="Edit User"
-                                className="p-1 text-gray-400 hover:text-gray-200 hover:bg-[#22252e] rounded"
+                                className="p-1 text-gray-400 hover:text-gray-200 hover:bg-line-soft rounded"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
@@ -720,7 +717,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                   setFormError(null);
                                 }}
                                 title="Reset Password"
-                                className="p-1 text-gray-400 hover:text-blue-400 hover:bg-[#22252e] rounded"
+                                className="p-1 text-gray-400 hover:text-blue-400 hover:bg-line-soft rounded"
                               >
                                 <KeyRound className="w-3.5 h-3.5" />
                               </button>
@@ -728,7 +725,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 <button
                                   onClick={() => setDeleteConfirmUser(u)}
                                   title="Delete User"
-                                  className="p-1 text-gray-400 hover:text-red-400 hover:bg-[#22252e] rounded"
+                                  className="p-1 text-gray-400 hover:text-red-400 hover:bg-line-soft rounded"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -767,7 +764,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {activeSection === 'logs' && (
         <div className="flex-1 min-h-0 flex flex-col space-y-2.5">
           {/* Toolbar */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-2.5 flex items-center justify-between flex-shrink-0">
+          <div className="bg-surface border border-line rounded p-2.5 flex items-center justify-between flex-shrink-0">
             <div className="relative w-full md:w-80">
               <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
               <input
@@ -775,17 +772,17 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 value={logSearchQuery}
                 onChange={(e) => handleLogSearchChange(e.target.value)}
                 placeholder="Search logs..."
-                className="w-full bg-[#111317] border border-[#262932] rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
               />
             </div>
           </div>
 
           {/* Viewport-based Audit Logs Table */}
-          <div className="bg-[#16181d] border border-[#22252c] rounded overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#121417] shadow-sm">
-                  <tr className="border-b border-[#22252c] text-gray-400 uppercase tracking-wider text-[10px]">
+                <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+                  <tr className="border-b border-line text-gray-400 uppercase tracking-wider text-[10px]">
                     <th className="py-2.5 px-3">Timestamp</th>
                     <th className="py-2.5 px-3">Action</th>
                     <th className="py-2.5 px-3">User / Actor</th>
@@ -794,7 +791,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <th className="py-2.5 px-3">IP Address</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#20232a]">
+                <tbody className="divide-y divide-divider">
                   {logError ? (
                     <TableErrorRow
                       colSpan={6}
@@ -814,12 +811,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       description={
                         logSearchQuery
                           ? 'No security logs match your search filters.'
-                          : 'No audit logs recorded in the system yet.'
+                          : undefined
                       }
                     />
                   ) : (
                     logItems.map((log) => (
-                      <tr key={log.id} className="hover:bg-[#1a1d24] transition-colors">
+                      <tr key={log.id} className="hover:bg-surface-hover transition-colors">
                         <td className="py-2.5 px-3 font-mono text-[11px] text-gray-400 whitespace-nowrap">
                           {formatDate(log.createdAt)}
                         </td>
@@ -876,7 +873,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {/* 4. SYSTEM SETTINGS */}
       {activeSection === 'settings' && (
         <form onSubmit={handleSaveSettings} className="space-y-4 w-full min-w-0 overflow-y-auto flex-1 min-h-0">
-          <div className="bg-[#16181d] border border-[#22252c] rounded p-4 space-y-4">
+          <div className="bg-surface border border-line rounded p-4 space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300 flex items-center gap-2">
               <Sliders className="w-4 h-4 text-purple-400" />
               Global System Configuration
@@ -890,11 +887,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 type="text"
                 value={settings.appName}
                 onChange={(e) => setSettings({ ...settings, appName: e.target.value })}
-                className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#22252c]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-line">
               <div>
                 <label className="block text-xs font-medium text-gray-300 mb-1">
                   Default Currency
@@ -902,13 +899,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <select
                   value={settings.defaultCurrency}
                   onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
                 >
-                  <option value="BDT">BDT (৳)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="INR">INR (₹)</option>
+                  {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
+                    <option key={code} value={code}>{code} ({symbol})</option>
+                  ))}
                 </select>
               </div>
 
@@ -922,26 +917,25 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   max="8760"
                   value={settings.sessionTimeoutHours}
                   onChange={(e) => setSettings({ ...settings, sessionTimeoutHours: Number(e.target.value) })}
-                  className="w-full bg-[#111317] border border-[#262932] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
 
-            <div className="space-y-3 pt-3 border-t border-[#22252c]">
-              <label className="flex items-center justify-between p-2.5 rounded bg-[#111317] border border-[#22252c] cursor-pointer hover:bg-[#14161c]">
+            <div className="space-y-3 pt-3 border-t border-line">
+              <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-[#14161c]">
                 <div>
                   <div className="text-xs font-medium text-gray-200">Public User Registration</div>
-                  <div className="text-[11px] text-gray-400">Allow new visitors to self-register accounts</div>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.allowUserRegistration}
                   onChange={(e) => setSettings({ ...settings, allowUserRegistration: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-[#2b2f3a]"
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-field-line"
                 />
               </label>
 
-              <label className="flex items-center justify-between p-2.5 rounded bg-[#111317] border border-[#22252c] cursor-pointer hover:bg-[#14161c]">
+              <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-[#14161c]">
                 <div>
                   <div className="text-xs font-medium text-gray-200">Maintenance Mode</div>
                   <div className="text-[11px] text-gray-400">Display maintenance advisory to non-admin users</div>
@@ -950,20 +944,19 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   type="checkbox"
                   checked={settings.maintenanceMode}
                   onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-[#2b2f3a]"
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-field-line"
                 />
               </label>
 
-              <label className="flex items-center justify-between p-2.5 rounded bg-[#111317] border border-[#22252c] cursor-pointer hover:bg-[#14161c]">
+              <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-[#14161c]">
                 <div>
                   <div className="text-xs font-medium text-gray-200">Security Audit Logging</div>
-                  <div className="text-[11px] text-gray-400">Log all logins, password updates, and account edits</div>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.auditLoggingEnabled}
                   onChange={(e) => setSettings({ ...settings, auditLoggingEnabled: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-[#2b2f3a]"
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-field-line"
                 />
               </label>
             </div>
@@ -1001,7 +994,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               required
               value={createForm.fullName}
               onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-              className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -1013,7 +1006,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 required
                 value={createForm.username}
                 onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
@@ -1021,7 +1014,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               <select
                 value={createForm.role}
                 onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'ADMIN' | 'USER' })}
-                className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
               >
                 <option value="USER">Normal User</option>
                 <option value="ADMIN">System Admin</option>
@@ -1036,7 +1029,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               required
               value={createForm.email}
               onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-              className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -1048,7 +1041,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               value={createForm.password}
               onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
               placeholder="At least 6 characters"
-              className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -1057,17 +1050,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <select
               value={createForm.currency}
               onChange={(e) => setCreateForm({ ...createForm, currency: e.target.value })}
-              className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             >
-              <option value="BDT">BDT (৳)</option>
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="INR">INR (₹)</option>
+              {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
+                <option key={code} value={code}>{code} ({symbol})</option>
+              ))}
             </select>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#22252c]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-line">
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(false)}
@@ -1107,7 +1098,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 required
                 value={editUser.fullName}
                 onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })}
-                className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -1118,7 +1109,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 required
                 value={editUser.email}
                 onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
-                className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -1129,7 +1120,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   value={editUser.role}
                   disabled={editUser.id === currentUser?.id}
                   onChange={(e) => setEditUser({ ...editUser, role: e.target.value as 'ADMIN' | 'USER' })}
-                  className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                  className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 disabled:opacity-60"
                 >
                   <option value="USER">Normal User</option>
                   <option value="ADMIN">System Admin</option>
@@ -1141,18 +1132,16 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <select
                   value={editUser.currency}
                   onChange={(e) => setEditUser({ ...editUser, currency: e.target.value })}
-                  className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
                 >
-                  <option value="BDT">BDT (৳)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="INR">INR (₹)</option>
+                  {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
+                    <option key={code} value={code}>{code} ({symbol})</option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#22252c]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-line">
               <button
                 type="button"
                 onClick={() => setEditUser(null)}
@@ -1198,11 +1187,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full bg-[#1b1e25] border border-[#2b2f3a] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#22252c]">
+            <div className="flex justify-end gap-2 pt-2 border-t border-line">
               <button
                 type="button"
                 onClick={() => setResetPasswordUser(null)}
