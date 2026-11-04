@@ -20,7 +20,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   onSuccessNotification,
   onNavigateTab,
 }) => {
-  const { budgets, transactions, categories, setCategoryBudget, deleteBudget, dataStatus, refreshData } = useFinance();
+  const { budgets, monthCategorySpend, categories, setCategoryBudget, deleteBudget, dataStatus, refreshData } = useFinance();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -31,11 +31,9 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
 
-  // Compute spend metrics for all budgets
+  // Compare each monthly limit with this month's spend in its category
   const budgetDetails = budgets.map((b) => {
-    const spent = transactions
-      .filter((t) => t.type === 'EXPENSE' && t.category === b.categoryName)
-      .reduce((sum, t) => sum + t.amount, 0);
+    const spent = monthCategorySpend[b.categoryName] || 0;
 
     const percentage = b.monthlyLimit > 0 ? (spent / b.monthlyLimit) * 100 : 0;
     const remaining = b.monthlyLimit - spent;
