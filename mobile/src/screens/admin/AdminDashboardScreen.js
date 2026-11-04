@@ -2,8 +2,10 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { Skeleton } from '../../components/common/Skeleton';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
@@ -30,19 +32,23 @@ export const AdminDashboardScreen = ({ navigation }) => {
     queryClient.invalidateQueries({ queryKey: ['adminDbStatus'] });
   }, [queryClient]);
 
-  const stats = statsQuery.data?.stats || {
-    totalUsers: 0,
-    activeUsers: 0,
-    totalTransactions: 0,
-    totalAccounts: 0,
-    totalVolume: 0,
-  };
+  const stats = statsQuery.data?.stats || {};
+  const dbStatus = dbStatusQuery.data || {};
 
-  const dbStatus = dbStatusQuery.data || {
-    status: 'healthy',
-    mode: 'postgres',
-    connectedToPostgres: true,
-  };
+  // Until the server has answered, the database state is unknown rather than connected.
+  const dbBadge = dbStatusQuery.data
+    ? {
+        label: dbStatus.connectedToPostgres ? 'CONNECTED' : 'DISCONNECTED',
+        variant: dbStatus.connectedToPostgres ? 'success' : 'danger',
+      }
+    : { label: 'UNKNOWN', variant: 'default' };
+
+  const renderMetric = (value, style) =>
+    statsQuery.isLoading ? (
+      <Skeleton width={48} height={22} style={styles.kpiSkeleton} />
+    ) : (
+      <Text style={style}>{value ?? '—'}</Text>
+    );
 
   return (
     <View style={styles.container}>
@@ -70,16 +76,31 @@ export const AdminDashboardScreen = ({ navigation }) => {
           />
         }
       >
+        {(statsQuery.isError && !statsQuery.data) || (dbStatusQuery.isError && !dbStatusQuery.data) ? (
+          <QueryErrorBanner
+            message="Could not load system data."
+            onRetry={() => {
+              statsQuery.refetch();
+              dbStatusQuery.refetch();
+            }}
+          />
+        ) : null}
+
         <Card style={styles.statusCard}>
           <View style={styles.statusRow}>
             <View>
               <Text style={styles.statusTitle}>Database Status</Text>
-              <Text style={styles.statusSub}>Mode: {dbStatus.mode || 'PostgreSQL'}</Text>
+              {dbStatusQuery.isLoading ? (
+                <Skeleton width={110} height={12} style={styles.statusSkeleton} />
+              ) : (
+                <Text style={styles.statusSub}>Mode: {dbStatus.mode || '—'}</Text>
+              )}
             </View>
-            <Badge
-              label={dbStatus.connectedToPostgres ? 'CONNECTED' : 'DISCONNECTED'}
-              variant={dbStatus.connectedToPostgres ? 'success' : 'danger'}
-            />
+            {dbStatusQuery.isLoading ? (
+              <Skeleton width={84} height={20} />
+            ) : (
+              <Badge label={dbBadge.label} variant={dbBadge.variant} />
+            )}
           </View>
         </Card>
 
@@ -87,19 +108,19 @@ export const AdminDashboardScreen = ({ navigation }) => {
         <View style={styles.kpiGrid}>
           <Card style={styles.kpiBox}>
             <Text style={styles.kpiLabel}>Total Users</Text>
-            <Text style={styles.kpiVal}>{stats.totalUsers}</Text>
+            {renderMetric(stats.totalUsers, styles.kpiVal)}
           </Card>
           <Card style={styles.kpiBox}>
             <Text style={styles.kpiLabel}>Active Users</Text>
-            <Text style={[styles.kpiVal, { color: COLORS.success }]}>{stats.activeUsers}</Text>
+            {renderMetric(stats.activeUsers, [styles.kpiVal, { color: COLORS.success }])}
           </Card>
           <Card style={styles.kpiBox}>
             <Text style={styles.kpiLabel}>Total Transactions</Text>
-            <Text style={styles.kpiVal}>{stats.totalTransactions}</Text>
+            {renderMetric(stats.totalTransactions, styles.kpiVal)}
           </Card>
           <Card style={styles.kpiBox}>
             <Text style={styles.kpiLabel}>Total Accounts</Text>
-            <Text style={styles.kpiVal}>{stats.totalAccounts}</Text>
+            {renderMetric(stats.totalAccounts, styles.kpiVal)}
           </Card>
         </View>
 
@@ -174,6 +195,12 @@ export const AdminDashboardScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  kpiSkeleton: {
+    marginTop: SPACING.xs,
+  },
+  statusSkeleton: {
+    marginTop: SPACING.xs,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

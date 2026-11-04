@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { ProviderField } from '../../components/common/ProviderField';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { accountsApi } from '../../services/api/accounts.api';
@@ -31,6 +32,12 @@ export const CreateAccountScreen = ({ navigation }) => {
       return;
     }
 
+    const opening = Number(String(openingBalance).replace(/,/g, '').trim() || 0);
+    if (Number.isNaN(opening)) {
+      setError('Please enter a valid opening balance.');
+      return;
+    }
+
     setLoading(true);
     try {
       await accountsApi.createAccount({
@@ -38,7 +45,7 @@ export const CreateAccountScreen = ({ navigation }) => {
         type,
         providerName: providerName.trim() || undefined,
         accountNumber: accountNumber.trim() || undefined,
-        openingBalance: parseFloat(openingBalance) || 0,
+        openingBalance: opening,
       });
 
       queryClient.invalidateQueries({ queryKey: ['accountsList'] });
@@ -66,7 +73,11 @@ export const CreateAccountScreen = ({ navigation }) => {
             <TouchableOpacity
               key={t.id}
               style={[styles.typeOption, type === t.id && styles.typeOptionActive]}
-              onPress={() => setType(t.id)}
+              onPress={() => {
+                setType(t.id);
+                // A bank name makes no sense for a mobile wallet, and the reverse.
+                setProviderName('');
+              }}
             >
               <Text style={[styles.typeOptionText, type === t.id && styles.typeOptionTextActive]}>
                 {t.label}
@@ -77,6 +88,7 @@ export const CreateAccountScreen = ({ navigation }) => {
 
         <Input
           label="Account Name *"
+          autoCapitalize="words"
           placeholder="e.g. Brac Bank Salary A/C"
           value={name}
           onChangeText={setName}
@@ -84,12 +96,7 @@ export const CreateAccountScreen = ({ navigation }) => {
 
         {type !== 'CASH' ? (
           <>
-            <Input
-              label="Provider / Bank Name"
-              placeholder={type === 'BANK' ? 'e.g. Brac Bank' : 'e.g. bKash / Nagad'}
-              value={providerName}
-              onChangeText={setProviderName}
-            />
+            <ProviderField key={type} type={type} value={providerName} onChange={setProviderName} />
 
             <Input
               label="Account / Phone Number (Optional)"
@@ -102,7 +109,7 @@ export const CreateAccountScreen = ({ navigation }) => {
         ) : null}
 
         <Input
-          label="Opening Balance (BDT)"
+          label="Opening Balance"
           placeholder="0.00"
           value={openingBalance}
           onChangeText={setOpeningBalance}

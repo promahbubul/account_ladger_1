@@ -37,6 +37,7 @@ export const Input = ({
         {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
         <TextInput
           value={value}
+          accessibilityLabel={label || placeholder}
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={COLORS.textMuted}

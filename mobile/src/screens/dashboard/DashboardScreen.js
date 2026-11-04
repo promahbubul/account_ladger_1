@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
-import { Card } from '../../components/common/Card';
-import { Button } from '../../components/common/Button';
+import { Amount } from '../../components/common/Amount';
+import { Skeleton } from '../../components/common/Skeleton';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { TransactionRow } from '../../components/lists/TransactionRow';
 import { reportsApi } from '../../services/api/reports.api';
 import { accountsApi } from '../../services/api/accounts.api';
@@ -55,13 +56,7 @@ export const DashboardScreen = ({ navigation }) => {
     queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
   }, [queryClient]);
 
-  const summary = summaryQuery.data || {
-    netWorth: 0,
-    totalIncome: 0,
-    totalExpense: 0,
-    totalReceivables: 0,
-    totalPayables: 0,
-  };
+  const summary = summaryQuery.data || {};
 
   const accounts = accountsQuery.data?.accounts || [];
   const recentTransactions = (recentTxQuery.data?.items || []).slice(0, 5);
@@ -74,10 +69,20 @@ export const DashboardScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
+        {summaryQuery.isError && !summaryQuery.data ? (
+          <QueryErrorBanner message="Could not load your balance." onRetry={() => summaryQuery.refetch()} />
+        ) : null}
+
         {/* Unboxed Hero Balance Header */}
         <View style={styles.balanceHeroSection}>
           <Text style={styles.balanceLabel}>TOTAL BALANCE</Text>
-          <Text style={styles.balanceAmount}>{formatCurrency(summary.netWorth)}</Text>
+          <Amount
+            value={summary.netWorth}
+            isLoading={summaryQuery.isLoading}
+            skeletonWidth={190}
+            skeletonHeight={40}
+            style={styles.balanceAmount}
+          />
 
           <View style={styles.flowMetricsRow}>
             <TouchableOpacity
@@ -86,9 +91,15 @@ export const DashboardScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('IncomeScreen')}
             >
               <Text style={styles.flowMetricLabel}>Income</Text>
-              <Text style={[styles.flowMetricValue, { color: COLORS.success }]} numberOfLines={1} adjustsFontSizeToFit>
-                {formatCurrency(summary.totalIncome)}
-              </Text>
+              <Amount
+                value={summary.totalIncome}
+                isLoading={summaryQuery.isLoading}
+                skeletonWidth={84}
+                skeletonHeight={18}
+                style={[styles.flowMetricValue, { color: COLORS.success }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              />
             </TouchableOpacity>
 
             <View style={styles.flowMetricDivider} />
@@ -99,9 +110,15 @@ export const DashboardScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('ExpensesScreen')}
             >
               <Text style={styles.flowMetricLabel}>Expense</Text>
-              <Text style={[styles.flowMetricValue, { color: COLORS.danger }]} numberOfLines={1} adjustsFontSizeToFit>
-                {formatCurrency(summary.totalExpense)}
-              </Text>
+              <Amount
+                value={summary.totalExpense}
+                isLoading={summaryQuery.isLoading}
+                skeletonWidth={84}
+                skeletonHeight={18}
+                style={[styles.flowMetricValue, { color: COLORS.danger }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -130,9 +147,28 @@ export const DashboardScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.accountsList}>
-          {accounts.length === 0 ? (
+          {accountsQuery.isLoading ? (
+            [0, 1, 2].map((index) => (
+              <View key={index} style={[styles.accountRow, index > 0 && styles.accountRowDivider]}>
+                <View style={styles.accountRowInfo}>
+                  <Skeleton width={110} height={14} />
+                  <Skeleton width={70} height={10} style={styles.skeletonSubline} />
+                </View>
+                <Skeleton width={72} height={14} />
+              </View>
+            ))
+          ) : accountsQuery.isError && !accountsQuery.data ? (
+            <QueryErrorBanner
+              message="Could not load accounts."
+              onRetry={() => accountsQuery.refetch()}
+              style={styles.sectionBanner}
+            />
+          ) : accounts.length === 0 ? (
             <View style={styles.accountCardEmpty}>
               <Text style={styles.emptyText}>No accounts found</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')} accessibilityRole="button">
+                <Text style={styles.emptyAction}>Create your first account</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             accounts.slice(0, DASHBOARD_ACCOUNT_LIMIT).map((acc, index) => (
@@ -150,7 +186,7 @@ export const DashboardScreen = ({ navigation }) => {
                   style={[styles.accountRowBalance, Number(acc.currentBalance) < 0 && { color: COLORS.danger }]}
                   numberOfLines={1}
                 >
-                  {formatCurrency(acc.currentBalance, acc.currency)}
+                  {formatCurrency(acc.currentBalance)}
                 </Text>
               </TouchableOpacity>
             ))
@@ -184,9 +220,27 @@ export const DashboardScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.recentList}>
-          {recentTransactions.length === 0 ? (
+          {recentTxQuery.isLoading ? (
+            [0, 1, 2].map((index) => (
+              <View key={index} style={styles.recentSkeletonRow}>
+                <View style={styles.accountRowInfo}>
+                  <Skeleton width={130} height={14} />
+                  <Skeleton width={90} height={10} style={styles.skeletonSubline} />
+                </View>
+                <Skeleton width={64} height={14} />
+              </View>
+            ))
+          ) : recentTxQuery.isError && !recentTxQuery.data ? (
+            <QueryErrorBanner
+              message="Could not load recent transactions."
+              onRetry={() => recentTxQuery.refetch()}
+            />
+          ) : recentTransactions.length === 0 ? (
             <View style={styles.emptyRecentBox}>
               <Text style={styles.emptyText}>No recent transactions</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('AddExpense')} accessibilityRole="button">
+                <Text style={styles.emptyAction}>Add your first expense</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             recentTransactions.map((tx) => (
@@ -333,6 +387,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     fontVariant: ['tabular-nums'],
+  },
+  skeletonSubline: {
+    marginTop: 6,
+  },
+  sectionBanner: {
+    marginVertical: SPACING.md,
+  },
+  recentSkeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+  },
+  emptyAction: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginTop: SPACING.sm,
   },
   accountCardEmpty: {
     paddingVertical: SPACING.xl,

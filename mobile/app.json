@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.accountledger.mobile"
@@ -17,8 +16,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#0B0D10"
       },
-      "package": "com.accountledger.mobile",
-      "usesCleartextTraffic": true
+      "package": "com.accountledger.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,7 +32,9 @@
           "backgroundColor": "#0B0D10"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sharing",
+      "expo-status-bar"
     ]
   }
 }

@@ -1,13 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, FlatList, RefreshControl, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { View, FlatList, RefreshControl, StyleSheet } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { TransactionRow } from '../../components/lists/TransactionRow';
 import { EmptyState } from '../../components/common/EmptyState';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
+import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { transactionsApi } from '../../services/api/transactions.api';
 import { useDateFilter } from '../../context/DateFilterContext';
@@ -17,13 +20,15 @@ export const ExpensesScreen = ({ navigation }) => {
   const { startDate, endDate } = useDateFilter();
   const [search, setSearch] = useState('');
 
-  const expensesQuery = useQuery({
+  const expensesQuery = usePagedQuery({
     queryKey: ['expensesList', startDate, endDate, search],
-    queryFn: () => transactionsApi.getTransactions({
+    fetchPage: (page) => transactionsApi.getTransactions({
       type: 'EXPENSE',
       startDate,
       endDate,
       search,
+      page,
+      limit: 50,
     }),
   });
 
@@ -31,7 +36,7 @@ export const ExpensesScreen = ({ navigation }) => {
     queryClient.invalidateQueries({ queryKey: ['expensesList'] });
   }, [queryClient]);
 
-  const items = expensesQuery.data?.items || [];
+  const items = expensesQuery.items;
 
   return (
     <View style={styles.container}>
@@ -88,14 +93,18 @@ export const ExpensesScreen = ({ navigation }) => {
               tintColor={COLORS.primary}
             />
           }
+          ListFooterComponent={<LoadMoreFooter query={expensesQuery} />}
           ListEmptyComponent={
-            <EmptyState
-              icon="arrow-up-circle-outline"
-              title="No expense records"
-              description="No expenses found for the selected period or search criteria."
-              actionTitle="Add Expense"
-              onAction={() => navigation.navigate('AddExpense')}
-            />
+            expensesQuery.isError ? (
+              <QueryErrorState title="Could not load expenses" onRetry={() => expensesQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="arrow-up-circle-outline"
+                title="No expense records"
+                actionTitle="Add Expense"
+                onAction={() => navigation.navigate('AddExpense')}
+              />
+            )
           }
         />
       )}

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, FlatList, RefreshControl, StyleSheet } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
@@ -8,6 +8,9 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { TransferRow } from '../../components/lists/TransferRow';
 import { EmptyState } from '../../components/common/EmptyState';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
+import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { transfersApi } from '../../services/api/transfers.api';
 
@@ -15,16 +18,16 @@ export const TransfersScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
 
-  const transfersQuery = useQuery({
+  const transfersQuery = usePagedQuery({
     queryKey: ['transfersList', search],
-    queryFn: () => transfersApi.getTransfers({ search }),
+    fetchPage: (page) => transfersApi.getTransfers({ search, page, limit: 50 }),
   });
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['transfersList'] });
   }, [queryClient]);
 
-  const items = transfersQuery.data?.items || [];
+  const items = transfersQuery.items;
 
   return (
     <View style={styles.container}>
@@ -73,14 +76,18 @@ export const TransfersScreen = ({ navigation }) => {
               tintColor={COLORS.primary}
             />
           }
+          ListFooterComponent={<LoadMoreFooter query={transfersQuery} />}
           ListEmptyComponent={
-            <EmptyState
-              icon="swap-horizontal-outline"
-              title="No transfers yet"
-              description="Move money between cash, bank, or mobile accounts easily."
-              actionTitle="Create Transfer"
-              onAction={() => navigation.navigate('CreateTransfer')}
-            />
+            transfersQuery.isError ? (
+              <QueryErrorState title="Could not load transfers" onRetry={() => transfersQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="swap-horizontal-outline"
+                title="No transfers yet"
+                actionTitle="Create Transfer"
+                onAction={() => navigation.navigate('CreateTransfer')}
+              />
+            )
           }
         />
       )}

@@ -8,6 +8,7 @@ import {
   clearAuthSession,
 } from '../services/storage/secureStore';
 import { setOnUnauthorizedCallback } from '../services/api/client';
+import { setDisplayPreferences } from '../utils/formatters';
 
 const AuthContext = createContext(null);
 
@@ -118,6 +119,9 @@ export const AuthProvider = ({ children, queryClient }) => {
       queryClient.clear();
     }
   }, [queryClient]);
+
+  // During render, so screens rendering below already format with the new preferences.
+  setDisplayPreferences(user || {});
 
   const updateUser = useCallback(async (updatedUser) => {
     setUser(updatedUser);

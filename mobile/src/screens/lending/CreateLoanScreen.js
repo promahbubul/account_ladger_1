@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { showMessage } from '../../utils/notify';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
+import { Select } from '../../components/common/Select';
+import { DateField } from '../../components/common/DateField';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { loansApi } from '../../services/api/loans.api';
 import { accountsApi } from '../../services/api/accounts.api';
-import { getTodayISO } from '../../utils/formatters';
+import { getTodayISO, parseAmount } from '../../utils/formatters';
 
 export const CreateLoanScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -38,8 +42,8 @@ export const CreateLoanScreen = ({ navigation }) => {
 
   const handleCreate = async () => {
     setError('');
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseAmount(amount);
+    if (numAmount === null) {
       setError('Please provide a valid principal amount.');
       return;
     }
@@ -70,9 +74,7 @@ export const CreateLoanScreen = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['accountsList'] });
       queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
 
-      Alert.alert('Success', 'Loan record created successfully.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      showMessage('Success', 'Loan record created successfully.', () => navigation.goBack());
     } catch (err) {
       setError(err.message || 'Failed to create loan.');
     } finally {
@@ -108,7 +110,7 @@ export const CreateLoanScreen = ({ navigation }) => {
         </View>
 
         <Input
-          label="Principal Amount (BDT) *"
+          label="Principal Amount *"
           placeholder="0.00"
           value={amount}
           onChangeText={setAmount}
@@ -118,6 +120,7 @@ export const CreateLoanScreen = ({ navigation }) => {
 
         <Input
           label="Person / Party Name *"
+          autoCapitalize="words"
           placeholder="e.g. Rafiq Ahmed"
           value={counterparty}
           onChangeText={setCounterparty}
@@ -130,40 +133,35 @@ export const CreateLoanScreen = ({ navigation }) => {
           onChangeText={setContact}
         />
 
-        <Text style={styles.fieldLabel}>
-          {type === 'LENT' ? 'Disbursing Account (Money out from)' : 'Receiving Account (Money into)'} *
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {accounts.map(acc => {
-            const isSelected = accountId === acc.id;
-            return (
-              <TouchableOpacity
-                key={acc.id}
-                style={[styles.chip, isSelected && styles.chipActive]}
-                onPress={() => setAccountId(acc.id)}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{acc.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        <Input
-          label="Start Date (YYYY-MM-DD) *"
-          placeholder="YYYY-MM-DD"
-          value={startDate}
-          onChangeText={setStartDate}
+        {accountsQuery.isError ? (
+          <QueryErrorBanner message="Could not load accounts." onRetry={() => accountsQuery.refetch()} />
+        ) : null}
+        <Select
+          label={type === 'LENT' ? 'Disbursing Account (Money out from) *' : 'Receiving Account (Money into) *'}
+          placeholder="Select an account"
+          value={accountId}
+          options={accounts.map((acc) => ({ value: acc.id, label: acc.name }))}
+          onChange={setAccountId}
+          loading={accountsQuery.isLoading}
+          emptyMessage="No accounts found."
         />
 
-        <Input
+        <DateField
+          label="Start Date *"
+          value={startDate}
+          onChange={setStartDate}
+        />
+
+        <DateField
           label="Due Date (Optional)"
-          placeholder="YYYY-MM-DD"
           value={dueDate}
-          onChangeText={setDueDate}
+          onChange={setDueDate}
+          allowClear
         />
 
         <Input
           label="Notes (Optional)"
+          autoCapitalize="sentences"
           placeholder="e.g. Emergency loan, promised return by next month"
           value={notes}
           onChangeText={setNotes}
@@ -228,31 +226,6 @@ const styles = StyleSheet.create({
   },
   typeOptionTextActive: {
     color: '#FFF',
-  },
-  chipsRow: {
-    gap: SPACING.xs,
-    marginBottom: SPACING.md,
-  },
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  chipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  chipText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
   },
   submitBtn: {
     marginTop: SPACING.md,

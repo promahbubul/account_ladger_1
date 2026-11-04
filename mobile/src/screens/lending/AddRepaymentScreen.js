@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { showMessage } from '../../utils/notify';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
+import { DateField } from '../../components/common/DateField';
+import { Select } from '../../components/common/Select';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { loansApi } from '../../services/api/loans.api';
 import { accountsApi } from '../../services/api/accounts.api';
-import { getTodayISO, formatCurrency } from '../../utils/formatters';
+import { getTodayISO, formatCurrency, parseAmount } from '../../utils/formatters';
 
 export const AddRepaymentScreen = ({ route, navigation }) => {
   const queryClient = useQueryClient();
@@ -38,8 +42,8 @@ export const AddRepaymentScreen = ({ route, navigation }) => {
 
   const handleRepayment = async () => {
     setError('');
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmount = parseAmount(amount);
+    if (numAmount === null) {
       setError('Please provide a valid repayment amount.');
       return;
     }
@@ -67,9 +71,7 @@ export const AddRepaymentScreen = ({ route, navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['accountsList'] });
       queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
 
-      Alert.alert('Success', 'Repayment recorded successfully.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      showMessage('Success', 'Repayment recorded successfully.', () => navigation.goBack());
     } catch (err) {
       setError(err.message || 'Failed to record repayment.');
     } finally {
@@ -95,7 +97,7 @@ export const AddRepaymentScreen = ({ route, navigation }) => {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Input
-          label="Repayment Amount (BDT) *"
+          label="Repayment Amount *"
           placeholder="0.00"
           value={amount}
           onChangeText={setAmount}
@@ -103,31 +105,28 @@ export const AddRepaymentScreen = ({ route, navigation }) => {
           inputStyle={{ fontSize: FONT_SIZE.xl, fontWeight: '700', color: COLORS.success }}
         />
 
-        <Input
-          label="Date (YYYY-MM-DD) *"
-          placeholder="YYYY-MM-DD"
+        <DateField
+          label="Date *"
           value={date}
-          onChangeText={setDate}
+          onChange={setDate}
         />
 
-        <Text style={styles.fieldLabel}>Account *</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {accounts.map(acc => {
-            const isSelected = accountId === acc.id;
-            return (
-              <TouchableOpacity
-                key={acc.id}
-                style={[styles.chip, isSelected && styles.chipActive]}
-                onPress={() => setAccountId(acc.id)}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{acc.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {accountsQuery.isError ? (
+          <QueryErrorBanner message="Could not load accounts." onRetry={() => accountsQuery.refetch()} />
+        ) : null}
+        <Select
+          label="Account *"
+          placeholder="Select an account"
+          value={accountId}
+          options={accounts.map((acc) => ({ value: acc.id, label: acc.name }))}
+          onChange={setAccountId}
+          loading={accountsQuery.isLoading}
+          emptyMessage="No accounts found."
+        />
 
         <Input
           label="Notes (Optional)"
+          autoCapitalize="sentences"
           placeholder="e.g. Partial cash payment"
           value={notes}
           onChangeText={setNotes}
@@ -182,31 +181,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
-  },
-  chipsRow: {
-    gap: SPACING.xs,
-    marginBottom: SPACING.md,
-  },
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  chipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  chipText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
   },
   submitBtn: {
     marginTop: SPACING.md,

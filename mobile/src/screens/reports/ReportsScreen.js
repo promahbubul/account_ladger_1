@@ -1,51 +1,48 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
-import { Card } from '../../components/common/Card';
+import { Amount } from '../../components/common/Amount';
+import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { Button } from '../../components/common/Button';
+import { BarList } from '../../components/charts/BarList';
+import { MonthlyBars } from '../../components/charts/MonthlyBars';
 import { reportsApi } from '../../services/api/reports.api';
-import { formatCurrency } from '../../utils/formatters';
 import { useDateFilter } from '../../context/DateFilterContext';
+import { getTodayISO } from '../../utils/formatters';
+import { saveJsonFile } from '../../utils/saveJsonFile';
+import { showMessage } from '../../utils/notify';
 
 export const ReportsScreen = () => {
   const queryClient = useQueryClient();
-  const { startDate, endDate, formattedRangeLabel } = useDateFilter();
+  const { startDate, endDate } = useDateFilter();
 
   const reportsQuery = useQuery({
     queryKey: ['reportsSummary', startDate, endDate],
     queryFn: () => reportsApi.getSummary({ startDate, endDate }),
   });
 
+  // Nested under the summary key, so every screen that refreshes the summary refreshes this too.
+  const analyticsQuery = useQuery({
+    queryKey: ['reportsSummary', 'analytics', startDate, endDate],
+    queryFn: () => reportsApi.getAnalytics({ startDate, endDate }),
+  });
+
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['reportsSummary'] });
   }, [queryClient]);
 
-  const data = reportsQuery.data || {
-    netWorth: 0,
-    totalIncome: 0,
-    totalExpense: 0,
-    netSavings: 0,
-    totalCash: 0,
-    totalBank: 0,
-    totalMobile: 0,
-    totalReceivables: 0,
-    totalPayables: 0,
-    totalTransactions: 0,
-  };
+  const data = reportsQuery.data || {};
+  const isLoading = reportsQuery.isLoading;
 
   const handleExportBackup = async () => {
     try {
       const backup = await reportsApi.exportData();
-      Alert.alert(
-        'Ledger Backup Ready',
-        `Generated full ledger backup containing ${backup.data.transactions?.length || 0} transactions and ${backup.data.accounts?.length || 0} accounts.`,
-        [{ text: 'OK' }]
-      );
+      await saveJsonFile(`accountledger-backup-${getTodayISO()}.json`, backup);
     } catch (err) {
-      Alert.alert('Export Failed', err.message || 'Could not export ledger data.');
+      showMessage('Export Failed', err.message || 'Could not export ledger data.');
     }
   };
 
@@ -63,70 +60,96 @@ export const ReportsScreen = () => {
           />
         }
       >
-        <Text style={styles.periodLabel}>REPORT FOR: {formattedRangeLabel.toUpperCase()}</Text>
+        {reportsQuery.isError && !reportsQuery.data ? (
+          <QueryErrorBanner message="Could not load this report." onRetry={() => reportsQuery.refetch()} />
+        ) : null}
 
         {/* Unboxed Net Savings & Flow */}
         <View style={styles.savingsHero}>
           <Text style={styles.kpiTitle}>NET CASH FLOW (SAVINGS)</Text>
-          <Text style={[styles.kpiValue, { color: data.netSavings >= 0 ? COLORS.success : COLORS.danger }]}>
-            {formatCurrency(data.netSavings)}
-          </Text>
+          <Amount
+            value={data.netSavings}
+            isLoading={isLoading}
+            skeletonWidth={170}
+            skeletonHeight={34}
+            style={[styles.kpiValue, { color: data.netSavings < 0 ? COLORS.danger : COLORS.success }]}
+          />
 
           <View style={styles.flowMetricsRow}>
             <View style={styles.flowMetricItem}>
-              <View style={[styles.flowDot, { backgroundColor: COLORS.success }]} />
               <Text style={styles.flowKey}>Inflow</Text>
-              <Text style={[styles.flowVal, { color: COLORS.success }]}>{formatCurrency(data.totalIncome)}</Text>
+              <Amount value={data.totalIncome} isLoading={isLoading} style={[styles.flowVal, { color: COLORS.success }]} />
             </View>
 
             <View style={styles.flowDivider} />
 
             <View style={styles.flowMetricItem}>
-              <View style={[styles.flowDot, { backgroundColor: COLORS.danger }]} />
               <Text style={styles.flowKey}>Outflow</Text>
-              <Text style={[styles.flowVal, { color: COLORS.danger }]}>{formatCurrency(data.totalExpense)}</Text>
+              <Amount value={data.totalExpense} isLoading={isLoading} style={[styles.flowVal, { color: COLORS.danger }]} />
             </View>
           </View>
         </View>
+
+        {analyticsQuery.isError && !analyticsQuery.data ? (
+          <QueryErrorBanner message="Could not load the charts." onRetry={() => analyticsQuery.refetch()} />
+        ) : (
+          <View>
+            <Text style={styles.sectionHeader}>EXPENSE BY CATEGORY</Text>
+            <View style={styles.chartSection}>
+              <BarList
+                rows={(analyticsQuery.data?.byCategory || []).map((row) => ({ key: row.name, label: row.name, value: row.amount }))}
+                isLoading={analyticsQuery.isLoading}
+                emptyMessage="No expenses in this period."
+              />
+            </View>
+
+            <Text style={styles.sectionHeader}>INCOME VS EXPENSE, LAST 12 MONTHS</Text>
+            <View style={styles.chartSection}>
+              <MonthlyBars months={analyticsQuery.data?.monthly} isLoading={analyticsQuery.isLoading} />
+            </View>
+          </View>
+        )}
 
         {/* Account Assets Breakdown */}
         <Text style={styles.sectionHeader}>ASSETS BY ACCOUNT TYPE</Text>
         <View style={styles.breakdownSection}>
           <View style={styles.breakdownRow}>
             <View style={styles.assetHeader}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.successLight }]}>
-                <Ionicons name="cash-outline" size={16} color={COLORS.success} />
+              <View style={styles.iconBox}>
+                <Ionicons name="cash-outline" size={16} color={COLORS.textSecondary} />
               </View>
               <Text style={styles.assetName}>Cash on Hand</Text>
             </View>
-            <Text style={styles.assetVal}>{formatCurrency(data.totalCash)}</Text>
+            <Amount value={data.totalCash} isLoading={isLoading} style={styles.assetVal} />
           </View>
 
           <View style={styles.breakdownRow}>
             <View style={styles.assetHeader}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.primaryLight }]}>
-                <Ionicons name="business-outline" size={16} color={COLORS.primary} />
+              <View style={styles.iconBox}>
+                <Ionicons name="business-outline" size={16} color={COLORS.textSecondary} />
               </View>
               <Text style={styles.assetName}>Bank Accounts</Text>
             </View>
-            <Text style={styles.assetVal}>{formatCurrency(data.totalBank)}</Text>
+            <Amount value={data.totalBank} isLoading={isLoading} style={styles.assetVal} />
           </View>
 
           <View style={styles.breakdownRow}>
             <View style={styles.assetHeader}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.purpleLight }]}>
-                <Ionicons name="phone-portrait-outline" size={16} color={COLORS.purple} />
+              <View style={styles.iconBox}>
+                <Ionicons name="phone-portrait-outline" size={16} color={COLORS.textSecondary} />
               </View>
               <Text style={styles.assetName}>Mobile Banking</Text>
             </View>
-            <Text style={styles.assetVal}>{formatCurrency(data.totalMobile)}</Text>
+            <Amount value={data.totalMobile} isLoading={isLoading} style={styles.assetVal} />
           </View>
 
           <View style={[styles.breakdownRow, { borderBottomWidth: 0, paddingTop: SPACING.md }]}>
             <Text style={[styles.assetName, { fontWeight: '700' }]}>Total Net Worth</Text>
-            <Text style={[styles.assetVal, { fontWeight: '800', color: COLORS.primary }]}>
-              {formatCurrency(data.netWorth)}
-            </Text>
+            <Amount
+              value={data.netWorth}
+              isLoading={isLoading}
+              style={[styles.assetVal, { fontWeight: '800' }]}
+            />
           </View>
         </View>
 
@@ -135,22 +158,22 @@ export const ReportsScreen = () => {
         <View style={styles.breakdownSection}>
           <View style={styles.breakdownRow}>
             <View style={styles.assetHeader}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.primaryLight }]}>
-                <Ionicons name="arrow-up-circle-outline" size={16} color={COLORS.primary} />
+              <View style={styles.iconBox}>
+                <Ionicons name="arrow-up-circle-outline" size={16} color={COLORS.textSecondary} />
               </View>
               <Text style={styles.assetName}>Receivables (Money Lent)</Text>
             </View>
-            <Text style={[styles.assetVal, { color: COLORS.primary }]}>{formatCurrency(data.totalReceivables)}</Text>
+            <Amount value={data.totalReceivables} isLoading={isLoading} style={styles.assetVal} />
           </View>
 
           <View style={[styles.breakdownRow, { borderBottomWidth: 0 }]}>
             <View style={styles.assetHeader}>
-              <View style={[styles.iconBox, { backgroundColor: COLORS.warningLight }]}>
-                <Ionicons name="arrow-down-circle-outline" size={16} color={COLORS.warning} />
+              <View style={styles.iconBox}>
+                <Ionicons name="arrow-down-circle-outline" size={16} color={COLORS.textSecondary} />
               </View>
               <Text style={styles.assetName}>Payables (Money Borrowed)</Text>
             </View>
-            <Text style={[styles.assetVal, { color: COLORS.warning }]}>{formatCurrency(data.totalPayables)}</Text>
+            <Amount value={data.totalPayables} isLoading={isLoading} style={styles.assetVal} />
           </View>
         </View>
 
@@ -168,6 +191,10 @@ export const ReportsScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  chartSection: {
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.xs,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -196,23 +223,14 @@ const styles = StyleSheet.create({
   flowMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceGhost,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    borderRadius: RADIUS.full,
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-    marginTop: SPACING.sm,
+    alignSelf: 'stretch',
+    marginTop: SPACING.lg,
   },
   flowMetricItem: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
-    gap: 6,
-  },
-  flowDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    paddingHorizontal: SPACING.sm,
+    gap: 2,
   },
   flowKey: {
     fontSize: FONT_SIZE.xs,
@@ -220,14 +238,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   flowVal: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.md,
+    fontWeight: '600',
   },
   flowDivider: {
     width: 1,
-    height: 14,
-    backgroundColor: COLORS.borderHairline,
-    marginHorizontal: SPACING.md,
+    height: 28,
+    backgroundColor: COLORS.border,
   },
   sectionHeader: {
     fontSize: 11,
@@ -258,6 +275,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   iconBox: {
+    backgroundColor: COLORS.surfaceElevated,
     width: 28,
     height: 28,
     borderRadius: RADIUS.full,

@@ -49,5 +49,5 @@ const getDevApiUrl = () => {
 
 export const API_BASE_URL = getDevApiUrl();
 export const APP_NAME = 'AccountLedger.com';
-export const APP_VERSION = '2.0.0-mobile';
+export const APP_VERSION = Constants.expoConfig?.version || '';
 

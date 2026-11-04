@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
@@ -7,6 +7,7 @@ import { Header } from '../../components/common/Header';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { EmptyState } from '../../components/common/EmptyState';
+import { QueryErrorState } from '../../components/common/QueryStates';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { categoriesApi } from '../../services/api/categories.api';
 
@@ -101,12 +102,16 @@ export const CategoriesScreen = ({ navigation }) => {
             />
           }
           ListEmptyComponent={
-            <EmptyState
-              icon="tags-outline"
-              title="No categories found"
-              actionTitle="Add Category"
-              onAction={() => navigation.navigate('CreateCategory', { defaultType: tab })}
-            />
+            categoriesQuery.isError ? (
+              <QueryErrorState title="Could not load categories" onRetry={() => categoriesQuery.refetch()} />
+            ) : (
+              <EmptyState
+                icon="pricetags-outline"
+                title="No categories found"
+                actionTitle="Add Category"
+                onAction={() => navigation.navigate('CreateCategory', { defaultType: tab })}
+              />
+            )
           }
         />
       )}

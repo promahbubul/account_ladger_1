@@ -4,6 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
 import { useDateFilter } from '../../context/DateFilterContext';
+import { formatDate } from '../../utils/formatters';
+import { Button } from './Button';
+import { DateRangeCalendar } from './DateRangeCalendar';
 
 export const Header = ({
   title,
@@ -13,8 +16,25 @@ export const Header = ({
   rightAction,
 }) => {
   const insets = useSafeAreaInsets();
-  const { preset, setPreset, formattedRangeLabel } = useDateFilter();
+  const { preset, startDate, endDate, setPreset, setCustomRange, formattedRangeLabel } = useDateFilter();
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [showCustomRange, setShowCustomRange] = useState(false);
+  const [draftRange, setDraftRange] = useState({ start: '', end: '' });
+
+  const openFilter = () => {
+    setShowCustomRange(false);
+    setFilterModalVisible(true);
+  };
+
+  const openCustomRange = () => {
+    setDraftRange(preset === 'custom' ? { start: startDate, end: endDate } : { start: '', end: '' });
+    setShowCustomRange(true);
+  };
+
+  const applyCustomRange = () => {
+    setCustomRange(draftRange.start, draftRange.end || draftRange.start);
+    setFilterModalVisible(false);
+  };
 
   const presets = [
     { id: 'today', label: 'Today' },
@@ -42,7 +62,7 @@ export const Header = ({
           {showDateFilter ? (
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => setFilterModalVisible(true)}
+              onPress={openFilter}
               style={styles.filterBadge}
             >
               <Ionicons name="calendar-outline" size={13} color={COLORS.primary} />
@@ -69,29 +89,87 @@ export const Header = ({
           activeOpacity={1}
           onPress={() => setFilterModalVisible(false)}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalHeading}>Select Date Range</Text>
-            {presets.map((p) => {
-              const isSelected = preset === p.id;
-              return (
+          <TouchableOpacity style={styles.modalContent} activeOpacity={1}>
+            {showCustomRange ? (
+              <>
+                <View style={styles.customHeader}>
+                  <TouchableOpacity
+                    onPress={() => setShowCustomRange(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Back to date ranges"
+                  >
+                    <Ionicons name="arrow-back" size={18} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                  <Text style={styles.customHeading}>Custom Range</Text>
+                </View>
+
+                <View style={styles.rangeSummary}>
+                  <View style={styles.rangeSummaryItem}>
+                    <Text style={styles.rangeSummaryLabel}>From</Text>
+                    <Text style={styles.rangeSummaryValue}>{draftRange.start ? formatDate(draftRange.start) : 'Select'}</Text>
+                  </View>
+                  <View style={styles.rangeSummaryItem}>
+                    <Text style={styles.rangeSummaryLabel}>To</Text>
+                    <Text style={styles.rangeSummaryValue}>
+                      {draftRange.end ? formatDate(draftRange.end) : draftRange.start ? 'Same day' : 'Select'}
+                    </Text>
+                  </View>
+                </View>
+
+                <DateRangeCalendar
+                  startDate={draftRange.start}
+                  endDate={draftRange.end}
+                  onChange={(start, end) => setDraftRange({ start, end })}
+                />
+
+                <Button
+                  title="Apply"
+                  onPress={applyCustomRange}
+                  disabled={!draftRange.start}
+                  style={styles.applyBtn}
+                />
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalHeading}>Select Date Range</Text>
+                {presets.map((p) => {
+                  const isSelected = preset === p.id;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={[styles.presetRow, isSelected && styles.presetRowSelected]}
+                      onPress={() => {
+                        setPreset(p.id);
+                        setFilterModalVisible(false);
+                      }}
+                    >
+                      <Text style={[styles.presetText, isSelected && styles.presetTextSelected]}>
+                        {p.label}
+                      </Text>
+                      {isSelected ? (
+                        <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
                 <TouchableOpacity
-                  key={p.id}
-                  style={[styles.presetRow, isSelected && styles.presetRowSelected]}
-                  onPress={() => {
-                    setPreset(p.id);
-                    setFilterModalVisible(false);
-                  }}
+                  style={[styles.presetRow, preset === 'custom' && styles.presetRowSelected]}
+                  onPress={openCustomRange}
                 >
-                  <Text style={[styles.presetText, isSelected && styles.presetTextSelected]}>
-                    {p.label}
-                  </Text>
-                  {isSelected ? (
-                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
-                  ) : null}
+                  <View>
+                    <Text style={[styles.presetText, preset === 'custom' && styles.presetTextSelected]}>
+                      Custom Range
+                    </Text>
+                    {preset === 'custom' ? (
+                      <Text style={styles.presetHint}>{formattedRangeLabel}</Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+              </>
+            )}
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -146,7 +224,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
     fontWeight: '500',
-    maxWidth: 110,
+    maxWidth: 150,
   },
   modalOverlay: {
     flex: 1,
@@ -192,5 +270,47 @@ const styles = StyleSheet.create({
   presetTextSelected: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  presetHint: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    marginBottom: SPACING.md,
+  },
+  customHeading: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  rangeSummary: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  rangeSummaryItem: {
+    flex: 1,
+    paddingHorizontal: SPACING.xs,
+  },
+  rangeSummaryLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    marginBottom: 2,
+  },
+  rangeSummaryValue: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  applyBtn: {
+    marginTop: SPACING.md,
   },
 });

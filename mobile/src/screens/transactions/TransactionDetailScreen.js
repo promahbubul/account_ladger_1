@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Modal, TouchableOpacity } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
+import { showMessage } from '../../utils/notify';
+import { View, Text, StyleSheet, ScrollView, Modal } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
-import { Card } from '../../components/common/Card';
+import { Select } from '../../components/common/Select';
+import { accountsApi } from '../../services/api/accounts.api';
+import { categoriesApi } from '../../services/api/categories.api';
+import { getSelectableCategories } from '../../utils/categories';
+import { DateField } from '../../components/common/DateField';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Input } from '../../components/common/Input';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, parseAmount } from '../../utils/formatters';
 import { transactionsApi } from '../../services/api/transactions.api';
 
 export const TransactionDetailScreen = ({ route, navigation }) => {
@@ -28,6 +33,28 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
   const [date, setDate] = useState(initialTx?.date ? String(initialTx.date).slice(0, 10) : '');
   const [reference, setReference] = useState(initialTx?.reference || '');
 
+  const [accountId, setAccountId] = useState(initialTx?.accountId || '');
+  const [category, setCategory] = useState(initialTx?.category || '');
+  const [subcategory, setSubcategory] = useState(initialTx?.subcategory || '');
+
+  const isCategorized = initialTx?.type === 'INCOME' || initialTx?.type === 'EXPENSE';
+  const accountsQuery = useQuery({
+    queryKey: ['accountsList'],
+    queryFn: () => accountsApi.getAccounts(),
+    enabled: editVisible && isCategorized,
+  });
+  const categoriesQuery = useQuery({
+    queryKey: ['categoriesList'],
+    queryFn: () => categoriesApi.getCategories(),
+    enabled: editVisible && isCategorized,
+  });
+  const categories = getSelectableCategories(categoriesQuery.data?.categories, initialTx?.type);
+  // A category or subcategory that was since archived must stay visible until it is changed.
+  const categoryNames = categories.map((c) => c.name);
+  const categoryOptions = [...new Set([...(category ? [category] : []), ...categoryNames])].map((name) => ({ value: name, label: name }));
+  const subcategoryNames = categories.find((c) => c.name === category)?.subcategories || [];
+  const subcategoryOptions = [...new Set([...(subcategory ? [subcategory] : []), ...subcategoryNames])].map((name) => ({ value: name, label: name }));
+
   if (!tx) return null;
 
   const isIncome = tx.type === 'INCOME';
@@ -35,17 +62,17 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
   const amountColor = isIncome ? COLORS.success : isExpense ? COLORS.danger : COLORS.warning;
 
   const handleUpdate = async () => {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid amount greater than 0.');
+    const numAmount = parseAmount(amount);
+    if (numAmount === null) {
+      showMessage('Validation Error', 'Please enter a valid amount greater than 0.');
       return;
     }
     if (!date.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
-      Alert.alert('Validation Error', 'Please enter a valid date in YYYY-MM-DD format.');
+      showMessage('Validation Error', 'Please enter a valid date in YYYY-MM-DD format.');
       return;
     }
     if (!description.trim()) {
-      Alert.alert('Validation Error', 'Description cannot be empty.');
+      showMessage('Validation Error', 'Description cannot be empty.');
       return;
     }
 
@@ -56,6 +83,7 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
         amount: numAmount,
         description: description.trim(),
         reference: reference.trim() || null,
+        ...(isCategorized ? { accountId, category, subcategory: subcategory || null } : {}),
       });
 
       const newTx = updated?.transaction || {
@@ -64,6 +92,7 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
         amount: numAmount,
         description: description.trim(),
         reference: reference.trim() || null,
+        ...(isCategorized ? { accountId, category, subcategory: subcategory || null } : {}),
       };
 
       setTx(newTx);
@@ -76,7 +105,7 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
       setEditVisible(false);
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to update transaction.');
+      showMessage('Error', err.message || 'Failed to update transaction.');
     } finally {
       setEditLoading(false);
     }
@@ -95,7 +124,7 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
       setDeleteVisible(false);
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to delete transaction.');
+      showMessage('Error', err.message || 'Failed to delete transaction.');
     } finally {
       setLoading(false);
     }
@@ -187,24 +216,25 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Transaction</Text>
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
 
             <Input
-              label="Amount (BDT) *"
+              label="Amount *"
               placeholder="0.00"
               value={amount}
               onChangeText={setAmount}
               keyboardType="numeric"
             />
 
-            <Input
-              label="Date (YYYY-MM-DD) *"
-              placeholder="YYYY-MM-DD"
+            <DateField
+              label="Date *"
               value={date}
-              onChangeText={setDate}
+              onChange={setDate}
             />
 
             <Input
               label="Description *"
+              autoCapitalize="sentences"
               placeholder="e.g. Weekly grocery shopping"
               value={description}
               onChangeText={setDescription}
@@ -216,6 +246,41 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
               value={reference}
               onChangeText={setReference}
             />
+
+            {isCategorized ? (
+              <>
+                <Select
+                  label="Account *"
+                  value={accountId}
+                  options={(accountsQuery.data?.accounts || []).map((acc) => ({ value: acc.id, label: acc.name }))}
+                  onChange={setAccountId}
+                  loading={accountsQuery.isLoading}
+                  placeholder={tx.accountName || 'Select an account'}
+                />
+                <Select
+                  label="Category *"
+                  value={category}
+                  options={categoryOptions}
+                  onChange={(name) => {
+                    setCategory(name);
+                    setSubcategory('');
+                  }}
+                  loading={categoriesQuery.isLoading}
+                  placeholder="Select a category"
+                />
+                {subcategoryOptions.length > 0 ? (
+                  <Select
+                    label="Subcategory"
+                    value={subcategory}
+                    options={subcategoryOptions}
+                    onChange={setSubcategory}
+                    allowClear
+                    placeholder="Optional"
+                  />
+                ) : null}
+              </>
+            ) : null}
+            </ScrollView>
 
             <View style={styles.modalBtnRow}>
               <Button
@@ -248,6 +313,9 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  modalScroll: {
+    maxHeight: 460,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

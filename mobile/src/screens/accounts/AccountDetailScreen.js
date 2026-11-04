@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Modal } from 'react-native';
+import { showMessage } from '../../utils/notify';
+import { View, Text, StyleSheet, ScrollView, Modal } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
-import { Card } from '../../components/common/Card';
+import { ProviderField } from '../../components/common/ProviderField';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Input } from '../../components/common/Input';
@@ -32,7 +33,7 @@ export const AccountDetailScreen = ({ route, navigation }) => {
 
   const handleUpdate = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Account name cannot be empty.');
+      showMessage('Validation Error', 'Account name cannot be empty.');
       return;
     }
 
@@ -56,7 +57,7 @@ export const AccountDetailScreen = ({ route, navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['accountsOverview'] });
       setEditVisible(false);
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to update account.');
+      showMessage('Error', err.message || 'Failed to update account.');
     } finally {
       setEditLoading(false);
     }
@@ -71,7 +72,7 @@ export const AccountDetailScreen = ({ route, navigation }) => {
       setDeleteVisible(false);
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err.message || 'Cannot delete account with existing transactions.');
+      showMessage('Error', err.message || 'Cannot delete account with existing transactions.');
     } finally {
       setLoading(false);
     }
@@ -86,7 +87,7 @@ export const AccountDetailScreen = ({ route, navigation }) => {
       setArchiveVisible(false);
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to update account archive status.');
+      showMessage('Error', err.message || 'Failed to update account archive status.');
     } finally {
       setLoading(false);
     }
@@ -105,14 +106,14 @@ export const AccountDetailScreen = ({ route, navigation }) => {
           </View>
 
           <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
-          <Text style={styles.balanceVal}>{formatCurrency(account.currentBalance, account.currency)}</Text>
+          <Text style={styles.balanceVal}>{formatCurrency(account.currentBalance)}</Text>
         </View>
 
         {/* Details Section */}
         <View style={styles.detailsSection}>
           <View style={styles.infoRow}>
             <Text style={styles.infoKey}>Opening Balance</Text>
-            <Text style={styles.infoVal}>{formatCurrency(account.openingBalance, account.currency)}</Text>
+            <Text style={styles.infoVal}>{formatCurrency(account.openingBalance)}</Text>
           </View>
 
           {account.providerName ? (
@@ -180,17 +181,15 @@ export const AccountDetailScreen = ({ route, navigation }) => {
 
             <Input
               label="Account Name *"
+              autoCapitalize="words"
               placeholder="e.g. City Bank Primary"
               value={name}
               onChangeText={setName}
             />
 
-            <Input
-              label="Provider / Bank"
-              placeholder="e.g. City Bank PLC"
-              value={providerName}
-              onChangeText={setProviderName}
-            />
+            {account.type !== 'CASH' ? (
+              <ProviderField type={account.type} value={providerName} onChange={setProviderName} />
+            ) : null}
 
             <Input
               label="Account Number (Optional)"

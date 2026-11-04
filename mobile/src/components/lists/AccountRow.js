@@ -3,14 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
 import { formatCurrency } from '../../utils/formatters';
-import { Badge } from '../common/Badge';
 
 export const AccountRow = ({ account, onPress }) => {
   const isBank = account.type === 'BANK';
   const isCash = account.type === 'CASH';
 
   const iconName = isBank ? 'business' : isCash ? 'cash' : 'phone-portrait';
-  const badgeVariant = isBank ? 'primary' : isCash ? 'success' : 'purple';
   const typeLabel = isBank ? 'Bank' : isCash ? 'Cash' : 'Mobile';
 
   return (
@@ -20,11 +18,11 @@ export const AccountRow = ({ account, onPress }) => {
       style={styles.row}
     >
       <View style={styles.leftCol}>
-        <View style={[styles.iconBox, { backgroundColor: isBank ? COLORS.primaryLight : isCash ? COLORS.successLight : COLORS.purpleLight }]}>
+        <View style={styles.iconBox}>
           <Ionicons
             name={iconName}
             size={18}
-            color={isBank ? COLORS.primary : isCash ? COLORS.success : COLORS.purple}
+            color={COLORS.textSecondary}
           />
         </View>
         <View style={styles.infoCol}>
@@ -47,9 +45,8 @@ export const AccountRow = ({ account, onPress }) => {
 
       <View style={styles.rightCol}>
         <Text style={[styles.balanceValue, account.currentBalance < 0 && { color: COLORS.danger }]}>
-          {formatCurrency(account.currentBalance, account.currency)}
+          {formatCurrency(account.currentBalance)}
         </Text>
-        <Badge label={typeLabel} variant={badgeVariant} style={styles.typeBadge} />
       </View>
     </TouchableOpacity>
   );
@@ -73,6 +70,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   iconBox: {
+    backgroundColor: COLORS.surfaceElevated,
     width: 40,
     height: 40,
     borderRadius: RADIUS.full,
@@ -109,8 +107,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.2,
-  },
-  typeBadge: {
-    marginTop: 4,
   },
 });
