@@ -1,7 +1,7 @@
 import { formatDate, CURRENCY_SYMBOLS } from '../../lib/formatters';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { API_BASE_URL } from '../../services/api';
+import { useFinance } from '../../context/FinanceContext';
 import {
   UserPlus,
   KeyRound,
@@ -82,6 +82,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onNavigateTab,
 }) => {
   const { user: currentUser, token } = useAuth();
+  const { authFetch } = useFinance();
   const [activeSection, setActiveSection] = useState<'dashboard' | 'users' | 'logs' | 'settings'>(initialSection);
 
   useEffect(() => {
@@ -146,8 +147,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setIsStatsLoading(true);
     try {
       const [statsRes, settingsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE_URL}/admin/settings`, { headers: { Authorization: `Bearer ${token}` } }),
+        authFetch(`/api/admin/stats`),
+        authFetch(`/api/admin/settings`),
       ]);
       if (statsRes.ok) {
         setStats(await statsRes.json());
@@ -161,7 +162,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     } finally {
       setIsStatsLoading(false);
     }
-  }, [token]);
+  }, [token, authFetch]);
 
   const fetchUsers = useCallback(async () => {
     if (!token) return;
@@ -174,9 +175,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (userPagination.cursor) params.set('cursor', userPagination.cursor);
       if (userSearchQuery.trim()) params.set('search', userSearchQuery.trim());
 
-      const res = await fetch(`${API_BASE_URL}/admin/users?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`/api/admin/users?${params.toString()}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to fetch users');
@@ -196,7 +195,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     } finally {
       setIsUsersLoading(false);
     }
-  }, [token, userPagination.pageSize, userPagination.cursor, userSearchQuery, userPagination.setPaginationMeta]);
+  }, [token, authFetch, userPagination.pageSize, userPagination.cursor, userSearchQuery, userPagination.setPaginationMeta]);
 
   const fetchLogs = useCallback(async () => {
     if (!token) return;
@@ -209,9 +208,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (logPagination.cursor) params.set('cursor', logPagination.cursor);
       if (logSearchQuery.trim()) params.set('search', logSearchQuery.trim());
 
-      const res = await fetch(`${API_BASE_URL}/admin/audit-logs?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`/api/admin/audit-logs?${params.toString()}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to fetch audit logs');
@@ -231,7 +228,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     } finally {
       setIsLogsLoading(false);
     }
-  }, [token, logPagination.pageSize, logPagination.cursor, logSearchQuery, logPagination.setPaginationMeta]);
+  }, [token, authFetch, logPagination.pageSize, logPagination.cursor, logSearchQuery, logPagination.setPaginationMeta]);
 
   useEffect(() => {
     fetchStatsAndSettings();
@@ -261,11 +258,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/users`, {
+      const res = await authFetch(`/api/admin/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(createForm),
       });
@@ -302,11 +298,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/users/${editUser.id}`, {
+      const res = await authFetch(`/api/admin/users/${editUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           fullName: editUser.fullName,
@@ -338,11 +333,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/users/${u.id}/status`, {
+      const res = await authFetch(`/api/admin/users/${u.id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ isActive: !u.isActive }),
       });
@@ -364,11 +358,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/users/${resetPasswordUser.id}/reset-password`, {
+      const res = await authFetch(`/api/admin/users/${resetPasswordUser.id}/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ newPassword }),
       });
@@ -391,9 +384,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const handleDeleteUser = async () => {
     if (!deleteConfirmUser) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/users/${deleteConfirmUser.id}`, {
+      const res = await authFetch(`/api/admin/users/${deleteConfirmUser.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         onSuccessNotification(`User @${deleteConfirmUser.username} was permanently deleted.`);
@@ -410,11 +402,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     e.preventDefault();
     setIsSavingSettings(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/settings`, {
+      const res = await authFetch(`/api/admin/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(settings),
       });

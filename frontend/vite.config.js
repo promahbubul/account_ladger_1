@@ -27,6 +27,20 @@ export default defineConfig(({ mode }) => {
         'next/navigation': path.resolve(__dirname, './src/lib/router.tsx'),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // Libraries change less often than app code, so separate chunks stay cached across deploys.
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+            if (/[\\/]node_modules[\\/](@firebase|firebase)[\\/]/.test(id)) return 'vendor-firebase';
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor-react';
+            if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) return 'vendor-icons';
+            return 'vendor';
+          },
+        },
+      },
+    },
     server: {
       port: 5000,
       host: '0.0.0.0',

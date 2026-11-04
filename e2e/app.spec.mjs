@@ -3,6 +3,7 @@
 import { test, expect } from '@playwright/test';
 
 const USER = { email: 'user@example.com', password: 'E2e-user-password1!' };
+const ADMIN = { email: 'mahbub@gmail.com', password: 'E2e-admin-password1!' };
 // Projects only work on Postgres, which CI provides through E2E_DATABASE_URL.
 const HAS_POSTGRES = Boolean(process.env.E2E_DATABASE_URL);
 
@@ -21,13 +22,13 @@ const PAGES = [
   ['/settings', 'Settings'],
 ];
 
-async function signIn(page) {
+async function signIn(page, who = USER) {
   await page.goto('/login');
-  await page.locator('input[autocomplete="username"]').fill(USER.email);
-  await page.locator('input[autocomplete="current-password"]').fill(USER.password);
+  await page.locator('input[autocomplete="username"]').fill(who.email);
+  await page.locator('input[autocomplete="current-password"]').fill(who.password);
   // The tab above the form is also labelled "Sign In", so take the form's submit button.
   await page.locator('form button[type="submit"]').click();
-  await expect(page.getByText('Liquid Balance')).toBeVisible();
+  if (who === USER) await expect(page.getByText('Liquid Balance')).toBeVisible();
 }
 
 const failureBanner = (page) => page.getByText(/^Could not load/);
@@ -79,6 +80,15 @@ test('a bulk expense batch is saved and shows up in the dashboard and reports', 
   const food = categories.locator('tr').filter({ hasText: 'Food & Dining' });
   await expect(food).toContainText('200.00');
   await expect(food).toContainText('2');
+});
+
+test('an admin can open users and audit logs', async ({ page }) => {
+  await signIn(page, ADMIN);
+  await page.locator('aside a[href="/admin/users"]').click();
+  await expect(page.getByText('user@example.com').first()).toBeVisible();
+  await page.locator('aside a[href="/admin/logs"]').click();
+  await expect(page).toHaveURL(/\/admin\/logs$/);
+  await expect(page.getByText(/Failed to fetch|Error loading/)).toHaveCount(0);
 });
 
 test('a project can be created and opened', async ({ page }) => {
