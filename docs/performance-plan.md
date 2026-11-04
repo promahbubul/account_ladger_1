@@ -19,8 +19,8 @@
 |---|---|---|
 | 1 | Backend: আসল SQL paging, index, gzip | ✅ শেষ (`2b1e3a2`) |
 | 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (branch `perf/web-stop-loading-all-transactions`) |
-| 3 | Mobile: admin paging, list-এর গতি | ⬜ পরের কাজ |
-| 4 | Backend: ছোট বাকি কাজ | ⬜ বাকি |
+| 3 | Mobile: admin paging, list-এর গতি | ✅ শেষ |
+| 4 | Backend: ছোট বাকি কাজ | ⬜ পরের কাজ |
 | 5 | Test ও CI | ⬜ বাকি |
 | 6 | Structure পরিষ্কার | ⬜ বাকি, সবচেয়ে কম জরুরি |
 
@@ -90,7 +90,16 @@
 
 **শেষ বোঝার উপায়:** Web login-এর network tab-এ `all=true` নেই, আর সব screen-এর সংখ্যা আগের সমান।
 
-## ধাপ 3: Mobile
+## ধাপ 3: Mobile ✅ শেষ
+
+**যা হয়েছে:**
+
+- Admin Users ও Logs এখন `usePagedQuery` আর `LoadMoreFooter` দিয়ে চলে। এই দুই endpoint `page` নেয় না, শুধু cursor নেয়, তাই `usePagedQuery`-তে `paging: 'cursor'` যোগ হয়েছে (আগের পরের পাতার `nextCursor` পাঠায়)।
+- `validateLimit` এখন 5 আর 10-ও নেয়। Mobile Dashboard `limit=5`, web Dashboard `limit=10` আনে। পুরোনো APK 50 পাঠায়, সেটাও চলে।
+- `AccountRow`, `LoanRow`, `TransactionRow`, `TransferRow` এখন `React.memo`, আর `onPress`-কে নিজের row দিয়ে ডাকে। Transactions, Expenses, Income, Loans, Accounts, Transfers screen একটা স্থির `renderRow` দেয়, সাথে `initialNumToRender={12}` আর `windowSize={7}`।
+- যাচাই: mobile test 23/23, `expo export --platform android` পাস, lint-এ নতুন error নেই। Phone-এ scroll হাতে দেখা বাকি।
+
+**সাবধান:** নতুন APK `limit=5` পাঠায়। Backend-এর এই বদল production-এ যাওয়ার আগে নতুন APK চালালে Dashboard-এর recent list 400 পাবে। `main`-এ একসাথে গেলে backend আগে deploy হয়, কারণ EAS build অনেক সময় নেয়।
 
 1. **Admin Users ও Logs:** শুধু প্রথম পাতা আনে, Load More নেই, তাই ৫০-এর পরের data দেখা যায় না। `AdminUsersScreen` আর `AdminLogsScreen`-এ `useQuery` বদলে `usePagedQuery` আর `LoadMoreFooter` দিন। `usePagedQuery` `items` পড়ে, আর Users ও Logs দুটোই `items` পাঠায়।
 2. **Dashboard:** ৫০টা আনে, দেখায় ৫টা। `DashboardScreen`-এ `limit` কমানো যায় না, কারণ `validateLimit` শুধু 50, 70, 100 নেয়। হয় এই নিয়মে ছোট limit যোগ করুন (যেমন 5), নয়তো আলাদা "recent" endpoint দিন।

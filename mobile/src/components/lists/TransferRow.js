@@ -4,11 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
-export const TransferRow = ({ item, onPress }) => {
+// Memoized: re-renders only when its row or callback changes. onPress receives the row's item.
+export const TransferRow = React.memo(function TransferRow({ item, onPress }) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={onPress}
+      onPress={onPress ? () => onPress(item) : undefined}
       style={styles.row}
     >
       <View style={styles.leftCol}>
@@ -37,7 +38,7 @@ export const TransferRow = ({ item, onPress }) => {
       </Text>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   row: {

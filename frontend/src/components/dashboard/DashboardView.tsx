@@ -55,7 +55,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     if (dateFilter.startDate) range.set('startDate', dateFilter.startDate);
     if (dateFilter.endDate) range.set('endDate', dateFilter.endDate);
     const page = new URLSearchParams(range);
-    page.set('limit', '50');
+    page.set('limit', '10');
     Promise.all([authFetch(`/api/reports/summary?${range}`), authFetch(`/api/transactions?${page}`)])
       .then(async ([summaryRes, txRes]) => {
         if (!summaryRes.ok || !txRes.ok) throw new Error('Could not load the dashboard.');

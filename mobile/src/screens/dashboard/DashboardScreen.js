@@ -45,7 +45,7 @@ export const DashboardScreen = ({ navigation }) => {
 
   const recentTxQuery = useQuery({
     queryKey: ['recentTransactions', startDate, endDate],
-    queryFn: () => transactionsApi.getTransactions({ limit: 50, startDate, endDate }),
+    queryFn: () => transactionsApi.getTransactions({ limit: 5, startDate, endDate }),
   });
 
   const refreshing = summaryQuery.isRefetching || accountsQuery.isRefetching || recentTxQuery.isRefetching;

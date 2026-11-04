@@ -1,6 +1,8 @@
 import React, { useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, StyleSheet } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
+import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Badge } from '../../components/common/Badge';
@@ -13,16 +15,17 @@ import { formatDate } from '../../utils/formatters';
 export const AdminLogsScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
 
-  const logsQuery = useQuery({
+  const logsQuery = usePagedQuery({
     queryKey: ['adminAuditLogs'],
-    queryFn: () => adminApi.getAuditLogs({ limit: 50 }),
+    paging: 'cursor',
+    fetchPage: (cursor) => adminApi.getAuditLogs({ cursor, limit: 50 }),
   });
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['adminAuditLogs'] });
   }, [queryClient]);
 
-  const logs = logsQuery.data?.logs || [];
+  const logs = logsQuery.items;
 
   return (
     <View style={styles.container}>
@@ -50,6 +53,7 @@ export const AdminLogsScreen = ({ navigation }) => {
             </View>
           )}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={<LoadMoreFooter query={logsQuery} />}
           refreshControl={
             <RefreshControl
               refreshing={logsQuery.isRefetching}

@@ -5,14 +5,15 @@ import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { Badge } from '../common/Badge';
 
-export const LoanRow = ({ loan, onPress }) => {
+// Memoized: re-renders only when its row or callback changes. onPress receives the row's loan.
+export const LoanRow = React.memo(function LoanRow({ loan, onPress }) {
   const isLent = loan.type === 'LENT';
   const isSettled = loan.status === 'SETTLED' || loan.outstandingPrincipal <= 0;
 
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={onPress}
+      onPress={onPress ? () => onPress(loan) : undefined}
       style={styles.row}
     >
       <View style={styles.leftCol}>
@@ -45,7 +46,7 @@ export const LoanRow = ({ loan, onPress }) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   row: {

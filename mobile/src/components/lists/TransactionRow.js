@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
-export const TransactionRow = ({ item, onPress }) => {
+// Memoized: re-renders only when its row or callback changes. onPress receives the row's item.
+export const TransactionRow = React.memo(function TransactionRow({ item, onPress }) {
   const isIncome = item.type === 'INCOME';
   const isTransfer = item.type === 'TRANSFER';
   const isExpense = item.type === 'EXPENSE';
@@ -27,7 +28,7 @@ export const TransactionRow = ({ item, onPress }) => {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={onPress}
+      onPress={onPress ? () => onPress(item) : undefined}
       style={styles.row}
     >
       <View style={[styles.iconBox, { backgroundColor: isIncome ? COLORS.successLight : isExpense ? COLORS.dangerLight : COLORS.warningLight }]}>
@@ -59,7 +60,7 @@ export const TransactionRow = ({ item, onPress }) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   row: {

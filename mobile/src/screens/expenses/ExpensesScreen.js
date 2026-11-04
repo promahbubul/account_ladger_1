@@ -38,6 +38,9 @@ export const ExpensesScreen = ({ navigation }) => {
 
   const items = expensesQuery.items;
 
+  const openRow = useCallback((item) => navigation.navigate('TransactionDetail', { transaction: item }), [navigation]);
+  const renderRow = useCallback(({ item }) => <TransactionRow item={item} onPress={openRow} />, [openRow]);
+
   return (
     <View style={styles.container}>
       <Header
@@ -79,12 +82,9 @@ export const ExpensesScreen = ({ navigation }) => {
         <FlatList
           data={items}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TransactionRow
-              item={item}
-              onPress={() => navigation.navigate('TransactionDetail', { transaction: item })}
-            />
-          )}
+          renderItem={renderRow}
+          initialNumToRender={12}
+          windowSize={7}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl

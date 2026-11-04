@@ -12,7 +12,7 @@ export const transactionsApi = {
     if (params.cursor) query.set('cursor', params.cursor);
     if (params.page && params.page > 1) query.set('page', String(params.page));
     
-    const validLimits = [50, 70, 100];
+    const validLimits = [5, 10, 50, 70, 100];
     const requestedLimit = Number(params.limit);
     if (requestedLimit && validLimits.includes(requestedLimit)) {
       query.set('limit', String(requestedLimit));

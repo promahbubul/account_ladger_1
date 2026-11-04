@@ -12,6 +12,7 @@ export const adminApi = {
   getUsers: async (params = {}) => {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
+    if (params.cursor) query.set('cursor', params.cursor);
     if (params.page) query.set('page', String(params.page));
     const validLimits = [50, 70, 100];
     const requestedLimit = Number(params.limit);
@@ -60,6 +61,7 @@ export const adminApi = {
   getAuditLogs: async (params = {}) => {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
+    if (params.cursor) query.set('cursor', params.cursor);
     if (params.page) query.set('page', String(params.page));
     const validLimits = [50, 70, 100];
     const requestedLimit = Number(params.limit);
