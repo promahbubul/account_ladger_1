@@ -99,7 +99,8 @@ test('a project can be created and opened', async ({ page }) => {
   await page.getByRole('button', { name: 'New Project' }).click();
   await page.getByLabel('Project Name *').fill('E2E Office Fit-out');
   await page.getByLabel('Client').fill('E2E Client');
-  await page.getByRole('button', { name: 'Create Project' }).click();
+  // The empty project table has its own "Create Project" button, so take the form's submit button.
+  await page.locator('form button[type="submit"]', { hasText: 'Create Project' }).click();
 
   const row = page.locator('tr').filter({ hasText: 'E2E Office Fit-out' });
   await expect(row).toBeVisible();
