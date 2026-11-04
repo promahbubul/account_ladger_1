@@ -21,8 +21,8 @@
 | 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (branch `perf/web-stop-loading-all-transactions`) |
 | 3 | Mobile: admin paging, list-এর গতি | ✅ শেষ |
 | 4 | Backend: ছোট বাকি কাজ | 🟡 1-2 শেষ; 3-4 পরে, 5 মালিকের সিদ্ধান্ত |
-| 5 | Test ও CI | ⬜ পরের কাজ |
-| 6 | Structure পরিষ্কার | ⬜ বাকি, সবচেয়ে কম জরুরি |
+| 5 | Test ও CI | ✅ শেষ |
+| 6 | Structure পরিষ্কার | ⬜ পরের কাজ, সবচেয়ে কম জরুরি |
 
 ## কেন এই plan
 
@@ -127,7 +127,14 @@
 4. **Search:** `LOWER(...) LIKE '%x%'`-এ index কাজ করে না। `pg_trgm` extension আর GIN index দিন। ৫০,০০০ row-এ এখন 42 ms, তাই data বাড়লে করুন। Neon-এ extension চালু করা যায় কি না আগে দেখুন।
 5. **Audit log-এর মেয়াদ:** পুরোনো log মোছার নিয়ম নেই, table শুধু বাড়ে। কত দিন রাখবেন, সেটা মালিকের সিদ্ধান্ত।
 
-## ধাপ 5: Test ও CI
+## ধাপ 5: Test ও CI ✅ শেষ
+
+**যা হয়েছে:**
+
+- `ci.yml` এখন `main`-সহ সব push-এ চলে। Mobile build (`build-mobile.yml`) EAS-এ পাঠানোর আগে `eslint mobile` চালায়।
+- Playwright browser test repo-তে: `e2e/app.spec.mjs`, `playwright.config.mjs`, চালাতে `npm run test:e2e`। ঢাকে: login (সাথে login-এ `all=true` নেই), sidebar-এর সব পাতা কোনো error ছাড়া খোলে, bulk expense save হয়ে Dashboard আর Reports-এ দেখায়, project তৈরি ও খোলা।
+- Test-এর API `e2e/start-backend.mjs` চালায়, নতুন JSON file-এ। Projects শুধু Postgres-এ চলে, তাই CI-র `e2e` job একটা throwaway Postgres দেয় (`E2E_DATABASE_URL`)। Local-এ ওটা না থাকলে project test বাদ পড়ে। `neon.tech` বা `nutrimedbd` থাকা URL পেলে server চালু হয় না।
+- Login-এর পর ঠিকানা `/login`-ই থাকে, যদিও Dashboard দেখায়। Test এটা ধরে নেয় না; চাইলে পরে ঠিক করা যায়।
 
 1. **Vercel-এ test ছাড়াই deploy:** `.github/workflows/ci.yml`-এ `branches-ignore: [main]`, তাই `main`-এ CI চলে না। Backend deploy নিজে test চালায়, কিন্তু web আর mobile build চালায় না। `main`-এও CI চালান, আর mobile build-এর আগে lint দিন।
 2. **Frontend test নেই:** Playwright দিয়ে browser test repo-তে যোগ করুন। এখনকার Chrome test-গুলো এক PC-র temp ফোল্ডারে আছে, repo-তে নেই, তাই আবার লিখতে হবে। ঢাকতে হবে: login, bulk expense, reports, projects, পাতা বদল।
