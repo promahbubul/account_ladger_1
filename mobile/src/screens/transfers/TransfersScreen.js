@@ -49,6 +49,8 @@ export const TransfersScreen = ({ navigation }) => {
     }
   };
 
+  const renderRow = useCallback(({ item }) => <TransferRow item={item} onPress={setReversing} />, []);
+
   return (
     <View style={styles.container}>
       <Header
@@ -82,12 +84,9 @@ export const TransfersScreen = ({ navigation }) => {
         <FlatList
           data={items}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TransferRow
-              item={item}
-              onPress={() => setReversing(item)}
-            />
-          )}
+          renderItem={renderRow}
+          initialNumToRender={12}
+          windowSize={7}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl

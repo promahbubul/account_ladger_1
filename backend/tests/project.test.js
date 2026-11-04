@@ -82,9 +82,13 @@ test('Projects and report analytics', async (t) => {
     assert.equal(current.income, 1000);
     assert.equal(current.expense, 180.3);
     assert.ok(data.monthly.slice(0, 11).every((m) => m.income === 0 && m.expense === 0));
+    assert.deepEqual(data.totals, { inflow: 1000, outflow: 180.3 });
+    assert.deepEqual(data.byAccount, [{ accountId: accounts[0].id, inflow: 1000, outflow: 180.3 }]);
 
     const empty = await (await owner.get('/reports/analytics?startDate=2001-01-01&endDate=2001-02-01')).json();
     assert.deepEqual(empty.byCategory, []);
+    assert.deepEqual(empty.totals, { inflow: 0, outflow: 0 });
+    assert.deepEqual(empty.byAccount, []);
     assert.equal(empty.monthly[empty.monthly.length - 1].month, '2001-02');
   });
 

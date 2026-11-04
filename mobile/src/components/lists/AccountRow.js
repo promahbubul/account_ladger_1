@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
 import { formatCurrency } from '../../utils/formatters';
 
-export const AccountRow = ({ account, onPress }) => {
+// Memoized: re-renders only when its row or callback changes. onPress receives the row's account.
+export const AccountRow = React.memo(function AccountRow({ account, onPress }) {
   const isBank = account.type === 'BANK';
   const isCash = account.type === 'CASH';
 
@@ -14,7 +15,7 @@ export const AccountRow = ({ account, onPress }) => {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={onPress}
+      onPress={onPress ? () => onPress(account) : undefined}
       style={styles.row}
     >
       <View style={styles.leftCol}>
@@ -50,7 +51,7 @@ export const AccountRow = ({ account, onPress }) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   row: {

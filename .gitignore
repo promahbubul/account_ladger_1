@@ -28,6 +28,10 @@ Thumbs.db
 .vscode/
 *.zip
  
+# Playwright output
+test-results/
+playwright-report/
+
 # Local data and mobile env
 backend/data/
 mobile/.env

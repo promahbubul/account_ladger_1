@@ -1,6 +1,6 @@
 # Performance ও Structure Plan
 
-শেষ হালনাগাদ: 2026-11-04
+শেষ হালনাগাদ: 2026-11-05
 
 এই ফাইল দেখে যেকোনো PC থেকে কাজ চালানো যাবে। Claude Code-কে বলুন:
 
@@ -18,11 +18,11 @@
 | ধাপ | কাজ | অবস্থা |
 |---|---|---|
 | 1 | Backend: আসল SQL paging, index, gzip | ✅ শেষ (`2b1e3a2`) |
-| 2 | Web: login-এ সব transaction আনা বন্ধ | ⬜ পরের কাজ |
-| 3 | Mobile: admin paging, list-এর গতি | ⬜ বাকি |
-| 4 | Backend: ছোট বাকি কাজ | ⬜ বাকি |
-| 5 | Test ও CI | ⬜ বাকি |
-| 6 | Structure পরিষ্কার | ⬜ বাকি, সবচেয়ে কম জরুরি |
+| 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (branch `perf/web-stop-loading-all-transactions`) |
+| 3 | Mobile: admin paging, list-এর গতি | ✅ শেষ |
+| 4 | Backend: ছোট বাকি কাজ | 🟡 1-2 শেষ; 3-4 পরে, 5 মালিকের সিদ্ধান্ত |
+| 5 | Test ও CI | ✅ শেষ |
+| 6 | Structure পরিষ্কার | ⬜ পরের কাজ, সবচেয়ে কম জরুরি |
 
 ## কেন এই plan
 
@@ -42,7 +42,26 @@
 
 এই ধাপে ইচ্ছা করে যা রাখা হয়েছে: Audit log-এ `items` আর `logs` দুটোই আছে, কারণ web `items` পড়ে আর mobile `logs` পড়ে। Users list এখনো পুরোনো পদ্ধতিতে চলে (ধাপ 4)।
 
-## ধাপ 2: Web login-এ সব transaction আনা বন্ধ
+## ধাপ 2: Web login-এ সব transaction আনা বন্ধ ✅ শেষ
+
+**যা হয়েছে:**
+
+- `getReportAnalytics` এখন `totals` (direction ধরে inflow/outflow) আর `byAccount` পাঠায়। পুরোনো `TRANSFER` row আগের মতোই উৎসের outflow আর গন্তব্যের inflow ধরা হয়। Test: `backend/tests/project.test.js`।
+- `FinanceContext`-এ আর `transactions` state নেই। Login-এ `all=true` চলে না। `monthCategorySpend` (এই মাসের category খরচ) আর `ledgerVersion` (transaction বদলালে বাড়ে) যোগ হয়েছে। Screen-গুলো `ledgerVersion` বদলালে আবার আনে।
+- Budgets ও budget alert: `monthCategorySpend`। Dashboard: `/api/reports/summary` আর `/api/transactions?limit=50`। Accounts-এর বিস্তারিত: `accountId` দিয়ে paged, Load More সহ। Reports: একটাই `/api/reports/analytics` call।
+- Edit/delete-এর পর balance `/api/accounts` থেকে আবার আনা হয়। Transfer delete-এর পর আগে balance বদলাত না, এখন বদলায়।
+- Backup download (`exportData`) শুধু চাপলে `all=true` আনে, CSV export-এর মতো।
+- `FinanceContext`-এর `value` এখন `useMemo`, action-গুলো `useStableActions` দিয়ে স্থির।
+- আগে-পরে মিলানো: local JSON store-এ দুই account, তিন মাস, transfer সহ data দিয়ে Dashboard, Reports, Accounts-এর ৩০টা সংখ্যা আর তালিকা হুবহু মিলেছে।
+
+**ইচ্ছা করে যা বদলেছে:**
+
+- Budgets-এর "Spent to Date" আগে সব সময়ের খরচ দেখাত, এখন শুধু এই মাসের, যাতে মাসিক limit আর alert-এর সাথে মেলে।
+- Category খালি থাকলে Reports-এ নাম আগে "Other Expenses" ছিল, এখন server-এর "Uncategorized"। নতুন transaction-এ category খালি থাকে না।
+- Accounts-এর বিস্তারিত থেকে পুরোনো `TRANSFER` row-এর গন্তব্য-দিক বাদ পড়ে, কারণ server-এর `accountId` filter শুধু `account_id` দেখে। নতুন transfer `transfers` table-এ থাকে, তাই এখানে আগেও দেখা যেত না।
+- Transfer করার পর Dashboard-এর Recent Transactions-এ আর নকল "Internal Transfer" row আসে না; আগে page reload করলেই ওটা চলে যেত।
+
+**বাকি যাচাই:** Postgres mode-এর test CI-তে চলবে (এই PC-তে Docker নেই)। Live-এ login করে network tab-এ `all=true` নেই কিনা দেখা।
 
 **কেন:** `FinanceContext.refreshData` login-এই `/api/transactions?all=true` আনে, কোনো সীমা ছাড়া। `ReportsView` আবার আলাদা করে আনে। সবচেয়ে বড় ডেটা খরচ এখানেই। এটা ঝুঁকির কাজও, কারণ অনেক screen এই list-এর উপর চলে।
 
@@ -71,7 +90,16 @@
 
 **শেষ বোঝার উপায়:** Web login-এর network tab-এ `all=true` নেই, আর সব screen-এর সংখ্যা আগের সমান।
 
-## ধাপ 3: Mobile
+## ধাপ 3: Mobile ✅ শেষ
+
+**যা হয়েছে:**
+
+- Admin Users ও Logs এখন `usePagedQuery` আর `LoadMoreFooter` দিয়ে চলে। এই দুই endpoint `page` নেয় না, শুধু cursor নেয়, তাই `usePagedQuery`-তে `paging: 'cursor'` যোগ হয়েছে (আগের পরের পাতার `nextCursor` পাঠায়)।
+- `validateLimit` এখন 5 আর 10-ও নেয়। Mobile Dashboard `limit=5`, web Dashboard `limit=10` আনে। পুরোনো APK 50 পাঠায়, সেটাও চলে।
+- `AccountRow`, `LoanRow`, `TransactionRow`, `TransferRow` এখন `React.memo`, আর `onPress`-কে নিজের row দিয়ে ডাকে। Transactions, Expenses, Income, Loans, Accounts, Transfers screen একটা স্থির `renderRow` দেয়, সাথে `initialNumToRender={12}` আর `windowSize={7}`।
+- যাচাই: mobile test 23/23, `expo export --platform android` পাস, lint-এ নতুন error নেই। Phone-এ scroll হাতে দেখা বাকি।
+
+**সাবধান:** নতুন APK `limit=5` পাঠায়। Backend-এর এই বদল production-এ যাওয়ার আগে নতুন APK চালালে Dashboard-এর recent list 400 পাবে। `main`-এ একসাথে গেলে backend আগে deploy হয়, কারণ EAS build অনেক সময় নেয়।
 
 1. **Admin Users ও Logs:** শুধু প্রথম পাতা আনে, Load More নেই, তাই ৫০-এর পরের data দেখা যায় না। `AdminUsersScreen` আর `AdminLogsScreen`-এ `useQuery` বদলে `usePagedQuery` আর `LoadMoreFooter` দিন। `usePagedQuery` `items` পড়ে, আর Users ও Logs দুটোই `items` পাঠায়।
 2. **Dashboard:** ৫০টা আনে, দেখায় ৫টা। `DashboardScreen`-এ `limit` কমানো যায় না, কারণ `validateLimit` শুধু 50, 70, 100 নেয়। হয় এই নিয়মে ছোট limit যোগ করুন (যেমন 5), নয়তো আলাদা "recent" endpoint দিন।
@@ -79,7 +107,19 @@
 
 **শেষ বোঝার উপায়:** ৫০-এর বেশি user ও log থাকলে mobile admin থেকে সব দেখা যায়। Phone-এ list scroll মসৃণ হয়।
 
-## ধাপ 4: Backend-এর ছোট কাজ
+## ধাপ 4: Backend-এর ছোট কাজ 🟡
+
+**যা হয়েছে:**
+
+- 1: Accounts আর Categories-এর `paginate=true` এখন `validateLimit` ব্যবহার করে, ভুল limit-এ 400 দেয়। `page=abc` আর `NaN` হয় না।
+- 2: `getPaginatedUsers` Postgres-এ `queryPage` দিয়ে চলে (`USER_SELECT`, `userFilters`)। Role, status, search SQL-এ। Password hash কখনো select হয় না।
+- Test: `backend/tests/pagination.test.js`-এ admin users cursor paging, filter, 403, আর accounts/categories limit।
+
+**যা বাকি, কেন:**
+
+- 3 (Project paging): plan অনুযায়ী জরুরি নয়।
+- 4 (`pg_trgm`): ৫০,০০০ row-এ এখন 42 ms। Data বাড়লে, আর Neon-এ extension চলে কি না দেখে করুন।
+- 5 (Audit log মেয়াদ): মালিক কত দিন রাখবেন বললে করা হবে।
 
 1. **Limit যাচাই:** `account.controller.js` আর `category.controller.js`-এ `Number(req.query.limit) || 50` আছে, মানে যেকোনো সংখ্যা চলে। `validateLimit` দিন।
 2. **Users list:** `getPaginatedUsers` এখনো সব এনে কাটে। `queryPage` ব্যবহার করুন।
@@ -87,7 +127,14 @@
 4. **Search:** `LOWER(...) LIKE '%x%'`-এ index কাজ করে না। `pg_trgm` extension আর GIN index দিন। ৫০,০০০ row-এ এখন 42 ms, তাই data বাড়লে করুন। Neon-এ extension চালু করা যায় কি না আগে দেখুন।
 5. **Audit log-এর মেয়াদ:** পুরোনো log মোছার নিয়ম নেই, table শুধু বাড়ে। কত দিন রাখবেন, সেটা মালিকের সিদ্ধান্ত।
 
-## ধাপ 5: Test ও CI
+## ধাপ 5: Test ও CI ✅ শেষ
+
+**যা হয়েছে:**
+
+- `ci.yml` এখন `main`-সহ সব push-এ চলে। Mobile build (`build-mobile.yml`) EAS-এ পাঠানোর আগে `eslint mobile` চালায়।
+- Playwright browser test repo-তে: `e2e/app.spec.mjs`, `playwright.config.mjs`, চালাতে `npm run test:e2e`। ঢাকে: login (সাথে login-এ `all=true` নেই), sidebar-এর সব পাতা কোনো error ছাড়া খোলে, bulk expense save হয়ে Dashboard আর Reports-এ দেখায়, project তৈরি ও খোলা।
+- Test-এর API `e2e/start-backend.mjs` চালায়, নতুন JSON file-এ। Projects শুধু Postgres-এ চলে, তাই CI-র `e2e` job একটা throwaway Postgres দেয় (`E2E_DATABASE_URL`)। Local-এ ওটা না থাকলে project test বাদ পড়ে। `neon.tech` বা `nutrimedbd` থাকা URL পেলে server চালু হয় না।
+- Login-এর পর ঠিকানা `/login`-ই থাকে, যদিও Dashboard দেখায়। Test এটা ধরে নেয় না; চাইলে পরে ঠিক করা যায়।
 
 1. **Vercel-এ test ছাড়াই deploy:** `.github/workflows/ci.yml`-এ `branches-ignore: [main]`, তাই `main`-এ CI চলে না। Backend deploy নিজে test চালায়, কিন্তু web আর mobile build চালায় না। `main`-এও CI চালান, আর mobile build-এর আগে lint দিন।
 2. **Frontend test নেই:** Playwright দিয়ে browser test repo-তে যোগ করুন। এখনকার Chrome test-গুলো এক PC-র temp ফোল্ডারে আছে, repo-তে নেই, তাই আবার লিখতে হবে। ঢাকতে হবে: login, bulk expense, reports, projects, পাতা বদল।

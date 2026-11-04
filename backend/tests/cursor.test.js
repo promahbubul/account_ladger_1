@@ -19,9 +19,11 @@ test('Cursor Pagination Helpers', async (t) => {
     assert.equal(decodeCursor('not-valid-base64-json!'), null);
   });
 
-  await t.test('validateLimit permits exactly 50, 70, and 100 records per page', () => {
+  await t.test('validateLimit permits exactly 5, 10, 50, 70, and 100 records per page', () => {
     assert.equal(validateLimit(undefined), 50);
     assert.equal(validateLimit(''), 50);
+    assert.equal(validateLimit(5), 5);
+    assert.equal(validateLimit('10'), 10);
     assert.equal(validateLimit(50), 50);
     assert.equal(validateLimit('50'), 50);
     assert.equal(validateLimit(70), 70);
@@ -31,8 +33,9 @@ test('Cursor Pagination Helpers', async (t) => {
   });
 
   await t.test('validateLimit rejects invalid limit values', () => {
-    assert.throws(() => validateLimit(25), /only 50, 70, or 100 records/);
-    assert.throws(() => validateLimit(200), /only 50, 70, or 100 records/);
-    assert.throws(() => validateLimit('all'), /only 50, 70, or 100 records/);
+    assert.throws(() => validateLimit(25), /only 5, 10, 50, 70, or 100 records/);
+    assert.throws(() => validateLimit(200), /only 5, 10, 50, 70, or 100 records/);
+    assert.throws(() => validateLimit('all'), /only 5, 10, 50, 70, or 100 records/);
+    assert.throws(() => validateLimit(6), /only 5, 10, 50, 70, or 100 records/);
   });
 });

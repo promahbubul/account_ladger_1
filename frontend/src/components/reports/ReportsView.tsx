@@ -8,7 +8,6 @@ import {
 import { formatBDT } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { useDateFilter } from '../../context/DateFilterContext';
-import { Transaction } from '../../mock/data';
 import {
   DataLoadErrorBanner,
   DataStatus,
@@ -18,75 +17,52 @@ import {
   TableLoadingRow,
 } from '../common/StateViews';
 
+interface ReportAnalytics {
+  byCategory: { name: string; amount: number; count: number }[];
+  totals: { inflow: number; outflow: number };
+  byAccount: { accountId: string; inflow: number; outflow: number }[];
+  monthly: MonthTotals[];
+}
+
 export const ReportsView: React.FC = () => {
-  const { accounts, budgets, authFetch, dataStatus, refreshData } = useFinance();
+  const { accounts, budgets, authFetch, dataStatus, refreshData, ledgerVersion } = useFinance();
   const { dateFilter, formattedRangeLabel } = useDateFilter();
   const [selectedPeriod, setSelectedPeriod] = useState<'MONTH' | 'LAST_MONTH' | 'YTD' | 'ALL'>('MONTH');
-  const [reportTransactions, setReportTransactions] = useState<Transaction[]>([]);
+  const [analytics, setAnalytics] = useState<ReportAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reportFailed, setReportFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // Every figure on this page is summed by the server for the selected period. The 12-month trend
+  // ends at the period's end.
   useEffect(() => {
     let active = true;
-    const fetchReportData = async () => {
-      try {
-        setIsLoading(true);
-        setReportFailed(false);
-        const params = new URLSearchParams();
-        params.set('all', 'true');
-        if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
-        if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
-
-        const res = await authFetch(`/api/transactions?${params.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (active) {
-            setReportTransactions(data.transactions || []);
-          }
-        } else if (active) {
-          setReportFailed(true);
-        }
-      } catch (err) {
-        console.error('ReportsView fetch error:', err);
-        if (active) setReportFailed(true);
-      } finally {
-        if (active) setIsLoading(false);
-      }
-    };
-
-    fetchReportData();
-    return () => {
-      active = false;
-    };
-  }, [authFetch, dateFilter.startDate, dateFilter.endDate, reloadKey]);
-
-  // Personal 12-month trend, ending at the selected period's end.
-  const [monthlyTotals, setMonthlyTotals] = useState<MonthTotals[]>([]);
-  const [monthlyStatus, setMonthlyStatus] = useState<DataStatus>('loading');
-  useEffect(() => {
-    let active = true;
-    setMonthlyStatus('loading');
+    setIsLoading(true);
+    setReportFailed(false);
     const params = new URLSearchParams();
+    if (dateFilter.startDate) params.set('startDate', dateFilter.startDate);
     if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
     authFetch(`/api/reports/analytics?${params.toString()}`)
       .then(async (res) => {
-        if (!res.ok) throw new Error('Could not load the trend.');
+        if (!res.ok) throw new Error('Could not load the report.');
         const data = await res.json();
-        if (active) {
-          setMonthlyTotals(data.monthly || []);
-          setMonthlyStatus('ready');
-        }
+        if (active) setAnalytics(data);
       })
-      .catch(() => {
-        if (active) setMonthlyStatus('error');
+      .catch((err) => {
+        console.error('ReportsView fetch error:', err);
+        if (active) setReportFailed(true);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
       });
     return () => {
       active = false;
     };
-  }, [authFetch, dateFilter.endDate, reloadKey]);
+  }, [authFetch, dateFilter.startDate, dateFilter.endDate, reloadKey, ledgerVersion]);
 
   const reportStatus: DataStatus = isLoading ? 'loading' : reportFailed ? 'error' : 'ready';
+  const monthlyTotals = analytics?.monthly || [];
+  const monthlyStatus = reportStatus;
   // The account table also needs the accounts held in the finance context.
   const accountTableStatus: DataStatus =
     reportStatus === 'ready' ? dataStatus : reportStatus;
@@ -95,73 +71,43 @@ export const ReportsView: React.FC = () => {
     if (dataStatus === 'error') refreshData();
   };
 
-  const totalInflow = reportTransactions
-    .filter((t) => t.direction === 'INFLOW')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalOutflow = reportTransactions
-    .filter((t) => t.direction === 'OUTFLOW')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalInflow = analytics?.totals?.inflow ?? 0;
+  const totalOutflow = analytics?.totals?.outflow ?? 0;
 
   const netCashFlow = totalInflow - totalOutflow;
   const savingsRate = totalInflow > 0 ? ((netCashFlow / totalInflow) * 100).toFixed(1) : '0';
 
-  // Category expense breakdown
-  const expenseCatMap: Record<string, { count: number; spent: number }> = {};
-  reportTransactions
-    .filter((t) => t.type === 'EXPENSE')
-    .forEach((t) => {
-      const cat = t.category || 'Other Expenses';
-      if (!expenseCatMap[cat]) expenseCatMap[cat] = { count: 0, spent: 0 };
-      expenseCatMap[cat].count += 1;
-      expenseCatMap[cat].spent += t.amount;
-    });
+  // Category expense breakdown, already sorted by amount on the server
+  const expenseBreakdown = (analytics?.byCategory || []).map((row) => {
+    const budget = budgets.find((b) => b.categoryName === row.name);
+    const budgetLimit = budget ? budget.monthlyLimit : 0;
+    const variance = budgetLimit > 0 ? budgetLimit - row.amount : 0;
+    const percentage = totalOutflow > 0 ? ((row.amount / totalOutflow) * 100).toFixed(1) : '0';
 
-  const expenseBreakdown = Object.entries(expenseCatMap)
-    .map(([category, data]) => {
-      const budget = budgets.find((b) => b.categoryName === category);
-      const budgetLimit = budget ? budget.monthlyLimit : 0;
-      const variance = budgetLimit > 0 ? budgetLimit - data.spent : 0;
-      const percentage = totalOutflow > 0 ? ((data.spent / totalOutflow) * 100).toFixed(1) : '0';
+    return {
+      category: row.name,
+      count: row.count,
+      spent: row.amount,
+      percentage,
+      budgetLimit,
+      variance,
+    };
+  });
 
-      return {
-        category,
-        count: data.count,
-        spent: data.spent,
-        percentage,
-        budgetLimit,
-        variance,
-      };
-    })
-    .sort((a, b) => b.spent - a.spent);
-
-  // Account position table
+  // Account position table. The server's inflow and outflow already include legacy transfer rows.
+  const flowsByAccount = new Map((analytics?.byAccount || []).map((row) => [row.accountId, row]));
   const accountBreakdown = accounts.map((acc) => {
-    const accInflows = reportTransactions
-      .filter((t) => t.accountId === acc.id && t.direction === 'INFLOW')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const accOutflows = reportTransactions
-      .filter((t) => t.accountId === acc.id && t.direction === 'OUTFLOW')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const transfersIn = reportTransactions
-      .filter((t) => t.type === 'TRANSFER' && t.destinationAccountId === acc.id)
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const transfersOut = reportTransactions
-      .filter((t) => t.type === 'TRANSFER' && t.accountId === acc.id)
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const netChange = (accInflows + transfersIn) - (accOutflows + transfersOut);
+    const flows = flowsByAccount.get(acc.id);
+    const inflows = flows?.inflow ?? 0;
+    const outflows = flows?.outflow ?? 0;
 
     return {
       name: acc.name,
       type: acc.type,
       openingBalance: acc.openingBalance,
-      inflows: accInflows + transfersIn,
-      outflows: accOutflows + transfersOut,
-      netChange,
+      inflows,
+      outflows,
+      netChange: inflows - outflows,
       endingBalance: acc.currentBalance,
     };
   });

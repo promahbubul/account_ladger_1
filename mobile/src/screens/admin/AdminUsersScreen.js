@@ -1,7 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { showMessage } from '../../utils/notify';
 import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { usePagedQuery } from '../../hooks/usePagedQuery';
+import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
@@ -19,16 +21,17 @@ export const AdminUsersScreen = ({ navigation }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [toggleVisible, setToggleVisible] = useState(false);
 
-  const usersQuery = useQuery({
+  const usersQuery = usePagedQuery({
     queryKey: ['adminUsersList', search],
-    queryFn: () => adminApi.getUsers({ search }),
+    paging: 'cursor',
+    fetchPage: (cursor) => adminApi.getUsers({ search, cursor, limit: 50 }),
   });
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['adminUsersList'] });
   }, [queryClient]);
 
-  const users = usersQuery.data?.users || [];
+  const users = usersQuery.items;
 
   const handleToggleStatus = async () => {
     if (!selectedUser) return;
@@ -93,6 +96,7 @@ export const AdminUsersScreen = ({ navigation }) => {
             </View>
           )}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={<LoadMoreFooter query={usersQuery} />}
           refreshControl={
             <RefreshControl
               refreshing={usersQuery.isRefetching}

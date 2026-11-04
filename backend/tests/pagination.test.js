@@ -21,7 +21,7 @@ test('List pagination', async (t) => {
   });
 
   const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
-  const makeUser = async (name) => {
+  const makeUser = async (name, role = 'USER') => {
     const password = 'Paging-test-password1!';
     const email = `${name}_${unique}@test.local`;
     const user = {
@@ -30,7 +30,7 @@ test('List pagination', async (t) => {
       email,
       passwordHash: await bcrypt.hash(password, 4),
       fullName: name,
-      role: 'USER',
+      role,
       isActive: true,
       emailVerified: true,
       currency: 'BDT',
@@ -208,5 +208,49 @@ test('List pagination', async (t) => {
   await t.test('a repayment still finds its own loan only', async () => {
     const res = await stranger.post(`/loans/${allLoans[0].id}/repayments`, { amount: 1, date: '2026-03-01', accountId: source });
     assert.equal(res.status, 404);
+  });
+
+  await t.test('account and category pages only take the allowed page sizes', async () => {
+    assert.equal((await owner.raw('/accounts?paginate=true&limit=7')).status, 400);
+    assert.equal((await owner.raw('/categories?paginate=true&limit=1000')).status, 400);
+    const accountsPage = await owner.get('/accounts?paginate=true&limit=50&page=abc');
+    assert.equal(accountsPage.items.length, 2);
+    assert.equal((await owner.get('/categories?paginate=true&limit=50')).success, true);
+  });
+
+  await t.test('admin users page by cursor, newest first, without password hashes', async () => {
+    const admin = await makeUser('admin', 'ADMIN');
+    const hash = await bcrypt.hash('Paging-test-password1!', 4);
+    const tag = `crowd${unique}`;
+    for (let i = 0; i < 55; i += 1) {
+      await dbService.createUser({
+        id: `pg_crowd_${unique}_${i}`,
+        username: `${tag}_${i}`,
+        email: `${tag}_${i}@test.local`,
+        passwordHash: hash,
+        fullName: `Crowd ${i}`,
+        role: 'USER',
+        isActive: i % 5 !== 0,
+        emailVerified: true,
+        currency: 'BDT',
+        timezone: 'Asia/Dhaka',
+        dateFormat: 'DD MMM YYYY',
+      });
+    }
+
+    const first = await admin.get(`/admin/users?search=${tag}&limit=50`);
+    assert.equal(first.totalCount, 55);
+    assert.equal(first.items.length, 50);
+    assert.equal(first.hasNextPage, true);
+    assert.ok(first.items.every((u) => u.passwordHash === undefined && u.password_hash === undefined));
+    const second = await admin.get(`/admin/users?search=${tag}&limit=50&cursor=${first.nextCursor}`);
+    assert.equal(second.items.length, 5);
+    assert.equal(second.hasNextPage, false);
+    const ids = [...first.items, ...second.items].map((u) => u.id);
+    assert.equal(new Set(ids).size, 55);
+
+    assert.equal((await admin.get(`/admin/users?search=${tag}&status=INACTIVE&limit=50`)).totalCount, 11);
+    assert.equal((await admin.get(`/admin/users?search=${tag}&role=ADMIN&limit=50`)).totalCount, 0);
+    assert.equal((await owner.raw('/admin/users?limit=50')).status, 403);
   });
 });

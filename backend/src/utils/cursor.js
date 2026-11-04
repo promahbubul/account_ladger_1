@@ -21,13 +21,16 @@ export function decodeCursor(cursor) {
   }
 }
 
+// 50, 70 and 100 are the page sizes lists offer; 5 and 10 serve short "recent" lists such as a dashboard.
+const ALLOWED_LIMITS = [5, 10, 50, 70, 100];
+
 export function validateLimit(limitRaw) {
   if (limitRaw === undefined || limitRaw === null || limitRaw === '') {
     return 50;
   }
   const n = Number(limitRaw);
-  if (n === 50 || n === 70 || n === 100) {
+  if (ALLOWED_LIMITS.includes(n)) {
     return n;
   }
-  throw new Error('Invalid limit: only 50, 70, or 100 records per page are permitted.');
+  throw new Error('Invalid limit: only 5, 10, 50, 70, or 100 records per page are permitted.');
 }

@@ -33,7 +33,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      # A lint error stops here, before a build is spent from the monthly allowance.
+      - name: Lint mobile code
+        working-directory: .
+        run: |
+          npm ci
+          npx eslint mobile
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest

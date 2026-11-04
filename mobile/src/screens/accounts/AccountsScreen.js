@@ -27,6 +27,9 @@ export const AccountsScreen = ({ navigation }) => {
 
   const accounts = accountsQuery.data?.accounts || [];
 
+  const openRow = useCallback((item) => navigation.navigate('AccountDetail', { account: item }), [navigation]);
+  const renderRow = useCallback(({ item }) => <AccountRow account={item} onPress={openRow} />, [openRow]);
+
   return (
     <View style={styles.container}>
       <Header
@@ -58,12 +61,9 @@ export const AccountsScreen = ({ navigation }) => {
         <FlatList
           data={accounts}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <AccountRow
-              account={item}
-              onPress={() => navigation.navigate('AccountDetail', { account: item })}
-            />
-          )}
+          renderItem={renderRow}
+          initialNumToRender={12}
+          windowSize={7}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl

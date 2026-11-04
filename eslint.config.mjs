@@ -19,11 +19,11 @@ const jsxRules = {
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/.expo/**', 'mobile/android/**', '.cph/**', '*.c'],
+    ignores: ['**/node_modules/**', '**/dist/**', '**/.expo/**', 'mobile/android/**', '.cph/**', '*.c', 'test-results/**', 'playwright-report/**'],
   },
   js.configs.recommended,
   {
-    files: ['backend/**/*.js', '*.mjs'],
+    files: ['backend/**/*.js', '*.mjs', 'e2e/**/*.mjs'],
     languageOptions: { globals: globals.node },
     rules: sharedRules,
   },

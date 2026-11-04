@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   Account,
   Transaction,
@@ -27,12 +27,15 @@ export interface BudgetAlert {
 
 interface FinanceContextType {
   accounts: Account[];
-  transactions: Transaction[];
   loans: Loan[];
   repayments: LoanRepayment[];
   categories: Category[];
   budgets: CategoryBudget[];
   budgetAlerts: BudgetAlert[];
+  // Expense per category name in the current calendar month, summed by the server.
+  monthCategorySpend: Record<string, number>;
+  // Goes up whenever transactions may have changed, so screens that read them from the server refetch.
+  ledgerVersion: number;
   isLoading: boolean;
   dataStatus: DataStatus;
   refreshData: () => Promise<void>;
@@ -106,23 +109,39 @@ interface FinanceContextType {
   setCategoryBudget: (categoryName: string, monthlyLimit: number) => void;
   deleteBudget: (categoryName: string) => void;
   resetToDefaults: () => void;
-  exportData: () => string;
+  exportData: () => Promise<string>;
   importData: (jsonData: any) => boolean;
   authFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+// The current month in the user's local calendar, as the server's date filter expects it.
+const currentMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    startDate: `${year}-${pad2(month)}-01`,
+    endDate: `${year}-${pad2(month)}-${pad2(lastDay)}`,
+  };
+};
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, token } = useAuth();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [repayments, setRepayments] = useState<LoanRepayment[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
   const [budgetAlerts, setBudgetAlerts] = useState<BudgetAlert[]>([]);
+  const [monthCategorySpend, setMonthCategorySpend] = useState<Record<string, number>>({});
+  const [ledgerVersion, setLedgerVersion] = useState(0);
+  const bumpLedger = useCallback(() => setLedgerVersion((v) => v + 1), []);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   // Stays 'ready' during later refreshes, so existing figures do not flash back to a skeleton.
   const [hasLoadedData, setHasLoadedData] = useState<boolean>(false);
@@ -150,20 +169,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Recalculate budget warnings
   const recalculateBudgetAlerts = useCallback(
-    (currentBudgets: CategoryBudget[], currentTransactions: Transaction[]) => {
-      const now = new Date();
-      const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
-
-      const currentMonthExpenses = currentTransactions.filter(
-        t => t.type === 'EXPENSE' && t.date.startsWith(currentMonth) && t.category
-      );
-
-      const categorySpending: Record<string, number> = {};
-      currentMonthExpenses.forEach(tx => {
-        if (!tx.category) return;
-        categorySpending[tx.category] = (categorySpending[tx.category] || 0) + tx.amount;
-      });
-
+    (currentBudgets: CategoryBudget[], categorySpending: Record<string, number>) => {
       const alerts: BudgetAlert[] = [];
       currentBudgets.forEach(b => {
         const spent = categorySpending[b.categoryName] || 0;
@@ -195,16 +201,40 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     []
   );
 
+  // Returns null when the server could not be reached, leaving the last known figures in place.
+  const fetchMonthCategorySpend = useCallback(async (): Promise<Record<string, number> | null> => {
+    const { startDate, endDate } = currentMonthRange();
+    const res = await authFetch(`/api/reports/analytics?startDate=${startDate}&endDate=${endDate}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const spend: Record<string, number> = {};
+    for (const row of data.byCategory || []) spend[row.name] = Number(row.amount);
+    setMonthCategorySpend(spend);
+    return spend;
+  }, [authFetch]);
+
+  // After an expense changes, reload this month's spend and the alerts that depend on it.
+  const refreshBudgetSpend = async (currentBudgets: CategoryBudget[] = budgets) => {
+    try {
+      const spend = await fetchMonthCategorySpend();
+      if (spend) recalculateBudgetAlerts(currentBudgets, spend);
+      return spend;
+    } catch (err) {
+      console.error('[FinanceContext] Error refreshing budget spend:', err);
+      return null;
+    }
+  };
+
   // Refresh all state from REST API
   const refreshData = useCallback(async () => {
     if (!token || !user || user.role === 'ADMIN') {
       setAccounts([]);
-      setTransactions([]);
       setLoans([]);
       setRepayments([]);
       setCategories([]);
       setBudgets([]);
       setBudgetAlerts([]);
+      setMonthCategorySpend({});
       setHasLoadedData(false);
       setDataLoadFailed(false);
       setIsLoading(false);
@@ -214,28 +244,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setIsLoading(true);
       setDataLoadFailed(false);
-      const [accRes, txRes, loanRes, catRes, bgtRes] = await Promise.all([
+      // Transactions are not loaded here: each screen asks the server for the page or totals it shows.
+      const [accRes, loanRes, catRes, bgtRes, fetchedSpend] = await Promise.all([
         authFetch('/api/accounts'),
-        authFetch('/api/transactions?all=true'),
         authFetch('/api/loans?all=true'),
         authFetch('/api/categories'),
         authFetch('/api/budgets'),
+        fetchMonthCategorySpend(),
       ]);
 
-      let fetchedAccounts: Account[] = [];
-      let fetchedTransactions: Transaction[] = [];
       let fetchedBudgets: CategoryBudget[] = [];
 
       if (accRes.ok) {
         const data = await accRes.json();
-        fetchedAccounts = data.accounts || [];
-        setAccounts(fetchedAccounts);
-      }
-
-      if (txRes.ok) {
-        const data = await txRes.json();
-        fetchedTransactions = sortTransactions(data.transactions || []);
-        setTransactions(fetchedTransactions);
+        setAccounts(data.accounts || []);
       }
 
       if (loanRes.ok) {
@@ -258,9 +280,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setBudgets(fetchedBudgets);
       }
 
-      recalculateBudgetAlerts(fetchedBudgets, fetchedTransactions);
+      recalculateBudgetAlerts(fetchedBudgets, fetchedSpend || {});
 
-      if ([accRes, txRes, loanRes, catRes, bgtRes].every((res) => res.ok)) {
+      if ([accRes, loanRes, catRes, bgtRes].every((res) => res.ok) && fetchedSpend) {
         setHasLoadedData(true);
       } else {
         setDataLoadFailed(true);
@@ -270,13 +292,26 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setDataLoadFailed(true);
     } finally {
       setIsLoading(false);
+      bumpLedger();
     }
-  }, [token, user, authFetch, recalculateBudgetAlerts]);
+  }, [token, user, authFetch, recalculateBudgetAlerts, fetchMonthCategorySpend, bumpLedger]);
 
   // Load data when user/token changes
   useEffect(() => {
     refreshData();
   }, [refreshData]);
+
+  // Balances after an edit or delete come from the server, since the old row is no longer held here.
+  const refreshAccounts = async () => {
+    try {
+      const res = await authFetch('/api/accounts');
+      if (!res.ok) return;
+      const data = await res.json();
+      setAccounts(data.accounts || []);
+    } catch (err) {
+      console.error('[FinanceContext] Error refreshing accounts:', err);
+    }
+  };
 
   // ACCOUNTS
   const addAccount = async (newAcc: Omit<Account, 'id' | 'updatedAt'>): Promise<{ success: boolean; account?: Account; error?: string }> => {
@@ -332,12 +367,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  // The server refuses to delete an account that has history, with a message saying why.
   const deleteAccount = async (id: string): Promise<{ success: boolean; error?: string }> => {
-    const hasTx = transactions.some((t) => t.accountId === id || t.destinationAccountId === id);
-    if (hasTx) {
-      return { success: false, error: 'Cannot delete account with existing transactions. Please archive it instead.' };
-    }
-
     try {
       const res = await authFetch(`/api/accounts/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -374,12 +405,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { success: false, error: data.error || 'Failed to record income.' };
       }
       const createdTx: Transaction = data.transaction;
-      setTransactions((prev) => sortTransactions([createdTx, ...prev]));
       setAccounts((prev) =>
         prev.map((a) =>
           a.id === income.accountId ? { ...a, currentBalance: a.currentBalance + income.amount, updatedAt: 'Just now' } : a
         )
       );
+      bumpLedger();
       return { success: true, transaction: createdTx };
     } catch (err: any) {
       console.error('Error recording income:', err);
@@ -408,23 +439,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { success: false, error: data.error || 'Failed to record expense.' };
       }
       const createdTx: Transaction = data.transaction;
-      const nextTxs = sortTransactions([createdTx, ...transactions]);
-      setTransactions(nextTxs);
       setAccounts((prev) =>
         prev.map((a) =>
           a.id === expense.accountId ? { ...a, currentBalance: a.currentBalance - expense.amount, updatedAt: 'Just now' } : a
         )
       );
-      recalculateBudgetAlerts(budgets, nextTxs);
+      bumpLedger();
+      const spend = await refreshBudgetSpend();
 
       const targetBudget = budgets.find((b) => b.categoryName === expense.category);
       let alert: BudgetAlert | undefined = undefined;
-      if (targetBudget) {
-        const now = new Date();
-        const currentMonth = now.toISOString().slice(0, 7);
-        const monthSpent = nextTxs
-          .filter((t) => t.type === 'EXPENSE' && t.category === expense.category && t.date.startsWith(currentMonth))
-          .reduce((sum, t) => sum + t.amount, 0);
+      if (targetBudget && spend) {
+        const monthSpent = spend[expense.category] || 0;
 
         if (monthSpent > targetBudget.monthlyLimit) {
           alert = {
@@ -452,30 +478,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     batchId?: string;
     items: { category: string; desc?: string; description?: string; amount: number; subcategory?: string }[];
   }): Promise<{ success: boolean; error?: string; overBudgetAlerts?: BudgetAlert[] }> => {
-    const acc = accounts.find(a => a.id === bulk.accountId);
     const normalizedItems = bulk.items.map(item => ({
       ...item,
       desc: (item.desc || item.description || '').trim(),
       description: (item.description || item.desc || '').trim(),
     }));
 
-    const newTxs: Transaction[] = normalizedItems.map((item, idx) => ({
-      id: `tx_${Date.now()}_${idx}`,
-      date: bulk.date,
-      type: 'EXPENSE',
-      category: item.category,
-      subcategory: item.subcategory,
-      accountId: bulk.accountId,
-      accountName: acc?.name || 'Account',
-      amount: item.amount,
-      direction: 'OUTFLOW',
-      description: item.description || item.desc || 'Daily Expense',
-      status: 'COMPLETED',
-    }));
-
-    const total = newTxs.reduce((sum, t) => sum + t.amount, 0);
-    const nextTxs = sortTransactions([...newTxs, ...transactions]);
-    setTransactions(nextTxs);
+    const total = normalizedItems.reduce((sum, item) => sum + item.amount, 0);
     setAccounts(prev =>
       prev.map(a =>
         a.id === bulk.accountId
@@ -483,8 +492,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           : a
       )
     );
-
-    recalculateBudgetAlerts(budgets, nextTxs);
 
     try {
       const res = await authFetch('/api/transactions/bulk', {
@@ -502,6 +509,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         await refreshData();
         return { success: false, error: data.error || 'Failed to record bulk expenses.' };
       }
+      bumpLedger();
+      await refreshBudgetSpend();
       return { success: true };
     } catch (err) {
       console.error('Error saving bulk expenses:', err);
@@ -513,23 +522,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // TRANSACTIONS
   const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const target = transactions.find((t) => t.id === id);
       const res = await authFetch(`/api/transactions/${id}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || 'Failed to delete transaction.' };
       }
-      if (target) {
-        const delta = target.direction === 'INFLOW' ? -target.amount : target.direction === 'OUTFLOW' ? target.amount : 0;
-        if (delta !== 0) {
-          setAccounts((prev) =>
-            prev.map((a) => (a.id === target.accountId ? { ...a, currentBalance: a.currentBalance + delta } : a))
-          );
-        }
-      }
-      const next = transactions.filter((t) => t.id !== id);
-      setTransactions(next);
-      recalculateBudgetAlerts(budgets, next);
+      bumpLedger();
+      await Promise.all([refreshAccounts(), refreshBudgetSpend()]);
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting transaction:', err);
@@ -553,43 +552,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       const updated: Transaction = data.transaction;
-      const old = transactions.find((t) => t.id === id);
-
-      // Targeted balance recalculation without full table refetch
-      if (old) {
-        const oldEffect = old.direction === 'INFLOW' ? old.amount : old.direction === 'OUTFLOW' ? -old.amount : 0;
-        const newEffect = updated.direction === 'INFLOW' ? updated.amount : updated.direction === 'OUTFLOW' ? -updated.amount : 0;
-
-        if (old.accountId === updated.accountId) {
-          const netDelta = newEffect - oldEffect;
-          if (netDelta !== 0) {
-            setAccounts((prev) =>
-              prev.map((a) =>
-                a.id === updated.accountId ? { ...a, currentBalance: a.currentBalance + netDelta, updatedAt: 'Just now' } : a
-              )
-            );
-          }
-        } else {
-          setAccounts((prev) =>
-            prev.map((a) => {
-              if (a.id === old.accountId) {
-                return { ...a, currentBalance: a.currentBalance - oldEffect, updatedAt: 'Just now' };
-              }
-              if (a.id === updated.accountId) {
-                return { ...a, currentBalance: a.currentBalance + newEffect, updatedAt: 'Just now' };
-              }
-              return a;
-            })
-          );
-        }
-      }
-
-      setTransactions((prev) => {
-        const next = prev.map((t) => (t.id === id ? { ...t, ...updated } : t));
-        const sorted = sortTransactions(next);
-        recalculateBudgetAlerts(budgets, sorted);
-        return sorted;
-      });
+      bumpLedger();
+      await Promise.all([refreshAccounts(), refreshBudgetSpend()]);
       return { success: true, transaction: updated };
     } catch (err: any) {
       console.error('Error editing transaction:', err);
@@ -641,24 +605,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         })
       );
 
-      const tx: Transaction = {
-        id: data.transfer?.id || `tx_trf_${Date.now()}`,
-        date: transfer.date || new Date().toISOString().split('T')[0],
-        type: 'TRANSFER',
-        category: 'Internal Transfer',
-        accountId: transfer.sourceAccountId,
-        accountName: src.name,
-        destinationAccountId: transfer.destinationAccountId,
-        destinationAccountName: dst.name,
-        amount: transfer.amount,
-        direction: 'NEUTRAL',
-        description: transfer.description || `Transfer to ${dst.name}`,
-        reference: transfer.reference,
-        status: 'COMPLETED',
-      };
-      setTransactions((prev) => [tx, ...prev]);
-
-      return { success: true, transfer: data.transfer || tx };
+      return { success: true, transfer: data.transfer };
     } catch (err: any) {
       console.error('Error recording transfer:', err);
       return { success: false, error: err.message || 'Error recording transfer' };
@@ -672,7 +619,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || 'Failed to delete transfer' };
       }
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      // Deleting a transfer moves the money back on the server.
+      await refreshAccounts();
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting transfer:', err);
@@ -911,7 +859,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } else {
         next = [...prev, { categoryName, monthlyLimit }];
       }
-      recalculateBudgetAlerts(next, transactions);
+      recalculateBudgetAlerts(next, monthCategorySpend);
       return next;
     });
 
@@ -925,7 +873,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteBudget = (categoryName: string) => {
     setBudgets(prev => {
       const next = prev.filter(b => b.categoryName !== categoryName);
-      recalculateBudgetAlerts(next, transactions);
+      recalculateBudgetAlerts(next, monthCategorySpend);
       return next;
     });
     authFetch(`/api/budgets/${encodeURIComponent(categoryName)}`, { method: 'DELETE' }).catch(err =>
@@ -937,13 +885,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshData();
   };
 
-  const exportData = (): string => {
+  // The full ledger is only read when the user asks for a backup.
+  const exportData = async (): Promise<string> => {
+    const res = await authFetch('/api/transactions?all=true');
+    if (!res.ok) throw new Error('Could not load transactions for the backup.');
+    const { transactions = [] } = await res.json();
     return JSON.stringify(
       {
         app: 'AccountLedger',
         user: { email: user?.email, username: user?.username },
         exportedAt: new Date().toISOString(),
-        data: { accounts, transactions, loans, repayments, categories, budgets },
+        data: { accounts, transactions: sortTransactions(transactions), loans, repayments, categories, budgets },
       },
       null,
       2
@@ -953,7 +905,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const importData = (jsonData: any): boolean => {
     if (jsonData && jsonData.data) {
       if (jsonData.data.accounts) setAccounts(jsonData.data.accounts);
-      if (jsonData.data.transactions) setTransactions(jsonData.data.transactions);
       if (jsonData.data.loans) setLoans(jsonData.data.loans);
       if (jsonData.data.categories) setCategories(jsonData.data.categories);
       return true;
@@ -961,20 +912,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return false;
   };
 
-  return (
-    <FinanceContext.Provider
-      value={{
-        accounts,
-        transactions,
-        loans,
-        repayments,
-        categories,
-        budgets,
-        budgetAlerts,
-        isLoading,
-        dataStatus,
-        refreshData,
-        addAccount,
+  // refreshData and authFetch are left out: they are already memoized and change with the session,
+  // which screens rely on to refetch.
+  const actions = useStableActions({
+    addAccount,
         editAccount,
         toggleArchiveAccount,
         deleteAccount,
@@ -995,16 +936,49 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteCategory,
         setCategoryBudget,
         deleteBudget,
-        resetToDefaults,
-        exportData,
-        importData,
-        authFetch,
-      }}
-    >
-      {children}
-    </FinanceContext.Provider>
+    resetToDefaults,
+    exportData,
+    importData,
+  });
+
+  // Only a change of state gives consumers a new value; the actions keep their identity.
+  const value = useMemo<FinanceContextType>(
+    () => ({
+      accounts,
+      loans,
+      repayments,
+      categories,
+      budgets,
+      budgetAlerts,
+      monthCategorySpend,
+      ledgerVersion,
+      isLoading,
+      dataStatus,
+      refreshData,
+      authFetch,
+      ...actions,
+    }),
+    [accounts, loans, repayments, categories, budgets, budgetAlerts, monthCategorySpend, ledgerVersion, isLoading, dataStatus, refreshData, authFetch, actions]
   );
+
+  return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 };
+
+// Wraps each action so its identity never changes while it still calls the latest version,
+// which reads the latest state.
+function useStableActions<T extends Record<string, (...args: any[]) => any>>(latest: T): T {
+  const ref = useRef(latest);
+  useLayoutEffect(() => {
+    ref.current = latest;
+  });
+  return useMemo(() => {
+    const stable = {} as T;
+    for (const key of Object.keys(ref.current) as (keyof T)[]) {
+      stable[key] = ((...args: any[]) => ref.current[key](...args)) as T[keyof T];
+    }
+    return stable;
+  }, []);
+}
 
 export const useFinance = () => {
   const context = useContext(FinanceContext);

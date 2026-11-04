@@ -42,6 +42,9 @@ export const LoansScreen = ({ navigation }) => {
   const loans = loansQuery.items;
   const repayments = repaymentsQuery.items;
 
+  const openRow = useCallback((item) => navigation.navigate('AddRepayment', { loan: item }), [navigation]);
+  const renderRow = useCallback(({ item }) => <LoanRow loan={item} onPress={openRow} />, [openRow]);
+
   return (
     <View style={styles.container}>
       <Header
@@ -109,12 +112,9 @@ export const LoansScreen = ({ navigation }) => {
           <FlatList
             data={loans}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <LoanRow
-                loan={item}
-                onPress={() => navigation.navigate('AddRepayment', { loan: item })}
-              />
-            )}
+            renderItem={renderRow}
+            initialNumToRender={12}
+            windowSize={7}
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
