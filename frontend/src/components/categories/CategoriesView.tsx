@@ -56,6 +56,20 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
   const [newCatType, setNewCatType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [newCatParentId, setNewCatParentId] = useState<string>('');
   const [initialSubcats, setInitialSubcats] = useState('');
+  const [subcatTags, setSubcatTags] = useState<string[]>([]);
+
+  // Commas still split, so a pasted list works too. Duplicates are dropped ignoring case.
+  const withPendingSubcats = () => {
+    const merged = [...subcatTags];
+    for (const name of initialSubcats.split(',').map((s) => s.trim()).filter(Boolean)) {
+      if (!merged.some((existing) => existing.toLowerCase() === name.toLowerCase())) merged.push(name);
+    }
+    return merged;
+  };
+  const addSubcatTag = () => {
+    setSubcatTags(withPendingSubcats());
+    setInitialSubcats('');
+  };
   const [initialBudget, setInitialBudget] = useState('');
 
   // Pagination state
@@ -153,10 +167,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
     setIsSubmitting(true);
     const toastId = toast.loading('Adding category...');
     try {
-      const subArr = initialSubcats
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const subArr = withPendingSubcats();
 
       const res = await addCategory({
         name: newCatName.trim(),
@@ -191,6 +202,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
       setNewCatName('');
       setNewCatParentId('');
       setInitialSubcats('');
+      setSubcatTags([]);
       setInitialBudget('');
     } catch (err: any) {
       const errMsg = err?.message || 'Network error while adding category';
@@ -612,14 +624,46 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
 
           <div>
             <label className="block text-xs text-gray-300 font-medium mb-1">
-              Initial Subcategories (Optional, comma-separated)
+              Subcategories (Optional)
             </label>
-            <input
-              type="text"
-              value={initialSubcats}
-              onChange={(e) => setInitialSubcats(e.target.value)}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                aria-label="Subcategory name"
+                value={initialSubcats}
+                onChange={(e) => setInitialSubcats(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addSubcatTag();
+                  }
+                }}
+                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={addSubcatTag}
+                disabled={!initialSubcats.trim()}
+                className="px-3 py-1.5 bg-field hover:bg-surface-raised disabled:opacity-40 text-gray-200 rounded text-xs font-medium border border-field-line"
+              >
+                Add
+              </button>
+            </div>
+            {subcatTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {subcatTags.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    aria-label={`Remove ${name}`}
+                    onClick={() => setSubcatTags((prev) => prev.filter((item) => item !== name))}
+                    className="px-2 py-0.5 rounded-full border border-line-strong text-[11px] text-gray-200 hover:text-red-300"
+                  >
+                    {name} ×
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {newCatType === 'EXPENSE' && (

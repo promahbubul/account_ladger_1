@@ -17,6 +17,7 @@ const IncomeView = lazy(() => import('./components/income/IncomeView').then((mod
 const ExpensesView = lazy(() => import('./components/expenses/ExpensesView').then((module) => ({ default: module.ExpensesView })));
 const BudgetsView = lazy(() => import('./components/budgets/BudgetsView').then((module) => ({ default: module.BudgetsView })));
 const TransfersView = lazy(() => import('./components/transfers/TransfersView').then((module) => ({ default: module.TransfersView })));
+const ProjectsView = lazy(() => import('./components/projects/ProjectsView').then((module) => ({ default: module.ProjectsView })));
 const LoansView = lazy(() => import('./components/loans/LoansView').then((module) => ({ default: module.LoansView })));
 const CategoriesView = lazy(() => import('./components/categories/CategoriesView').then((module) => ({ default: module.CategoriesView })));
 const TransactionsView = lazy(() => import('./components/transactions/TransactionsView').then((module) => ({ default: module.TransactionsView })));
@@ -62,6 +63,7 @@ function AppContent() {
         if (clean === '/budgets') return 'budgets';
         if (clean === '/transfers') return 'transfers';
         if (clean === '/loans') return 'loans';
+        if (clean === '/projects') return 'projects';
         if (clean === '/categories') return 'categories';
         if (clean === '/transactions') return 'transactions';
         if (clean === '/reports') return 'reports';
@@ -85,6 +87,7 @@ function AppContent() {
         budgets: '/budgets',
         transfers: '/transfers',
         loans: '/loans',
+        projects: '/projects',
         categories: '/categories',
         transactions: '/transactions',
         reports: '/reports',
@@ -197,6 +200,8 @@ function AppContent() {
         return 'Transfers';
       case 'loans':
         return 'Loans';
+      case 'projects':
+        return 'Projects';
       case 'categories':
         return 'Categories';
       case 'transactions':
@@ -338,6 +343,8 @@ function AppContent() {
                   onSuccessNotification={showNotification}
                 />
               )}
+
+              {currentTab === 'projects' && <ProjectsView />}
 
               {currentTab === 'categories' && (
                 <CategoriesView onSuccessNotification={showNotification} />

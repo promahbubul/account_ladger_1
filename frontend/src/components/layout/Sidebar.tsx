@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Wallet,
+  Briefcase,
   ArrowDownLeft,
   ArrowUpRight,
   ArrowLeftRight,
@@ -28,6 +29,7 @@ export type NavTab =
   | 'budgets'
   | 'transfers'
   | 'loans'
+  | 'projects'
   | 'categories'
   | 'transactions'
   | 'reports'
@@ -80,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     { id: 'transfers' as NavTab, href: '/transfers', label: 'Transfers', icon: ArrowLeftRight },
     { id: 'loans' as NavTab, href: '/loans', label: 'Loans', icon: HandCoins },
+    { id: 'projects' as NavTab, href: '/projects', label: 'Projects', icon: Briefcase },
     { id: 'categories' as NavTab, href: '/categories', label: 'Categories', icon: Tags },
     { id: 'transactions' as NavTab, href: '/transactions', label: 'Transactions', icon: ReceiptText },
     { id: 'reports' as NavTab, href: '/reports', label: 'Reports', icon: BarChart3 },

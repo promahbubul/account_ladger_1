@@ -22,9 +22,17 @@ const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 /**
  * Returns today's date formatted as YYYY-MM-DD in Asia/Dhaka timezone.
  */
+const getProfileTimezone = (): string => {
+  try {
+    return JSON.parse(localStorage.getItem('hisabflow_auth_user_v2') || '{}').timezone || 'Asia/Dhaka';
+  } catch {
+    return 'Asia/Dhaka';
+  }
+};
+
 export function getDhakaTodayISO(): string {
   try {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
+    return new Intl.DateTimeFormat('en-CA', { timeZone: getProfileTimezone() }).format(new Date());
   } catch {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

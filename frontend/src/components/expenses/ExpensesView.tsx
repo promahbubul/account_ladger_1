@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
+  buildExpenseItems,
+  CategoryExpenseGroups,
+  expenseGroupsTotal,
+  newExpenseGroups,
+  selectableExpenseCategories,
+  useBatchId,
+} from './CategoryExpenseGroups';
+import {
   Plus,
   FileSpreadsheet,
   Trash2,
@@ -134,12 +142,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   // Daily Bulk Entry State
   const [bulkDate, setBulkDate] = useState<string>(getDhakaTodayISO());
   const [bulkAccount, setBulkAccount] = useState(accounts[0]?.id || '');
-  const [bulkRows, setBulkRows] = useState([
-    { id: '1', category: 'Food & Dining', desc: 'Lunch', amount: 180 },
-    { id: '2', category: 'Transportation', desc: 'Commute', amount: 60 },
-    { id: '3', category: 'Food & Dining', desc: 'Groceries', amount: 450 },
-    { id: '4', category: 'Housing & Utilities', desc: 'Mobile recharge', amount: 100 },
-  ]);
+  const [bulkGroups, setBulkGroups] = useState(newExpenseGroups);
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const batchIdFor = useBatchId();
 
   // Paginated state
   const [items, setItems] = useState<Transaction[]>([]);
@@ -327,26 +332,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   );
 
   // Bulk Entry Handlers
-  const bulkGrandTotal = bulkRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-
-  const handleAddBulkRow = () => {
-    setBulkRows([
-      ...bulkRows,
-      { id: Date.now().toString(), category: mainExpenseCategories[0]?.name || 'Food & Dining', desc: '', amount: 0 },
-    ]);
-  };
-
-  const handleRemoveBulkRow = (id: string) => {
-    if (bulkRows.length > 1) {
-      setBulkRows(bulkRows.filter((r) => r.id !== id));
-    }
-  };
-
-  const handleBulkRowChange = (id: string, field: string, value: any) => {
-    setBulkRows(
-      bulkRows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
-    );
-  };
+  const bulkCategories = useMemo(() => selectableExpenseCategories(mainExpenseCategories), [mainExpenseCategories]);
+  const bulkGrandTotal = expenseGroupsTotal(bulkGroups);
 
   const handleSaveBulkBatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,22 +343,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       return;
     }
 
-    const validRows = bulkRows.filter((r) => Number(r.amount) > 0 && r.desc.trim().length > 0);
-    if (validRows.length === 0) {
-      setFormValidationMsg('Please enter at least one expense with a valid description and amount.');
+    if (isSavingBulk) return;
+    const { items, error: itemsError } = buildExpenseItems(bulkGroups, bulkCategories);
+    if (itemsError) {
+      setFormValidationMsg(itemsError);
       return;
     }
 
-    const res = await addBulkExpenses({
-      accountId: bulkAccount,
-      date: bulkDate,
-      items: validRows.map((r) => ({
-        category: r.category,
-        amount: Number(r.amount),
-        desc: r.desc.trim(),
-        description: r.desc.trim(),
-      })),
-    });
+    setIsSavingBulk(true);
+    const batchPayload = { accountId: bulkAccount, date: bulkDate, items };
+    const res = await addBulkExpenses({ ...batchPayload, batchId: batchIdFor(batchPayload) });
+    setIsSavingBulk(false);
 
     if (res && res.success === false) {
       setFormValidationMsg(res.error || 'Failed to record bulk expenses.');
@@ -380,16 +362,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     }
 
     const accName = accounts.find((a) => a.id === bulkAccount)?.name || 'Account';
-    onSuccessNotification(`Recorded ${validRows.length} daily expenses totaling ${formatBDT(bulkGrandTotal)} from ${accName}.`);
-    toast.success(`Recorded ${validRows.length} daily expenses totaling ${formatBDT(bulkGrandTotal)}.`);
+    onSuccessNotification(`Recorded ${items.length} daily expenses totaling ${formatBDT(bulkGrandTotal)} from ${accName}.`);
 
-    // Reset rows to clean blank state so user can immediately enter another batch
-    setBulkRows([
-      { id: '1', category: 'Food & Dining', desc: '', amount: 0 },
-      { id: '2', category: 'Transportation', desc: '', amount: 0 },
-      { id: '3', category: 'Housing & Utilities', desc: '', amount: 0 },
-      { id: '4', category: 'Miscellaneous', desc: '', amount: 0 },
-    ]);
+    // Reset to a clean form so the user can immediately enter another batch.
+    setBulkGroups(newExpenseGroups());
     setBulkDate(getDhakaTodayISO());
     resetPagination();
     fetchExpenses();
@@ -796,77 +772,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               </div>
             </div>
 
-            <div className="border border-line rounded bg-surface overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-line bg-surface-sunken text-gray-400 font-medium text-[10px] uppercase">
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3">Description / Item</th>
-                    <th className="py-2.5 px-3 text-right">Amount (৳)</th>
-                    <th className="py-2.5 px-3 text-center w-12">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-divider">
-                  {bulkRows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="py-2 px-3 w-48">
-                        <select
-                          value={row.category}
-                          onChange={(e) => handleBulkRowChange(row.id, 'category', e.target.value)}
-                          className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-                        >
-                          {mainExpenseCategories.map((cat) => (
-                            <option key={cat.id} value={cat.name}>{cat.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="py-2 px-3">
-                        <input
-                          type="text"
-                          value={row.desc}
-                          onChange={(e) => handleBulkRowChange(row.id, 'desc', e.target.value)}
-                          className="w-full bg-app border border-line-strong rounded px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={row.amount || ''}
-                          onChange={(e) => handleBulkRowChange(row.id, 'amount', e.target.value)}
-                          placeholder="0.00"
-                          className="w-full bg-app border border-line-strong rounded px-2.5 py-1 text-xs text-gray-200 text-right font-mono focus:outline-none focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveBulkRow(row.id)}
-                          className="p-1 text-gray-500 hover:text-red-400 rounded"
-                          disabled={bulkRows.length <= 1}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="p-3 border-t border-line bg-surface-sunken flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={handleAddBulkRow}
-                  className="px-3 py-1.5 bg-field hover:bg-surface-raised text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
-                >
-                  + Add Row
-                </button>
-                <div className="text-right">
-                  <span className="text-xs text-gray-400 mr-2">Batch Total:</span>
-                  <span className="text-sm font-bold font-mono text-gray-100">{formatBDT(bulkGrandTotal)}</span>
-                </div>
-              </div>
-            </div>
+            <CategoryExpenseGroups groups={bulkGroups} onChange={setBulkGroups} categories={bulkCategories} />
 
             <div className="flex justify-end gap-2">
               <button
@@ -878,7 +784,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                disabled={isSavingBulk}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
               >
                 Save All Expenses ({formatBDT(bulkGrandTotal)})
               </button>

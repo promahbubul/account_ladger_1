@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  --color-chart-1: #3987E5;
+  --color-chart-2: #D95926;
   --color-app: #111317;
   --color-surface-sunken: #121417;
   --color-surface-raised: #222631;

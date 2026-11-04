@@ -1,4 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import {
+  buildExpenseItems,
+  CategoryExpenseGroups,
+  expenseGroupsTotal,
+  newExpenseGroups,
+  selectableExpenseCategories,
+  useBatchId,
+} from '../expenses/CategoryExpenseGroups';
 import { Modal } from '../common/Modal';
 import { useFinance } from '../../context/FinanceContext';
 import { Loan } from '../../mock/data';
@@ -103,30 +111,10 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   // Daily Bulk Expense form state
   const [bulkDate, setBulkDate] = useState(getTodayDate());
   const [bulkAccount, setBulkAccount] = useState(accounts[0]?.id || '');
-  const [bulkLines, setBulkLines] = useState([
-    { id: '1', category: expenseCategories[0]?.name || 'Food & Dining', desc: '', amount: 0 },
-  ]);
-
-  const bulkTotal = bulkLines.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
-  const handleAddBulkLine = () => {
-    setBulkLines([
-      ...bulkLines,
-      { id: Date.now().toString(), category: expenseCategories[0]?.name || 'Food & Dining', desc: '', amount: 0 },
-    ]);
-  };
-
-  const handleRemoveBulkLine = (id: string) => {
-    if (bulkLines.length > 1) {
-      setBulkLines(bulkLines.filter((l) => l.id !== id));
-    }
-  };
-
-  const handleUpdateBulkLine = (id: string, field: string, value: any) => {
-    setBulkLines(
-      bulkLines.map((l) => (l.id === id ? { ...l, [field]: value } : l))
-    );
-  };
+  const [bulkGroups, setBulkGroups] = useState(newExpenseGroups);
+  const batchIdFor = useBatchId();
+  const bulkCategories = selectableExpenseCategories(expenseCategories);
+  const bulkTotal = expenseGroupsTotal(bulkGroups);
 
   // Submit Income
   const handleIncomeSubmit = async (e: React.FormEvent) => {
@@ -375,22 +363,14 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
   const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
-    const validLines = bulkLines.filter(l => Number(l.amount) > 0);
-    if (validLines.length === 0) {
-      setModalError('Please enter at least one expense with amount > 0.');
+    const { items, error: itemsError } = buildExpenseItems(bulkGroups, bulkCategories);
+    if (itemsError) {
+      setModalError(itemsError);
       return;
     }
 
-    const res = await addBulkExpenses({
-      accountId: bulkAccount || accounts[0]?.id || '',
-      date: bulkDate,
-      items: validLines.map(l => ({
-        category: l.category,
-        desc: l.desc.trim() || `${l.category} expense`,
-        description: l.desc.trim() || `${l.category} expense`,
-        amount: Number(l.amount),
-      })),
-    });
+    const batchPayload = { accountId: bulkAccount || accounts[0]?.id || '', date: bulkDate, items };
+    const res = await addBulkExpenses({ ...batchPayload, batchId: batchIdFor(batchPayload) });
 
     if (res && res.error) {
       setModalError(res.error);
@@ -404,10 +384,10 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
 
     if (overBudgetAlerts && overBudgetAlerts.length > 0) {
       onSuccessNotification(
-        `Batch of ${validLines.length} expenses (${formatBDT(bulkTotal)}) saved to ${accName}. Budget alert: ${overBudgetAlerts.map((a: any) => `${a.categoryName} (+${formatBDT(a.exceededBy)})`).join(', ')}`
+        `Batch of ${items.length} expenses (${formatBDT(bulkTotal)}) saved to ${accName}. Budget alert: ${overBudgetAlerts.map((a: any) => `${a.categoryName} (+${formatBDT(a.exceededBy)})`).join(', ')}`
       );
     } else {
-      onSuccessNotification(`Saved ${validLines.length} expenses (${formatBDT(bulkTotal)}) from ${accName}.`);
+      onSuccessNotification(`Saved ${items.length} expenses (${formatBDT(bulkTotal)}) from ${accName}.`);
     }
 
     onClose();
@@ -955,77 +935,7 @@ export const ActionModals: React.FC<ActionModalsProps> = ({
             </div>
           </div>
 
-          <div className="border border-line rounded overflow-hidden max-h-60 overflow-y-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-sunken text-gray-400 text-[10px] uppercase border-b border-line">
-                <tr>
-                  <th className="py-2 px-2.5 w-1/3">Category</th>
-                  <th className="py-2 px-2.5 w-1/2">Description</th>
-                  <th className="py-2 px-2.5 w-1/4 text-right">Amount</th>
-                  <th className="py-2 px-1 text-center w-8"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1e2129]">
-                {bulkLines.map((line) => (
-                  <tr key={line.id}>
-                    <td className="p-1.5">
-                      <select
-                        value={line.category}
-                        onChange={(e) => handleUpdateBulkLine(line.id, 'category', e.target.value)}
-                        className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-                      >
-                        {expenseCategories.map((c) => (
-                          <option key={c.id} value={c.name}>{c.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-1.5">
-                      <input
-                        type="text"
-                        value={line.desc}
-                        onChange={(e) => handleUpdateBulkLine(line.id, 'desc', e.target.value)}
-                        className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-                      />
-                    </td>
-                    <td className="p-1.5 text-right">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={line.amount || ''}
-                        onChange={(e) => handleUpdateBulkLine(line.id, 'amount', e.target.value)}
-                        placeholder="0.00"
-                        className="w-full bg-app border border-line-strong rounded px-2 py-1 text-xs text-gray-200 text-right font-mono focus:outline-none focus:border-blue-500"
-                      />
-                    </td>
-                    <td className="p-1.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveBulkLine(line.id)}
-                        className="p-1 text-gray-500 hover:text-red-400 rounded"
-                        disabled={bulkLines.length <= 1}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <button
-              type="button"
-              onClick={handleAddBulkLine}
-              className="px-2.5 py-1 bg-field hover:bg-surface-raised text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
-            >
-              + Add Row
-            </button>
-            <div className="text-right">
-              <span className="text-xs text-gray-400 mr-2">Total:</span>
-              <span className="text-sm font-bold font-mono text-gray-100">{formatBDT(bulkTotal)}</span>
-            </div>
-          </div>
+          <CategoryExpenseGroups groups={bulkGroups} onChange={setBulkGroups} categories={bulkCategories} />
 
           <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <button

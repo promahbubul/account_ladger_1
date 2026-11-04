@@ -83,3 +83,13 @@ export const formatDate = (dateInput?: string | Date | null): string => {
   return str;
 };
 
+// Returns the amount as a number, or null if the text is not a clean positive amount.
+// Accepts grouped input such as 1,500 and 1,00,000, which parseFloat would truncate to 1.
+export const parseAmount = (input: string | number | null | undefined): number | null => {
+  const text = String(input ?? '').trim();
+  const isPlain = /^\d+(\.\d{0,2})?$|^\.\d{1,2}$/.test(text);
+  const isGrouped = /^\d{1,3}(,\d{2,3})+(\.\d{0,2})?$/.test(text);
+  if (!isPlain && !isGrouped) return null;
+  const value = Number(text.replace(/,/g, ''));
+  return value > 0 ? value : null;
+};

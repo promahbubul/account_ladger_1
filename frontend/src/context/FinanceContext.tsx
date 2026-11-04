@@ -64,6 +64,7 @@ interface FinanceContextType {
   addBulkExpenses: (bulk: {
     accountId: string;
     date: string;
+    batchId?: string;
     items: { category: string; desc?: string; description?: string; amount: number; subcategory?: string }[];
   }) => Promise<{ success: boolean; error?: string; overBudgetAlerts?: BudgetAlert[] }>;
   deleteTransaction: (id: string) => Promise<{ success: boolean; error?: string }>;
@@ -448,6 +449,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addBulkExpenses = async (bulk: {
     accountId: string;
     date: string;
+    batchId?: string;
     items: { category: string; desc?: string; description?: string; amount: number; subcategory?: string }[];
   }): Promise<{ success: boolean; error?: string; overBudgetAlerts?: BudgetAlert[] }> => {
     const acc = accounts.find(a => a.id === bulk.accountId);
@@ -492,15 +494,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           accountId: bulk.accountId,
           date: bulk.date,
           items: normalizedItems,
+          batchId: bulk.batchId,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
+        await refreshData();
         return { success: false, error: data.error || 'Failed to record bulk expenses.' };
       }
       return { success: true };
     } catch (err) {
       console.error('Error saving bulk expenses:', err);
+      await refreshData();
       return { success: false, error: err.message || 'Error saving bulk expenses' };
     }
   };

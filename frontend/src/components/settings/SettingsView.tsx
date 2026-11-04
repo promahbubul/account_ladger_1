@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TIMEZONES } from '../../lib/preferences';
 import {
   Download,
   Upload,
@@ -15,13 +16,22 @@ export const SettingsView: React.FC = () => {
   const { exportData, importData, refreshData } = useFinance();
 
   const [selectedCurrency, setSelectedCurrency] = useState(user?.currency || 'BDT');
+  const [selectedTimezone, setSelectedTimezone] = useState(user?.timezone || 'Asia/Dhaka');
   const [isSavingCurrency, setIsSavingCurrency] = useState(false);
 
   useEffect(() => {
     if (user?.currency) {
       setSelectedCurrency(user.currency);
     }
-  }, [user?.currency]);
+    if (user?.timezone) {
+      setSelectedTimezone(user.timezone);
+    }
+  }, [user?.currency, user?.timezone]);
+
+  // Keeps a timezone saved before this list existed selectable.
+  const timezoneOptions = TIMEZONES.some((t) => t.value === selectedTimezone)
+    ? TIMEZONES
+    : [{ value: selectedTimezone, label: selectedTimezone }, ...TIMEZONES];
 
   const [importJsonText, setImportJsonText] = useState('');
   const [importStatus, setImportStatus] = useState<{ success?: boolean; message?: string } | null>(null);
@@ -29,13 +39,13 @@ export const SettingsView: React.FC = () => {
   const handleSaveCurrency = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingCurrency(true);
-    const res = await updateProfile({ currency: selectedCurrency });
+    const res = await updateProfile({ currency: selectedCurrency, timezone: selectedTimezone });
     setIsSavingCurrency(false);
     if (res.success) {
       await refreshData();
-      setImportStatus({ success: true, message: `Currency successfully updated to ${selectedCurrency}.` });
+      setImportStatus({ success: true, message: `Preferences saved: ${selectedCurrency}, ${selectedTimezone}.` });
     } else {
-      setImportStatus({ success: false, message: res.error || 'Failed to update currency.' });
+      setImportStatus({ success: false, message: res.error || 'Failed to save preferences.' });
     }
   };
 
@@ -181,14 +191,25 @@ export const SettingsView: React.FC = () => {
             <option value="CAD">CAD (C$) - Canadian Dollar</option>
             <option value="JPY">JPY (¥) - Japanese Yen</option>
           </select>
+          <select
+            aria-label="Timezone"
+            value={selectedTimezone}
+            onChange={(e) => setSelectedTimezone(e.target.value)}
+            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+          >
+            {timezoneOptions.map((tz) => (
+              <option key={tz.value} value={tz.value}>{tz.label}</option>
+            ))}
+          </select>
           <button
             type="submit"
-            disabled={isSavingCurrency || selectedCurrency === user?.currency}
+            disabled={isSavingCurrency || (selectedCurrency === user?.currency && selectedTimezone === user?.timezone)}
             className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded text-xs font-medium transition-colors"
           >
-            {isSavingCurrency ? 'Saving...' : 'Save Currency'}
+            {isSavingCurrency ? 'Saving...' : 'Save'}
           </button>
         </form>
+        <p className="text-[11px] text-gray-500">Currency changes the symbol shown. Amounts are not converted.</p>
       </div>
 
       {/* Backup Export */}

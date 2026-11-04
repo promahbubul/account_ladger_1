@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { BarList } from '../charts/BarList';
+import { MonthlyBars, MonthTotals } from '../charts/MonthlyBars';
 import {
   Download,
   Calendar,
@@ -58,6 +60,31 @@ export const ReportsView: React.FC = () => {
       active = false;
     };
   }, [authFetch, dateFilter.startDate, dateFilter.endDate, reloadKey]);
+
+  // Personal 12-month trend, ending at the selected period's end.
+  const [monthlyTotals, setMonthlyTotals] = useState<MonthTotals[]>([]);
+  const [monthlyStatus, setMonthlyStatus] = useState<DataStatus>('loading');
+  useEffect(() => {
+    let active = true;
+    setMonthlyStatus('loading');
+    const params = new URLSearchParams();
+    if (dateFilter.endDate) params.set('endDate', dateFilter.endDate);
+    authFetch(`/api/reports/analytics?${params.toString()}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Could not load the trend.');
+        const data = await res.json();
+        if (active) {
+          setMonthlyTotals(data.monthly || []);
+          setMonthlyStatus('ready');
+        }
+      })
+      .catch(() => {
+        if (active) setMonthlyStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [authFetch, dateFilter.endDate, reloadKey]);
 
   const reportStatus: DataStatus = isLoading ? 'loading' : reportFailed ? 'error' : 'ready';
   // The account table also needs the accounts held in the finance context.
@@ -240,6 +267,31 @@ export const ReportsView: React.FC = () => {
           <div className="text-lg font-semibold font-mono text-blue-400 mt-0.5">
             <LoadedValue status={reportStatus}>{savingsRate}%</LoadedValue>
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="bg-surface border border-line rounded p-3">
+          <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider mb-3">Expense by Category</h3>
+          {reportStatus === 'error' ? (
+            <p className="text-xs text-gray-500 py-2">—</p>
+          ) : (
+            <BarList
+              rows={expenseBreakdown.map((row) => ({ key: row.category, label: row.category, value: row.spent }))}
+              isLoading={reportStatus === 'loading'}
+              emptyMessage="No expenses in this period."
+            />
+          )}
+        </div>
+        <div className="bg-surface border border-line rounded p-3">
+          <h3 className="text-xs font-semibold text-gray-200 uppercase tracking-wider mb-3">Income vs Expense, Last 12 Months</h3>
+          {monthlyStatus === 'error' ? (
+            <button type="button" onClick={retryReport} className="text-xs font-medium text-blue-400 hover:text-blue-300">
+              Could not load this chart. Retry
+            </button>
+          ) : (
+            <MonthlyBars months={monthlyTotals} isLoading={monthlyStatus === 'loading'} />
+          )}
         </div>
       </div>
 
