@@ -4,6 +4,11 @@ import bcrypt from 'bcryptjs';
 import { dbService } from '../services/db.service.js';
 import { validateLimit } from '../utils/cursor.js';
 
+const MIN_PASSWORD_LENGTH = 6;
+const SHORT_PASSWORD = `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`;
+const cleanEmailOf = (email) => String(email).toLowerCase().trim();
+const looksLikeEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 export async function getUsers(req, res) {
   try {
     const limit = validateLimit(req.query.limit);
@@ -53,7 +58,17 @@ export async function createUser(req, res) {
       return;
     }
 
-    const existing = await dbService.getUserByUsernameOrEmail(email);
+    const cleanEmail = cleanEmailOf(email);
+    if (!looksLikeEmail(cleanEmail)) {
+      res.status(400).json({ error: 'Please enter a valid email address.' });
+      return;
+    }
+    if (String(password).length < MIN_PASSWORD_LENGTH) {
+      res.status(400).json({ error: SHORT_PASSWORD });
+      return;
+    }
+
+    const existing = await dbService.getUserByUsernameOrEmail(cleanEmail);
     if (existing) {
       res.status(409).json({ error: 'User with this email already exists.' });
       return;
@@ -70,11 +85,12 @@ export async function createUser(req, res) {
     const newUser = {
       id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       username: cleanUsername,
-      email: String(email).toLowerCase().trim(),
+      email: cleanEmail,
       fullName: String(fullName).trim(),
       passwordHash,
       role: role === 'ADMIN' ? 'ADMIN' : 'USER',
       isActive: true,
+      emailVerified: true,
       currency: currency || 'BDT',
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
@@ -92,6 +108,7 @@ export async function createUser(req, res) {
     await dbService.addAuditLog({
       userId: req.user.id,
       userEmail: req.user.email,
+      ipAddress: req.ip,
       action: 'CREATE_USER',
       entityType: 'USER',
       entityId: newUser.id,
@@ -115,30 +132,64 @@ export async function updateUser(req, res) {
       return;
     }
 
+    if (role !== undefined && role !== 'ADMIN' && role !== 'USER') {
+      res.status(400).json({ error: 'Role must be ADMIN or USER.' });
+      return;
+    }
     if (req.user.id === id && role && role !== 'ADMIN') {
       res.status(400).json({ error: 'Safeguard: You cannot demote your own administrator role.' });
       return;
     }
 
-    const updated = await dbService.updateUser(id, {
-      fullName,
-      email,
-      role: role === 'ADMIN' ? 'ADMIN' : 'USER',
-      currency,
-    });
+    const target = await dbService.getUserById(id);
+    if (!target) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    // Only what was sent changes, so leaving out a field can never demote an admin or blank a value.
+    const updates = {};
+    if (fullName !== undefined) {
+      if (!String(fullName).trim()) {
+        res.status(400).json({ error: 'Full name cannot be empty.' });
+        return;
+      }
+      updates.fullName = String(fullName).trim();
+    }
+    if (email !== undefined) {
+      const cleanEmail = cleanEmailOf(email);
+      if (!looksLikeEmail(cleanEmail)) {
+        res.status(400).json({ error: 'Please enter a valid email address.' });
+        return;
+      }
+      if (cleanEmail !== target.email) {
+        const taken = await dbService.getUserByEmail(cleanEmail);
+        if (taken && taken.id !== id) {
+          res.status(409).json({ error: 'User with this email already exists.' });
+          return;
+        }
+      }
+      updates.email = cleanEmail;
+    }
+    if (role !== undefined) updates.role = role;
+    if (currency !== undefined) updates.currency = currency;
+
+    const updated = await dbService.updateUser(id, updates);
 
     if (!updated) {
       res.status(404).json({ error: 'User not found.' });
       return;
     }
 
+    const roleChange = role && role !== target.role ? `, role ${target.role} to ${role}` : '';
     await dbService.addAuditLog({
       userId: req.user.id,
       userEmail: req.user.email,
+      ipAddress: req.ip,
       action: 'UPDATE_USER',
       entityType: 'USER',
       entityId: id,
-      details: `Admin updated user profile for ${updated.username}`,
+      details: `Admin updated user profile for ${updated.username}${roleChange}`,
     });
 
     const { passwordHash: _, ...safeUser } = updated;
@@ -174,6 +225,7 @@ export async function toggleUserStatus(req, res) {
     await dbService.addAuditLog({
       userId: req.user.id,
       userEmail: req.user.email,
+      ipAddress: req.ip,
       action: isActive ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
       entityType: 'USER',
       entityId: id,
@@ -193,8 +245,8 @@ export async function resetUserPassword(req, res) {
     const { id } = req.params;
     const { newPassword } = req.body;
 
-    if (!newPassword || String(newPassword).length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    if (!newPassword || String(newPassword).length < MIN_PASSWORD_LENGTH) {
+      res.status(400).json({ error: SHORT_PASSWORD });
       return;
     }
 
@@ -210,6 +262,7 @@ export async function resetUserPassword(req, res) {
     await dbService.addAuditLog({
       userId: req.user.id,
       userEmail: req.user.email,
+      ipAddress: req.ip,
       action: 'RESET_PASSWORD',
       entityType: 'USER',
       entityId: id,
@@ -243,6 +296,7 @@ export async function deleteUser(req, res) {
     await dbService.addAuditLog({
       userId: req.user.id,
       userEmail: req.user.email,
+      ipAddress: req.ip,
       action: 'DELETE_USER',
       entityType: 'USER',
       entityId: id,
@@ -259,17 +313,7 @@ export async function deleteUser(req, res) {
 export async function getStats(req, res) {
   try {
     const stats = await dbService.getAdminStats();
-    const status = dbService.getStatus();
-    res.json({
-      success: true,
-      ...stats,
-      status: {
-        connectedToNeon: Boolean(status.connectedToNeon),
-        connectedToPostgres: Boolean(status.connectedToPostgres),
-        storageFile: status.localDbFile || 'hisabflow_db.json',
-        transactionCount: stats.totalUsers || 0,
-      },
-    });
+    res.json({ success: true, ...stats });
   } catch (err) {
     logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
     res.status(500).json({ error: 'Failed to fetch admin stats.' });
@@ -277,7 +321,8 @@ export async function getStats(req, res) {
 }
 
 export function getDbStatus(req, res) {
-  const status = dbService.getStatus();
+  // The storage path is a server detail, so it stays out of the response.
+  const { localDbFile: _, ...status } = dbService.getStatus();
   res.json({ success: true, ...status });
 }
 
@@ -316,19 +361,39 @@ export async function getAuditLogs(req, res) {
   }
 }
 
-export function getSettings(req, res) {
-  const settings = dbService.getSystemSettings();
-  res.json({ success: true, settings });
+export async function getSettings(req, res) {
+  try {
+    res.json({ success: true, settings: await dbService.getSystemSettings() });
+  } catch (err) {
+    logger.error(`${req.method} ${req.baseUrl}${req.path} failed:`, err);
+    res.status(500).json({ error: 'Failed to fetch system settings.' });
+  }
 }
 
 export async function updateSettings(req, res) {
   try {
-    const updates = req.body;
+    const { allowUserRegistration, defaultCurrency } = req.body;
+    const updates = {};
+    if (allowUserRegistration !== undefined) {
+      if (typeof allowUserRegistration !== 'boolean') {
+        res.status(400).json({ error: 'Public registration must be on or off.' });
+        return;
+      }
+      updates.allowUserRegistration = allowUserRegistration;
+    }
+    if (defaultCurrency !== undefined) {
+      if (!SUPPORTED_CURRENCIES.includes(defaultCurrency)) {
+        res.status(400).json({ error: 'Unsupported currency code.' });
+        return;
+      }
+      updates.defaultCurrency = defaultCurrency;
+    }
     const updated = await dbService.updateSystemSettings(updates);
 
     await dbService.addAuditLog({
       userId: req.user.id,
       userEmail: req.user.email,
+      ipAddress: req.ip,
       action: 'UPDATE_SETTINGS',
       entityType: 'SETTINGS',
       entityId: 'system_settings',

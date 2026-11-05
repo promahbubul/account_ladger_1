@@ -291,10 +291,23 @@ test('a signed-in user stays on the website and reaches the app from the account
   await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible();
 });
 
+test('the admin dashboard shows real numbers, and deactivating a user asks first', async ({ page }) => {
+  await signIn(page, ADMIN);
+  await expect(page.getByText('Admins', { exact: true }).locator('..')).toContainText(/\d/);
+  await expect(page.getByText('Services Operational')).toHaveCount(0);
+
+  await page.locator('aside a[href="/admin/users"]').click();
+  const row = page.locator('tr').filter({ hasText: USER.email });
+  await row.getByRole('button', { name: 'ACTIVE' }).click();
+  await expect(page.getByText(/They will be signed out/)).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(row.getByRole('button', { name: 'ACTIVE' })).toBeVisible();
+});
+
 test('an admin can open users and audit logs', async ({ page }) => {
   await signIn(page, ADMIN);
   await page.locator('aside a[href="/admin/users"]').click();
-  await expect(page.getByText('user@example.com').first()).toBeVisible();
+  await expect(page.locator('tr').filter({ hasText: 'user@example.com' })).toBeVisible();
   await page.locator('aside a[href="/admin/logs"]').click();
   await expect(page).toHaveURL(/\/admin\/logs$/);
   await expect(page.getByText(/Failed to fetch|Error loading/)).toHaveCount(0);

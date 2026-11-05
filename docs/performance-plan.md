@@ -259,3 +259,9 @@ Theme: System → Light → Dark ঘোরে, শুরুতে System।
 - `.cph/` মালিকের নিজের ফোল্ডার, commit করবেন না। `.env`-ও নয়।
 - Windows-এ Git Bash থেকে push আটকালে: `export GIT_SSH_COMMAND="C:/Windows/System32/OpenSSH/ssh.exe"`।
 - "Build Mobile App" সবুজ হওয়া মানে শুধু Expo-তে পাঠানো হয়েছে (`--no-wait`)। APK হয়েছে কি না Expo-তে দেখতে হয়।
+
+## Admin dashboard
+
+- System settings থাকে database-এর `system_settings` টেবিলে। সত্যিই কাজ করে এমন দুটোই আছে: Public registration আর নতুন user-এর currency।
+- User মুছলে তার audit log থেকে যায় (`ON DELETE SET NULL`), আর email-সহ এক বছর পরে নিজে মুছে যায়। Privacy Policy-তে এটা লেখা আছে।
+- Admin-এর বানানো user সাথে সাথে login করতে পারে। ভুল password দিলে `LOGIN_FAILED` log হয়, শুধু যে account আছে তার জন্য।

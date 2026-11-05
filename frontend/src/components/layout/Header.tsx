@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Wallet,
   Shield,
-  Activity,
   Calendar,
   X,
 } from 'lucide-react';
@@ -97,14 +96,6 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right side */}
         {isAdmin ? (
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-hover border border-line-strong rounded text-xs text-purple-400">
-              <Shield className="w-3.5 h-3.5 text-purple-400" />
-              <span className="font-medium text-[11px]">Admin Mode</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-hover border border-line-strong rounded text-xs text-emerald-400">
-              <Activity className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[11px] font-medium">Services Operational</span>
-            </div>
           </div>
         ) : (
           <div className="flex items-center flex-wrap gap-2">

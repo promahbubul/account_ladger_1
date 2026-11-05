@@ -1,130 +1,88 @@
 import { CURRENCY_SYMBOLS } from '../../lib/formatters';
 import React, { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
-import { Sliders } from 'lucide-react';
 import { SystemSettings } from './types';
 
 interface AdminSettingsTabProps {
   settings: SystemSettings;
-  setSettings: React.Dispatch<React.SetStateAction<SystemSettings>>;
+  setSettings: React.Dispatch<React.SetStateAction<SystemSettings | null>>;
   onSuccessNotification: (msg: string) => void;
 }
 
 export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, setSettings, onSuccessNotification }) => {
   const { authFetch } = useFinance();
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingSettings(true);
+    setSaveError(null);
     try {
       const res = await authFetch(`/api/admin/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          allowUserRegistration: settings.allowUserRegistration,
+          defaultCurrency: settings.defaultCurrency,
+        }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        if (data.settings) setSettings(data.settings);
         onSuccessNotification('System settings saved successfully.');
+      } else {
+        setSaveError(data.error || 'Could not save the settings.');
       }
     } catch (err) {
       console.error('Error saving settings:', err);
+      setSaveError('Could not save the settings. Check your connection and try again.');
     } finally {
       setIsSavingSettings(false);
     }
   };
 
   return (
-    <>
-    <form onSubmit={handleSaveSettings} className="space-y-4 w-full min-w-0 overflow-y-auto flex-1 min-h-0">
+    <form onSubmit={handleSaveSettings} className="space-y-3 w-full max-w-2xl min-w-0 overflow-y-auto flex-1 min-h-0">
+      {saveError && (
+        <div role="alert" className="p-2.5 rounded bg-red-950/40 border border-red-800/60 text-xs text-red-300">
+          {saveError}
+        </div>
+      )}
+
       <div className="bg-surface border border-line rounded p-4 space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300 flex items-center gap-2">
-          <Sliders className="w-4 h-4 text-purple-400" />
-          Global System Configuration
-        </h3>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-300 mb-1">
-            Application Name
-          </label>
+        <label className="flex items-center justify-between gap-4 cursor-pointer">
+          <span>
+            <span className="block text-xs font-medium text-gray-200">Public registration</span>
+            <span className="block text-[11px] text-gray-400 mt-0.5">
+              When off, new people can't create an account, including with Google. Existing users can still sign in.
+            </span>
+          </span>
           <input
-            type="text"
-            value={settings.appName}
-            onChange={(e) => setSettings({ ...settings, appName: e.target.value })}
-            className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
+            type="checkbox"
+            checked={settings.allowUserRegistration}
+            onChange={(e) => setSettings({ ...settings, allowUserRegistration: e.target.checked })}
+            className="w-4 h-4 flex-shrink-0 rounded text-blue-600 focus:ring-0 bg-surface-raised border-field-line"
           />
-        </div>
+        </label>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-line">
-          <div>
-            <label className="block text-xs font-medium text-gray-300 mb-1">
-              Default Currency
-            </label>
-            <select
-              value={settings.defaultCurrency}
-              onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
-            >
-              {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
-                <option key={code} value={code}>{code} ({symbol})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-300 mb-1">
-              Session Validity (Hours)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="8760"
-              value={settings.sessionTimeoutHours}
-              onChange={(e) => setSettings({ ...settings, sessionTimeoutHours: Number(e.target.value) })}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3 pt-3 border-t border-line">
-          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-surface">
-            <div>
-              <div className="text-xs font-medium text-gray-200">Public User Registration</div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.allowUserRegistration}
-              onChange={(e) => setSettings({ ...settings, allowUserRegistration: e.target.checked })}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-surface-raised border-field-line"
-            />
+        <div className="pt-4 border-t border-line">
+          <label htmlFor="admin-default-currency" className="block text-xs font-medium text-gray-300 mb-1">
+            Currency for new users
           </label>
-
-          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-surface">
-            <div>
-              <div className="text-xs font-medium text-gray-200">Maintenance Mode</div>
-              <div className="text-[11px] text-gray-400">Display maintenance advisory to non-admin users</div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.maintenanceMode}
-              onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-surface-raised border-field-line"
-            />
-          </label>
-
-          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-surface">
-            <div>
-              <div className="text-xs font-medium text-gray-200">Security Audit Logging</div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.auditLoggingEnabled}
-              onChange={(e) => setSettings({ ...settings, auditLoggingEnabled: e.target.checked })}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-surface-raised border-field-line"
-            />
-          </label>
+          <select
+            id="admin-default-currency"
+            value={settings.defaultCurrency}
+            onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
+            className="w-full sm:w-56 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
+          >
+            {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
+              <option key={code} value={code}>{code} ({symbol})</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -138,6 +96,5 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, se
         </button>
       </div>
     </form>
-    </>
   );
 };

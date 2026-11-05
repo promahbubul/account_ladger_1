@@ -20,16 +20,12 @@ export const AdminSettingsScreen = ({ navigation }) => {
   });
 
   const [allowRegistration, setAllowRegistration] = useState(true);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [auditLogging, setAuditLogging] = useState(true);
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
     if (settingsQuery.data?.settings) {
       const s = settingsQuery.data.settings;
       setAllowRegistration(s.allowUserRegistration !== false);
-      setMaintenanceMode(Boolean(s.maintenanceMode));
-      setAuditLogging(s.auditLoggingEnabled !== false);
     }
   }, [settingsQuery.data]);
 
@@ -38,8 +34,6 @@ export const AdminSettingsScreen = ({ navigation }) => {
     try {
       await adminApi.updateSettings({
         allowUserRegistration: allowRegistration,
-        maintenanceMode,
-        auditLoggingEnabled: auditLogging,
       });
       queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
       showMessage('Success', 'System settings saved.');
@@ -81,29 +75,6 @@ export const AdminSettingsScreen = ({ navigation }) => {
             <Switch
               value={allowRegistration}
               onValueChange={setAllowRegistration}
-              trackColor={{ false: COLORS.border, true: COLORS.primary }}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1, marginRight: SPACING.md }}>
-              <Text style={styles.switchTitle}>Maintenance Mode</Text>
-              <Text style={styles.switchSub}>When enabled, standard user ledger access is temporarily locked.</Text>
-            </View>
-            <Switch
-              value={maintenanceMode}
-              onValueChange={setMaintenanceMode}
-              trackColor={{ false: COLORS.border, true: COLORS.danger }}
-            />
-          </View>
-
-          <View style={[styles.switchRow, { borderBottomWidth: 0 }]}>
-            <View style={{ flex: 1, marginRight: SPACING.md }}>
-              <Text style={styles.switchTitle}>Audit Logging</Text>
-            </View>
-            <Switch
-              value={auditLogging}
-              onValueChange={setAuditLogging}
               trackColor={{ false: COLORS.border, true: COLORS.primary }}
             />
           </View>
