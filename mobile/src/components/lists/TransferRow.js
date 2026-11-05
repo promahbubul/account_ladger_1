@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 // Memoized: re-renders only when its row or callback changes. onPress receives the row's item.
@@ -40,7 +40,7 @@ export const TransferRow = React.memo(function TransferRow({ item, onPress }) {
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -99,4 +99,4 @@ const styles = StyleSheet.create({
     color: COLORS.warning,
     letterSpacing: -0.2,
   },
-});
+}));

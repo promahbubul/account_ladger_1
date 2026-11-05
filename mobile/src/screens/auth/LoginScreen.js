@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, KeyboardAvoidingView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { useAuth } from '../../context/AuthContext';
 import { signInWithGoogleFirebase, checkRedirectAuthResult } from '../../services/auth/firebase';
+import { ThemeToggle } from '../../components/common/ThemeToggle';
 
 export const LoginScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -105,6 +106,7 @@ export const LoginScreen = ({ navigation }) => {
       behavior="padding"
       style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
     >
+      <ThemeToggle style={styles.themeToggle} />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Image
@@ -112,7 +114,7 @@ export const LoginScreen = ({ navigation }) => {
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.appName}>AccountLedger</Text>
+          <Text style={styles.appName}>Account Ledger</Text>
         </View>
 
         <View style={styles.formCard}>
@@ -189,7 +191,11 @@ export const LoginScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
+  themeToggle: {
+    alignSelf: 'flex-end',
+    padding: SPACING.md,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -285,4 +291,4 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
   },
-});
+}));

@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'accountledger_auth_token';
 const USER_KEY = 'accountledger_auth_user';
+const THEME_KEY = 'accountledger_theme';
 
 const memoryStore = new Map();
 const isWeb = Platform.OS === 'web';
@@ -105,3 +106,5 @@ export const clearAuthSession = async () => {
   }
 };
 
+export const getThemePreference = () => getItem(THEME_KEY);
+export const saveThemePreference = (preference) => setItem(THEME_KEY, preference);

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { showMessage } from '../../utils/notify';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { QueryErrorBanner } from '../../components/common/QueryStates';
 import { Select } from '../../components/common/Select';
@@ -182,7 +182,7 @@ export const CreateLoanScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -233,4 +233,4 @@ const styles = StyleSheet.create({
   submitBtn: {
     marginTop: SPACING.md,
   },
-});
+}));

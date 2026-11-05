@@ -1,9 +1,9 @@
 import React, { useCallback } from 'react';
-import { View, Text, FlatList, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, FlatList, RefreshControl } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Badge } from '../../components/common/Badge';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -77,7 +77,7 @@ export const AdminLogsScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -124,4 +124,4 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs - 2,
     color: COLORS.textMuted,
   },
-});
+}));

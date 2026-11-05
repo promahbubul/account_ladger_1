@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { DateField } from '../../components/common/DateField';
 import { QueryErrorBanner } from '../../components/common/QueryStates';
@@ -203,7 +203,7 @@ export const AddExpenseScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -237,4 +237,4 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     marginBottom: SPACING.xxl,
   },
-});
+}));

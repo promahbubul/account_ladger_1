@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -228,7 +228,7 @@ export const ProjectEntriesScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -269,4 +269,4 @@ const styles = StyleSheet.create({
   submitBtn: {
     marginBottom: SPACING.xxl,
   },
-});
+}));

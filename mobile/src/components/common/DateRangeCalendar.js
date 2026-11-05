@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { getTodayISO } from '../../utils/formatters';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
@@ -100,7 +100,7 @@ export const DateRangeCalendar = ({ startDate, endDate, onChange }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   monthRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -160,4 +160,4 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700',
   },
-});
+}));

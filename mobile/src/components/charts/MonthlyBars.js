@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { formatCurrency } from '../../utils/formatters';
 import { Skeleton } from '../common/Skeleton';
 
@@ -100,7 +100,7 @@ export const MonthlyBars = ({ months = [], isLoading = false }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   legend: {
     flexDirection: 'row',
     gap: SPACING.lg,
@@ -208,4 +208,4 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     paddingVertical: SPACING.md,
   },
-});
+}));

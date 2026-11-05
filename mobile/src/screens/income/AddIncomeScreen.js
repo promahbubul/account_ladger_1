@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { DateField } from '../../components/common/DateField';
 import { Select } from '../../components/common/Select';
@@ -195,7 +195,7 @@ export const AddIncomeScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -218,4 +218,4 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     marginBottom: SPACING.xxl,
   },
-});
+}));

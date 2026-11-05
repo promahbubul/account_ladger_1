@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { View, Text, ScrollView } from 'react-native';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -116,7 +116,7 @@ export const ProfileScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -156,4 +156,4 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-});
+}));

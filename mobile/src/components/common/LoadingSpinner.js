@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { View, ActivityIndicator, Text } from 'react-native';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 
 export const LoadingSpinner = ({ message = 'Loading...', fullScreen = false }) => {
   return (
@@ -11,7 +11,7 @@ export const LoadingSpinner = ({ message = 'Loading...', fullScreen = false }) =
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     padding: SPACING.xl,
     alignItems: 'center',
@@ -26,4 +26,4 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.sm,
   },
-});
+}));

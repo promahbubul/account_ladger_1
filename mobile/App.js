@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 WebBrowser.maybeCompleteAuthSession();
 import { AuthProvider } from './src/context/AuthContext';
 import { DateFilterProvider } from './src/context/DateFilterContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { COLORS } from './src/constants/theme';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 
@@ -22,19 +24,26 @@ const queryClient = new QueryClient({
   },
 });
 
+const ThemedStatusBar = () => {
+  const { resolved } = useTheme();
+  return <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} backgroundColor={COLORS.background} />;
+};
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" backgroundColor="#0B0D10" />
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider queryClient={queryClient}>
-          <DateFilterProvider>
-            <ErrorBoundary>
-              <RootNavigator />
-            </ErrorBoundary>
-          </DateFilterProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <ThemeProvider>
+        <ThemedStatusBar />
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider queryClient={queryClient}>
+            <DateFilterProvider>
+              <ErrorBoundary>
+                <RootNavigator />
+              </ErrorBoundary>
+            </DateFilterProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

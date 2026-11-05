@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 
 export const LoadMoreFooter = ({ query }) => {
   if (!query.hasNextPage && !query.isFetchNextPageError) return null;
@@ -21,7 +21,7 @@ export const LoadMoreFooter = ({ query }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   button: {
     minHeight: 48,
     padding: SPACING.md,
@@ -33,4 +33,4 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
   },
-});
+}));

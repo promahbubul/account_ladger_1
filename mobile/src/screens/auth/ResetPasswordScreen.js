@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { showMessage } from '../../utils/notify';
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { authApi } from '../../services/api/auth.api';
@@ -83,7 +83,7 @@ export const ResetPasswordScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -125,4 +125,4 @@ const styles = StyleSheet.create({
   submitBtn: {
     marginTop: SPACING.sm,
   },
-});
+}));

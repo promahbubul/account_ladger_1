@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { formatCurrency } from '../../utils/formatters';
 
 // Memoized: re-renders only when its row or callback changes. onPress receives the row's account.
@@ -53,7 +53,7 @@ export const AccountRow = React.memo(function AccountRow({ account, onPress }) {
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -109,4 +109,4 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     letterSpacing: -0.2,
   },
-});
+}));

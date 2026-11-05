@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { formatDate } from '../../utils/formatters';
 import { DateRangeCalendar } from './DateRangeCalendar';
 
@@ -53,7 +53,7 @@ export const DateField = ({ label, value, onChange, error, allowClear = false, p
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     marginBottom: SPACING.md,
   },
@@ -115,4 +115,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
-});
+}));

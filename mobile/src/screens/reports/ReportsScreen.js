@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Amount } from '../../components/common/Amount';
 import { QueryErrorBanner } from '../../components/common/QueryStates';
@@ -190,7 +190,7 @@ export const ReportsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   chartSection: {
     marginBottom: SPACING.lg,
     paddingHorizontal: SPACING.xs,
@@ -296,4 +296,4 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.xxl,
   },
-});
+}));
