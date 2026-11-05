@@ -216,8 +216,8 @@ Theme: System → Light → Dark ঘোরে, শুরুতে System।
 
 - নতুন website পাতা দিলে `seo.ts`-এ আর `frontend/vercel.json`-এর rewrites-এ যোগ করতে হবে। নতুন app পাতা দিলে rewrites-এও দিতে হবে, নইলে ওই ঠিকানা 404 দেবে।
 - Vercel `frontend/vercel.json` পড়ে, repo-র root-এরটা নয়।
-- নিজের domain হলে `seo.ts`-এর `SITE_URL` বদলান।
-- [ ] Domain কেনা, Google Search Console-এ যাচাই করে sitemap জমা দেওয়া।
+- Domain: মালিকের সিদ্ধান্ত `account-ladger.vercel.app`-ই থাকবে (2026-11-05)। কখনো বদলালে `seo.ts`-এর `SITE_URL` বদলান।
+- [ ] Google Search Console-এ যাচাই করে sitemap জমা দেওয়া।
 - [ ] মানুষের খোঁজার ভাষায় লেখা, আর একটা বাংলা Home পাতা।
 
 ## মালিকের নিজের কাজ
