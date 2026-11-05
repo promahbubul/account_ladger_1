@@ -494,7 +494,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
                       {tx.description}
                     </td>
                     <td className="py-2.5 px-3 text-gray-400">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-app border border-[#242730] text-[11px]">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-app border border-line-strong text-[11px]">
                         <span>{tx.category || 'General Income'}</span>
                         {tx.subcategory && (
                           <>

@@ -221,6 +221,39 @@ test('forgot and reset password lead back to sign in, not the home page', async 
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test('the theme follows the device, and the button changes and remembers it', async ({ page }) => {
+  const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await expect.poll(theme).toBe('dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect.poll(theme).toBe('light');
+
+  const button = page.getByRole('button', { name: /^Theme:/ });
+  await button.click();
+  await expect.poll(theme).toBe('light');
+  await button.click();
+  await expect.poll(theme).toBe('dark');
+  await page.reload();
+  await expect.poll(theme).toBe('dark');
+
+  await page.getByRole('button', { name: /^Theme:/ }).click();
+  await expect.poll(theme).toBe('light');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('accountledger_theme'))).toBeNull();
+});
+
+test('the app name has a space wherever people read it', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('header').getByText('Account Ledger')).toBeVisible();
+  await expect(page.getByText('AccountLedger')).toHaveCount(0);
+  await page.goto('/login');
+  await expect(page.getByText('Account Ledger').first()).toBeVisible();
+  await expect(page.getByText('AccountLedger')).toHaveCount(0);
+  await signIn(page);
+  await expect(page.locator('aside').getByText('Account Ledger')).toBeVisible();
+  await expect(page.getByText('AccountLedger')).toHaveCount(0);
+});
+
 test('create account opens the registration form', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Create account' }).click();

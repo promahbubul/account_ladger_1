@@ -102,7 +102,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="space-y-4 w-full min-w-0">
       {/* Budget Alert Banner */}
       {overBudgetCategories.length > 0 && (
-        <div className="bg-[#1f1618] border border-red-900/80 rounded p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="bg-red-950/40 border border-red-900/80 rounded p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-start sm:items-center gap-2.5">
             <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
             <div>
@@ -195,7 +195,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <button
           onClick={() => onOpenQuickAction('income')}
-          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-surface-raised border border-line-strong rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-400" />
           <span>Income</span>
@@ -203,7 +203,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('expense')}
-          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-surface-raised border border-line-strong rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />
           <span>Expense</span>
@@ -211,7 +211,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('daily_bulk')}
-          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-surface-raised border border-line-strong rounded text-xs text-gray-200 transition-colors"
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
           <span>Daily Expenses</span>
@@ -219,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('transfer')}
-          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-surface-raised border border-line-strong rounded text-xs text-gray-200 transition-colors"
         >
           <ArrowLeftRight className="w-3.5 h-3.5 text-blue-400" />
           <span>Transfer</span>
@@ -227,7 +227,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onOpenQuickAction('loan')}
-          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-[#1f2229] border border-[#242730] rounded text-xs text-gray-200 transition-colors col-span-2 sm:col-span-1"
+          className="flex items-center justify-center gap-2 p-2 bg-surface hover:bg-surface-raised border border-line-strong rounded text-xs text-gray-200 transition-colors col-span-2 sm:col-span-1"
         >
           <HandCoins className="w-3.5 h-3.5 text-amber-400" />
           <span>Loan</span>
@@ -252,7 +252,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px]">
+                <tr className="border-b border-line bg-surface text-gray-400 text-[10px]">
                   <th className="py-2 px-3">Account</th>
                   <th className="py-2 px-3">Type</th>
                   <th className="py-2 px-3 text-right">Balance</th>
@@ -318,7 +318,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px]">
+                <tr className="border-b border-line bg-surface text-gray-400 text-[10px]">
                   <th className="py-2 px-3">Date</th>
                   <th className="py-2 px-3">Description</th>
                   <th className="py-2 px-3">Account</th>

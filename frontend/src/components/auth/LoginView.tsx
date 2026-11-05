@@ -4,13 +4,14 @@ import { signInWithGoogle } from '../../lib/firebase';
 import { Link, usePathname, useRouter } from '../../lib/router';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '../../lib/errors';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 const FIELD =
-  'w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]';
-const LABEL = 'block text-sm font-medium text-slate-700 mb-1.5';
-const LINK = 'text-[#0f766e] hover:text-[#115e59] font-medium';
+  'w-full bg-site-card border border-site-line-strong rounded-md px-3 py-2 text-base sm:text-sm text-ink placeholder-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent';
+const LABEL = 'block text-sm font-medium text-ink-2 mb-1.5';
+const LINK = 'text-accent hover:text-accent-strong font-medium';
 const SUBMIT =
-  'w-full py-2.5 bg-[#0f766e] hover:bg-[#115e59] disabled:opacity-50 text-white text-sm font-medium rounded-md flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed';
+  'w-full py-2.5 bg-accent-solid hover:bg-accent-solid-hover disabled:opacity-50 text-white text-sm font-medium rounded-md flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed';
 
 const PasswordField: React.FC<{
   id: string;
@@ -36,7 +37,7 @@ const PasswordField: React.FC<{
         type="button"
         onClick={() => setVisible((current) => !current)}
         aria-label={visible ? 'Hide password' : 'Show password'}
-        className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-slate-800"
+        className="absolute inset-y-0 right-0 px-3 flex items-center text-ink-3 hover:text-ink"
       >
         {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
@@ -70,9 +71,9 @@ export const LoginView: React.FC = () => {
     setErrorMessage(null);
     setSuccessMessage(null);
     setUnverifiedEmail(null);
-    document.title = `${isRegister ? 'Create account' : 'Sign in'} | AccountLedger`;
+    document.title = `${isRegister ? 'Create account' : 'Sign in'} | Account Ledger`;
     return () => {
-      document.title = 'AccountLedger';
+      document.title = 'Account Ledger';
     };
   }, [isRegister]);
 
@@ -170,22 +171,23 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-4 py-10">
+    <div className="min-h-screen bg-site-sunken text-ink flex flex-col items-center justify-center p-4 py-10">
+      <ThemeToggle className="fixed top-3 right-3" />
       <div className="w-full max-w-sm">
-        <Link href="/" className="flex items-center justify-center gap-2 font-semibold text-slate-900 mb-6">
+        <Link href="/" className="flex items-center justify-center gap-2 font-semibold text-ink mb-6">
           <img src="/logo.png" alt="" className="w-8 h-8 object-contain" />
-          AccountLedger
+          Account Ledger
         </Link>
 
-        <div className="bg-white border border-slate-200 rounded-md p-6">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900 mb-5">
+        <div className="bg-site-card border border-site-line rounded-md p-6">
+          <h1 className="text-xl font-semibold tracking-tight text-ink mb-5">
             {isRegister ? 'Create your account' : 'Sign in'}
           </h1>
 
           {errorMessage && (
-            <div role="alert" className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-800">
+            <div role="alert" className="mb-4 p-3 rounded-md bg-danger-bg border border-danger-line text-sm text-danger-ink">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-danger-ink flex-shrink-0 mt-0.5" />
                 <span>{errorMessage}</span>
               </div>
               {unverifiedEmail && (
@@ -201,8 +203,8 @@ export const LoginView: React.FC = () => {
           )}
 
           {successMessage && (
-            <div role="status" className="mb-4 p-3 rounded-md bg-emerald-50 border border-emerald-200 flex items-start gap-2 text-sm text-emerald-800">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div role="status" className="mb-4 p-3 rounded-md bg-ok-bg border border-ok-line flex items-start gap-2 text-sm text-ok-ink">
+              <CheckCircle2 className="w-4 h-4 text-ok-ink flex-shrink-0 mt-0.5" />
               <span>{successMessage}</span>
             </div>
           )}
@@ -238,7 +240,7 @@ export const LoginView: React.FC = () => {
                 {isLoading ? 'Creating account...' : 'Create account'}
               </button>
 
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ink-3">
                 By creating an account, you agree to our <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
               </p>
             </form>
@@ -260,7 +262,7 @@ export const LoginView: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="login-password" className="block text-sm font-medium text-slate-700">Password</label>
+                  <label htmlFor="login-password" className="block text-sm font-medium text-ink-2">Password</label>
                   <Link href="/forgot-password" className={`text-sm ${LINK}`}>Forgot password?</Link>
                 </div>
                 <PasswordField
@@ -279,9 +281,9 @@ export const LoginView: React.FC = () => {
           )}
 
           <div className="flex items-center gap-3 my-4" aria-hidden="true">
-            <div className="border-t border-slate-200 flex-1" />
-            <span className="text-xs text-slate-500">or</span>
-            <div className="border-t border-slate-200 flex-1" />
+            <div className="border-t border-site-line flex-1" />
+            <span className="text-xs text-ink-3">or</span>
+            <div className="border-t border-site-line flex-1" />
           </div>
 
           <button
@@ -289,11 +291,11 @@ export const LoginView: React.FC = () => {
             id="btn-google-auth"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}
-            className="w-full py-2.5 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-sm font-medium rounded-md flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full py-2.5 px-3 bg-site-card hover:bg-site-hover border border-site-line-strong text-ink text-sm font-medium rounded-md flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {isGoogleLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                <Loader2 className="w-4 h-4 animate-spin text-ink-3" />
                 <span>Connecting with Google...</span>
               </>
             ) : (
@@ -322,11 +324,11 @@ export const LoginView: React.FC = () => {
           </button>
         </div>
 
-        <p className="mt-5 text-center text-sm text-slate-600">
+        <p className="mt-5 text-center text-sm text-ink-2">
           {isRegister ? (
             <>Already have an account? <Link href="/login" className={LINK}>Sign in</Link></>
           ) : (
-            <>New to AccountLedger? <Link href="/register" className={LINK}>Create an account</Link></>
+            <>New to Account Ledger? <Link href="/register" className={LINK}>Create an account</Link></>
           )}
         </p>
       </div>

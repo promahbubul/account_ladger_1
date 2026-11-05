@@ -147,13 +147,13 @@ function AppContent() {
 
   if (isAuthLoading) {
     return (
-      <div className={`min-h-screen ${isPublicPath(pathname) || AUTH_PATHS.includes(pathname) ? 'bg-white text-slate-500' : 'bg-[#0d0f12] text-gray-400'} flex flex-col items-center justify-center`}>
+      <div className={`min-h-screen ${'bg-site-sunken text-ink-3'} flex flex-col items-center justify-center`}>
         <img
           src="/logo.png"
-          alt="AccountLedger Logo"
+          alt="Account Ledger Logo"
           className="w-12 h-12 object-contain mb-3 animate-pulse"
         />
-        <p className="text-xs text-gray-400">Loading AccountLedger...</p>
+        <p className="text-xs text-gray-400">Loading Account Ledger...</p>
       </div>
     );
   }
@@ -230,7 +230,7 @@ function AppContent() {
       case 'profile':
         return 'Profile';
       default:
-        return 'AccountLedger';
+        return 'Account Ledger';
     }
   };
 

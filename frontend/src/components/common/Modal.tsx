@@ -47,7 +47,7 @@ export const Modal: React.FC<ModalProps> = ({
           <h3 className="text-sm font-semibold text-gray-100">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-white rounded hover:bg-[#20232b] transition-colors"
+            className="p-1 text-gray-400 hover:text-ink rounded hover:bg-surface-raised transition-colors"
             aria-label="Close"
           >
             <X size={16} />
@@ -93,7 +93,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 bg-[#1f2229] hover:bg-[#262a33] text-gray-300 rounded text-xs transition-colors"
+            className="px-3 py-1.5 bg-surface-raised hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
           >
             Cancel
           </button>
@@ -103,7 +103,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               onConfirm();
               onClose();
             }}
-            className={`px-3 py-1.5 rounded text-xs font-medium text-white transition-colors ${
+            className={`px-3 py-1.5 rounded text-xs font-medium text-ink transition-colors ${
               isDestructive ? 'bg-red-700 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-500'
             }`}
           >

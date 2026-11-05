@@ -4,6 +4,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { PageLoadingState } from './components/common/StateViews';
 import App from './App';
 import './index.css';
+import './lib/theme';
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>

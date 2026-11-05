@@ -115,28 +115,28 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         {toasts.map((toast) => {
           let icon = <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />;
           let borderColor = 'border-emerald-600/40';
-          let bgColor = 'bg-[#181d24]/95';
+          let bgColor = 'bg-surface-hover/95';
           let textColor = 'text-gray-100';
 
           if (toast.type === 'loading') {
             icon = <Loader2 className="w-4 h-4 text-blue-400 animate-spin flex-shrink-0" />;
             borderColor = 'border-blue-500/40';
-            bgColor = 'bg-[#141b24]/95';
+            bgColor = 'bg-surface-hover/95';
             textColor = 'text-blue-100';
           } else if (toast.type === 'error') {
             icon = <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />;
             borderColor = 'border-rose-600/40';
-            bgColor = 'bg-[#221619]/95';
+            bgColor = 'bg-surface-hover/95';
             textColor = 'text-rose-100';
           } else if (toast.type === 'warning') {
             icon = <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />;
             borderColor = 'border-amber-600/40';
-            bgColor = 'bg-[#221d15]/95';
+            bgColor = 'bg-surface-hover/95';
             textColor = 'text-amber-100';
           } else if (toast.type === 'info') {
             icon = <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />;
             borderColor = 'border-blue-600/40';
-            bgColor = 'bg-[#151c24]/95';
+            bgColor = 'bg-surface-hover/95';
             textColor = 'text-blue-100';
           }
 
@@ -153,7 +153,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 <button
                   type="button"
                   onClick={() => dismissToast(toast.id)}
-                  className="p-1 rounded text-gray-400 hover:text-white transition-colors cursor-pointer"
+                  className="p-1 rounded text-gray-400 hover:text-ink transition-colors cursor-pointer"
                   aria-label="Dismiss notification"
                 >
                   <X className="w-3.5 h-3.5" />

@@ -6,11 +6,15 @@ import { useAuth } from '../../context/AuthContext';
 import { SiteLayout } from './SiteLayout';
 import { APK_URL, CONTACT_EMAIL } from './siteConfig';
 
-const PRIMARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md bg-[#0f766e] text-white hover:bg-[#115e59]';
-const SECONDARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-slate-300 text-slate-800 hover:bg-slate-50';
+const PRIMARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md bg-accent-solid text-white hover:bg-accent-solid-hover';
+const SECONDARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-site-line-strong text-ink hover:bg-site-hover';
 
-const Screenshot: React.FC<{ src: string; alt: string; className?: string }> = ({ src, alt, className = '' }) => (
-  <img src={src} alt={alt} loading="lazy" className={`block w-full h-auto rounded-md border border-slate-200 ${className}`} />
+// Each picture exists in both themes, and only the one matching the page is shown and loaded.
+const Screenshot: React.FC<{ name: string; alt: string; className?: string }> = ({ name, alt, className = '' }) => (
+  <div className={className}>
+    <img src={`/screens/${name}-light.jpg`} alt={alt} loading="lazy" className="only-light block w-full h-auto rounded-md border border-site-line" />
+    <img src={`/screens/${name}-dark.jpg`} alt={alt} loading="lazy" className="only-dark block w-full h-auto rounded-md border border-site-line" />
+  </div>
 );
 
 const ApkButton: React.FC<{ className?: string }> = ({ className = PRIMARY }) => (
@@ -26,10 +30,10 @@ const HomePage: React.FC = () => {
     <>
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-12">
         <div className="max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink">
             Know where your money went.
           </h1>
-          <p className="mt-4 text-lg text-slate-600">
+          <p className="mt-4 text-lg text-ink-2">
             Record your cash, bank and bKash accounts in one place, along with what you spend, what you lend, and what each project costs.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -42,39 +46,39 @@ const HomePage: React.FC = () => {
           </div>
         </div>
         {/* The full dashboard is unreadable at phone width, so phones see the app instead. */}
-        <Screenshot src="/screens/dashboard.jpg" alt="The AccountLedger dashboard, with sample data" className="mt-12 hidden sm:block" />
-        <Screenshot src="/screens/mobile.jpg" alt="The AccountLedger Android app, with sample data" className="mt-10 sm:hidden max-w-xs mx-auto" />
+        <Screenshot name="dashboard" alt="The Account Ledger dashboard, with sample data" className="mt-12 hidden sm:block" />
+        <Screenshot name="mobile" alt="The Account Ledger Android app, with sample data" className="mt-10 sm:hidden max-w-xs mx-auto" />
       </section>
 
-      <section className="border-t border-slate-200">
+      <section className="border-t border-site-line">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid sm:grid-cols-3 gap-8">
           <div>
-            <h2 className="font-semibold text-slate-900">Every account together</h2>
-            <p className="mt-2 text-sm text-slate-600">See the balance of your cash, bank and mobile accounts, and move money between them.</p>
+            <h2 className="font-semibold text-ink">Every account together</h2>
+            <p className="mt-2 text-sm text-ink-2">See the balance of your cash, bank and mobile accounts, and move money between them.</p>
           </div>
           <div>
-            <h2 className="font-semibold text-slate-900">Daily expenses, quickly</h2>
-            <p className="mt-2 text-sm text-slate-600">Enter a whole day's spending at once, sorted by category, and set a monthly budget for each.</p>
+            <h2 className="font-semibold text-ink">Daily expenses, quickly</h2>
+            <p className="mt-2 text-sm text-ink-2">Enter a whole day's spending at once, sorted by category, and set a monthly budget for each.</p>
           </div>
           <div>
-            <h2 className="font-semibold text-slate-900">Money you lent or borrowed</h2>
-            <p className="mt-2 text-sm text-slate-600">Keep track of who owes what, and record each repayment as it comes in.</p>
+            <h2 className="font-semibold text-ink">Money you lent or borrowed</h2>
+            <p className="mt-2 text-sm text-ink-2">Keep track of who owes what, and record each repayment as it comes in.</p>
           </div>
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-slate-50">
+      <section className="border-t border-site-line bg-site-sunken">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid lg:grid-cols-5 gap-10 items-center">
           <div className="lg:col-span-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Running a project? Keep its money separate.</h2>
-            <p className="mt-3 text-slate-600">
+            <h2 className="text-2xl font-semibold tracking-tight text-ink">Running a project? Keep its money separate.</h2>
+            <p className="mt-3 text-ink-2">
               Contractors can give each project its own ledger: funds received, spending by head such as cement or labor, and who spent what. It stays out of your personal accounts.
             </p>
-            <Link href="/features" className="mt-5 inline-block text-sm font-medium text-[#0f766e] hover:underline">
+            <Link href="/features" className="mt-5 inline-block text-sm font-medium text-accent hover:underline">
               See all features
             </Link>
           </div>
-          <Screenshot src="/screens/project.jpg" alt="A project's funds and expenses by head, with sample data" className="lg:col-span-3" />
+          <Screenshot name="project" alt="A project's funds and expenses by head, with sample data" className="lg:col-span-3" />
         </div>
       </section>
     </>
@@ -110,61 +114,61 @@ const FEATURES = [
 
 const FeaturesPage: React.FC = () => (
   <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
-    <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Features</h1>
-    <p className="mt-3 max-w-2xl text-slate-600">Available on the web and on Android, from the same account.</p>
-    <dl className="mt-10 max-w-3xl divide-y divide-slate-200 border-y border-slate-200">
+    <h1 className="text-3xl font-semibold tracking-tight text-ink">Features</h1>
+    <p className="mt-3 max-w-2xl text-ink-2">Available on the web and on Android, from the same account.</p>
+    <dl className="mt-10 max-w-3xl divide-y divide-site-line border-y border-site-line">
       {FEATURES.map((feature) => (
         <div key={feature.title} className="py-5 sm:grid sm:grid-cols-3 sm:gap-6">
-          <dt className="font-medium text-slate-900">{feature.title}</dt>
-          <dd className="mt-1 sm:mt-0 sm:col-span-2 text-sm text-slate-600">{feature.text}</dd>
+          <dt className="font-medium text-ink">{feature.title}</dt>
+          <dd className="mt-1 sm:mt-0 sm:col-span-2 text-sm text-ink-2">{feature.text}</dd>
         </div>
       ))}
     </dl>
-    <Screenshot src="/screens/reports.jpg" alt="The reports page, with sample data" className="mt-12" />
+    <Screenshot name="reports" alt="The reports page, with sample data" className="mt-12" />
   </section>
 );
 
 const DownloadPage: React.FC = () => (
   <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid md:grid-cols-2 gap-12">
     <div>
-      <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Download for Android</h1>
-      <p className="mt-3 text-slate-600">
+      <h1 className="text-3xl font-semibold tracking-tight text-ink">Download for Android</h1>
+      <p className="mt-3 text-ink-2">
         The app isn't on the Play Store yet, so you install it directly. Your account works on both the app and the website.
       </p>
       <div className="mt-6"><ApkButton /></div>
 
       <div className="mt-8 hidden sm:flex items-center gap-4">
-        <div className="p-2 border border-slate-200 rounded-md">
+        <div className="p-2 border border-site-line rounded-md bg-[#fff]">
           <QRCodeSVG value={APK_URL} size={112} aria-label="QR code linking to the Android download" />
         </div>
-        <p className="text-sm text-slate-600">On a computer? Scan this with your phone's camera to download there.</p>
+        <p className="text-sm text-ink-2">On a computer? Scan this with your phone's camera to download there.</p>
       </div>
 
-      <h2 className="mt-10 font-semibold text-slate-900">How to install</h2>
-      <ol className="mt-3 list-decimal list-inside space-y-2 text-sm text-slate-600">
+      <h2 className="mt-10 font-semibold text-ink">How to install</h2>
+      <ol className="mt-3 list-decimal list-inside space-y-2 text-sm text-ink-2">
         <li>Download the file and open it from your notifications or Downloads folder.</li>
         <li>If Android asks, allow installing from this source.</li>
         <li>Tap Install, then sign in or create an account.</li>
       </ol>
-      <p className="mt-4 text-sm text-slate-500">
+      <p className="mt-4 text-sm text-ink-3">
         Android warns about any app from outside the Play Store. To update, install the newest download over the old one; your data stays in your account.
       </p>
     </div>
-    <Screenshot src="/screens/mobile.jpg" alt="The AccountLedger Android app, with sample data" className="max-w-xs mx-auto md:ml-auto md:mr-0" />
+    <Screenshot name="mobile" alt="The Account Ledger Android app, with sample data" className="max-w-xs mx-auto md:ml-auto md:mr-0" />
   </section>
 );
 
 const ContactLine: React.FC = () =>
   CONTACT_EMAIL ? (
-    <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#0f766e] hover:underline">{CONTACT_EMAIL}</a>
+    <a href={`mailto:${CONTACT_EMAIL}`} className="text-accent hover:underline">{CONTACT_EMAIL}</a>
   ) : (
-    <a href="https://github.com/promahbubul/account_ladger_1/issues" className="text-[#0f766e] hover:underline">our GitHub issues page</a>
+    <a href="https://github.com/promahbubul/account_ladger_1/issues" className="text-accent hover:underline">our GitHub issues page</a>
   );
 
 const ContactPage: React.FC = () => (
   <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14">
-    <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Contact</h1>
-    <p className="mt-3 text-slate-600">
+    <h1 className="text-3xl font-semibold tracking-tight text-ink">Contact</h1>
+    <p className="mt-3 text-ink-2">
       For help with your account, or to report a problem, reach us at <ContactLine />.
     </p>
   </section>
@@ -172,9 +176,9 @@ const ContactPage: React.FC = () => (
 
 const Legal: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14">
-    <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{title}</h1>
-    <p className="mt-2 text-sm text-slate-500">Last updated 5 November 2026</p>
-    <div className="mt-8 space-y-6 text-sm leading-6 text-slate-700 [&_h2]:font-semibold [&_h2]:text-slate-900 [&_h2]:text-base [&_h2]:mb-1 [&_ul]:list-disc [&_ul]:pl-5">
+    <h1 className="text-3xl font-semibold tracking-tight text-ink">{title}</h1>
+    <p className="mt-2 text-sm text-ink-3">Last updated 5 November 2026</p>
+    <div className="mt-8 space-y-6 text-sm leading-6 text-ink-2 [&_h2]:font-semibold [&_h2]:text-ink [&_h2]:text-base [&_h2]:mb-1 [&_ul]:list-disc [&_ul]:pl-5">
       {children}
     </div>
   </section>
@@ -209,12 +213,12 @@ const PrivacyPage: React.FC = () => (
 const TermsPage: React.FC = () => (
   <Legal title="Terms of Use">
     <div>
-      <h2>Using AccountLedger</h2>
-      <p>AccountLedger helps you keep your own records. Keep your password private, and only enter information you have the right to store.</p>
+      <h2>Using Account Ledger</h2>
+      <p>Account Ledger helps you keep your own records. Keep your password private, and only enter information you have the right to store.</p>
     </div>
     <div>
       <h2>Your records</h2>
-      <p>Your records belong to you, and you are responsible for checking that they are correct. AccountLedger doesn't hold or move real money, isn't connected to your bank, and isn't financial or tax advice.</p>
+      <p>Your records belong to you, and you are responsible for checking that they are correct. Account Ledger doesn't hold or move real money, isn't connected to your bank, and isn't financial or tax advice.</p>
     </div>
     <div>
       <h2>No guarantee</h2>
@@ -241,9 +245,9 @@ export const SiteView: React.FC = () => {
   const Page = entry?.Page || HomePage;
 
   useEffect(() => {
-    document.title = entry ? `${entry.title} | AccountLedger` : 'AccountLedger';
+    document.title = entry ? `${entry.title} | Account Ledger` : 'Account Ledger';
     return () => {
-      document.title = 'AccountLedger';
+      document.title = 'Account Ledger';
     };
   }, [entry]);
 

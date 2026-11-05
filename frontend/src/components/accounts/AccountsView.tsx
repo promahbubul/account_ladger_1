@@ -306,7 +306,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       <div className="flex items-center justify-end gap-2 flex-shrink-0">
         <button
           onClick={() => onOpenTransferModal()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-field hover:bg-surface-raised text-gray-300 rounded text-xs border border-[#2b2e38] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-field hover:bg-surface-raised text-gray-300 rounded text-xs border border-line-strong transition-colors"
         >
           <ArrowRightLeft className="w-3.5 h-3.5" />
           <span>Transfer Funds</span>
@@ -727,7 +727,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                     <th className="py-2 px-3 text-right">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1e2129]">
+                <tbody className="divide-y divide-line-strong">
                   {historyStatus === 'loading' ? (
                     <TableLoadingRow colSpan={4} message="Loading transactions..." />
                   ) : historyStatus === 'error' ? (

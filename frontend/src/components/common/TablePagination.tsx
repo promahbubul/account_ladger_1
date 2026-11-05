@@ -129,8 +129,8 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           disabled={isPrevDisabled}
           className={`p-1 rounded text-xs transition-colors border ${
             isPrevDisabled
-              ? 'text-gray-600 border-[#1f2229] bg-[#14161b]/50 cursor-not-allowed'
-              : 'text-gray-200 hover:text-white hover:bg-[#20242e] border-field-line cursor-pointer'
+              ? 'text-gray-600 border-line-strong bg-surface/50 cursor-not-allowed'
+              : 'text-gray-200 hover:text-ink hover:bg-surface-raised border-field-line cursor-pointer'
           }`}
           aria-label="Previous page"
           title="Previous page"
@@ -171,8 +171,8 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           disabled={isNextDisabled}
           className={`p-1 rounded text-xs transition-colors border ${
             isNextDisabled
-              ? 'text-gray-600 border-[#1f2229] bg-[#14161b]/50 cursor-not-allowed'
-              : 'text-gray-200 hover:text-white hover:bg-[#20242e] border-field-line cursor-pointer'
+              ? 'text-gray-600 border-line-strong bg-surface/50 cursor-not-allowed'
+              : 'text-gray-200 hover:text-ink hover:bg-surface-raised border-field-line cursor-pointer'
           }`}
           aria-label="Next page"
           title="Next page"

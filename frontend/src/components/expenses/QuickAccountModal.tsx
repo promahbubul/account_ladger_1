@@ -107,7 +107,7 @@ export const QuickAccountModal: React.FC<QuickAccountModalProps> = ({ onClose, o
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 bg-[#1e2129] hover:bg-[#262a34] text-gray-300 rounded text-xs transition-colors"
+            className="px-3 py-1.5 bg-surface-raised hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
           >
             Cancel
           </button>

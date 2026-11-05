@@ -102,7 +102,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
       {/* Active Over-Budget Alert Banner */}
       {overBudgetCategories.length > 0 && (
-        <div className="bg-[#1f1618] border border-red-900/80 rounded p-3 text-xs flex items-start gap-2.5">
+        <div className="bg-red-950/40 border border-red-900/80 rounded p-3 text-xs flex items-start gap-2.5">
           <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <span className="font-semibold text-red-200">
@@ -197,7 +197,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                     </td>
                     <td className="py-2.5 px-3 w-40">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-surface-sunken h-1.5 rounded-full overflow-hidden border border-[#242730]">
+                        <div className="flex-1 bg-surface-sunken h-1.5 rounded-full overflow-hidden border border-line-strong">
                           <div
                             className={`h-full rounded-full ${
                               b.isOver ? 'bg-red-500' : b.isWarning ? 'bg-amber-400' : 'bg-blue-500'

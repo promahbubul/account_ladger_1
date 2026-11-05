@@ -327,7 +327,7 @@ export const TransactionsView: React.FC = () => {
       <div className="flex items-center justify-end gap-2 flex-shrink-0">
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 border border-[#2a2e39] rounded text-xs transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 border border-line-strong rounded text-xs transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Export CSV</span>
@@ -427,7 +427,7 @@ export const TransactionsView: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 text-gray-400">
                       {tx.category ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-app border border-[#242730] text-[11px]">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-app border border-line-strong text-[11px]">
                           <span>{tx.category}</span>
                           {tx.subcategory && (
                             <>

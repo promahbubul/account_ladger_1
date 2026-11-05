@@ -31,7 +31,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [settings, setSettings] = useState<SystemSettings>({
-    appName: 'AccountLedger',
+    appName: 'Account Ledger',
     maintenanceMode: false,
     allowUserRegistration: true,
     defaultCurrency: 'BDT',
@@ -79,7 +79,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'dashboard'
               ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
+              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
           }`}
         >
           <Activity className="w-3.5 h-3.5" />
@@ -94,7 +94,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'users'
               ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
+              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
@@ -114,7 +114,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'logs'
               ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
+              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
@@ -129,7 +129,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeSection === 'settings'
               ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#14161c]'
+              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
           }`}
         >
           <Sliders className="w-3.5 h-3.5" />
@@ -143,7 +143,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               setRefreshKey((key) => key + 1);
             }}
             disabled={isStatsLoading}
-            className="px-2.5 py-1 text-xs text-gray-400 hover:text-white bg-[#171a20] hover:bg-[#20242e] border border-field-line rounded flex items-center gap-1.5 transition-colors"
+            className="px-2.5 py-1 text-xs text-gray-400 hover:text-ink bg-surface-hover hover:bg-surface-raised border border-field-line rounded flex items-center gap-1.5 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isStatsLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>

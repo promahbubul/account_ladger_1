@@ -13,7 +13,7 @@ export const ValueSkeleton: React.FC<{ className?: string }> = ({ className = 'w
   <span
     role="status"
     aria-label="Loading"
-    className={`inline-block align-middle animate-pulse rounded bg-[#2a2e38] ${className}`}
+    className={`inline-block align-middle animate-pulse rounded bg-surface-raised ${className}`}
   />
 );
 
@@ -41,7 +41,7 @@ export const DataLoadErrorBanner: React.FC<{ message?: string; onRetry?: () => v
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 font-medium text-red-200 hover:text-white cursor-pointer shrink-0"
+        className="inline-flex items-center gap-1.5 font-medium text-red-200 hover:text-ink cursor-pointer shrink-0"
       >
         <RefreshCw className="w-3.5 h-3.5" />
         Retry
@@ -99,7 +99,7 @@ export const TableErrorRow: React.FC<TableErrorRowProps> = ({
             <button
               type="button"
               onClick={onRetry}
-              className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-field hover:bg-[#232732] text-gray-200 border border-[#2d313d] hover:border-gray-500 rounded text-xs font-medium transition-colors cursor-pointer"
+              className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-field hover:bg-surface-raised text-gray-200 border border-line-strong hover:border-gray-500 rounded text-xs font-medium transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3 h-3 text-gray-400" />
               <span>Retry</span>
@@ -159,7 +159,7 @@ export const TableEmptyRow: React.FC<TableEmptyRowProps> = ({
     <tr>
       <td colSpan={colSpan} className="p-0 border-0">
         <TableStateContainer minHeightClass={minHeightClass}>
-          <div className="w-8 h-8 rounded-full bg-surface border border-[#262933] flex items-center justify-center mb-2.5">
+          <div className="w-8 h-8 rounded-full bg-surface border border-line-strong flex items-center justify-center mb-2.5">
             {icon || <Inbox className="w-4 h-4 text-gray-500" />}
           </div>
           <p className="text-xs font-medium text-gray-300 mb-1">{title}</p>
@@ -208,7 +208,7 @@ export const PageErrorState: React.FC<PageErrorStateProps> = ({
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-field hover:bg-[#232732] text-gray-200 border border-[#2d313d] hover:border-gray-500 rounded text-xs font-medium transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-field hover:bg-surface-raised text-gray-200 border border-line-strong hover:border-gray-500 rounded text-xs font-medium transition-colors cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
           <span>Retry</span>
@@ -252,7 +252,7 @@ export const PageEmptyState: React.FC<PageEmptyStateProps> = ({
 }) => {
   return (
     <div className="flex-1 w-full min-h-[300px] flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="w-10 h-10 rounded-full bg-surface border border-[#262933] flex items-center justify-center mb-3">
+      <div className="w-10 h-10 rounded-full bg-surface border border-line-strong flex items-center justify-center mb-3">
         {icon || <Inbox className="w-5 h-5 text-gray-500" />}
       </div>
       <h3 className="text-sm font-semibold text-gray-200 mb-1">{title}</h3>

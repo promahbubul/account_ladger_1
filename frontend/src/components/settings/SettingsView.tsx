@@ -126,7 +126,7 @@ export const SettingsView: React.FC = () => {
           }`}
         >
           <span>{importStatus.message}</span>
-          <button onClick={() => setImportStatus(null)} className="text-gray-400 hover:text-white">
+          <button onClick={() => setImportStatus(null)} className="text-gray-400 hover:text-ink">
             Dismiss
           </button>
         </div>
@@ -143,7 +143,7 @@ export const SettingsView: React.FC = () => {
         </div>
         <button
           onClick={handleSyncDatabase}
-          className="px-3 py-1.5 bg-field hover:bg-[#232833] border border-[#2c313e] text-xs text-gray-200 rounded flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+          className="px-3 py-1.5 bg-field hover:bg-surface-raised border border-line-strong text-xs text-gray-200 rounded flex items-center gap-1.5 transition-colors self-start sm:self-auto"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Sync State</span>
@@ -166,7 +166,7 @@ export const SettingsView: React.FC = () => {
           <select
             value={selectedCurrency}
             onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500 transition-colors"
           >
             <option value="BDT">BDT (৳) - Bangladeshi Taka (Default)</option>
             <option value="USD">USD ($) - US Dollar</option>
@@ -182,7 +182,7 @@ export const SettingsView: React.FC = () => {
             aria-label="Timezone"
             value={selectedTimezone}
             onChange={(e) => setSelectedTimezone(e.target.value)}
-            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
           >
             {timezoneOptions.map((tz) => (
               <option key={tz.value} value={tz.value}>{tz.label}</option>
@@ -192,7 +192,7 @@ export const SettingsView: React.FC = () => {
             aria-label="Date format"
             value={selectedDateFormat}
             onChange={(e) => setSelectedDateFormat(e.target.value)}
-            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
           >
             {DATE_FORMATS.map((format) => (
               <option key={format.value} value={format.value}>{format.label}</option>
@@ -226,7 +226,7 @@ export const SettingsView: React.FC = () => {
         <div className="font-medium text-gray-200">Restore Backup</div>
 
         <div className="flex items-center gap-2">
-          <label className="cursor-pointer px-3 py-1.5 bg-field hover:bg-[#232833] border border-[#2c313e] text-gray-200 rounded flex items-center gap-1.5 transition-colors">
+          <label className="cursor-pointer px-3 py-1.5 bg-field hover:bg-surface-raised border border-line-strong text-gray-200 rounded flex items-center gap-1.5 transition-colors">
             <Upload className="w-3.5 h-3.5" />
             <span>Upload Backup</span>
             <input
@@ -250,7 +250,7 @@ export const SettingsView: React.FC = () => {
             <button
               type="submit"
               disabled={!importJsonText.trim()}
-              className="px-3 py-1.5 bg-field hover:bg-[#232833] disabled:opacity-40 border border-[#2c313e] text-gray-200 rounded transition-colors"
+              className="px-3 py-1.5 bg-field hover:bg-surface-raised disabled:opacity-40 border border-line-strong text-gray-200 rounded transition-colors"
             >
               Restore Backup
             </button>

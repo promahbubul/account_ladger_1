@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter, useSearchParams, Link } from '../../lib/router';
 import { ShieldCheck, AlertCircle, CheckCircle2, Loader2, ArrowLeft, RotateCw } from 'lucide-react';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 export const VerifyEmailView: React.FC = () => {
   const router = useRouter();
@@ -174,42 +175,43 @@ export const VerifyEmailView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-site-sunken text-ink flex flex-col items-center justify-center p-4">
+      <ThemeToggle className="fixed top-3 right-3" />
       <div className="w-full max-w-sm">
-        <Link href="/" className="flex items-center justify-center gap-2 font-semibold text-slate-900 mb-6">
+        <Link href="/" className="flex items-center justify-center gap-2 font-semibold text-ink mb-6">
           <img src="/logo.png" alt="" className="w-8 h-8 object-contain" />
-          AccountLedger
+          Account Ledger
         </Link>
 
         {/* Card */}
-        <div className="bg-white border border-slate-200 rounded p-6">
+        <div className="bg-site-card border border-site-line rounded p-6">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center text-[#0f766e]">
+            <div className="w-8 h-8 rounded-full bg-ok-bg border border-ok-line flex items-center justify-center text-accent">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-slate-900">Verify Your Email</h1>
+              <h1 className="text-sm font-semibold text-ink">Verify Your Email</h1>
             </div>
           </div>
 
-          <p className="text-xs text-slate-700 mt-2 mb-4 leading-relaxed">
+          <p className="text-xs text-ink-2 mt-2 mb-4 leading-relaxed">
             We have sent a 6-digit verification code to{' '}
-            <strong className="text-slate-900 font-medium">{email || 'your email'}</strong>.
+            <strong className="text-ink font-medium">{email || 'your email'}</strong>.
             Please enter it below to activate your account.
           </p>
 
           {/* Error Alert */}
           {errorMessage && (
-            <div className="mb-4 p-2.5 rounded bg-red-50 border border-red-200 flex items-start gap-2 text-xs text-red-800">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-4 p-2.5 rounded bg-danger-bg border border-danger-line flex items-start gap-2 text-xs text-danger-ink">
+              <AlertCircle className="w-4 h-4 text-danger-ink flex-shrink-0 mt-0.5" />
               <span className="leading-snug">{errorMessage}</span>
             </div>
           )}
 
           {/* Success Alert */}
           {successMessage && (
-            <div className="mb-4 p-2.5 rounded bg-emerald-50 border border-emerald-200 flex items-start gap-2 text-xs text-emerald-800">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-4 p-2.5 rounded bg-ok-bg border border-ok-line flex items-start gap-2 text-xs text-ok-ink">
+              <CheckCircle2 className="w-4 h-4 text-ok-ink flex-shrink-0 mt-0.5" />
               <span className="leading-snug">{successMessage}</span>
             </div>
           )}
@@ -217,7 +219,7 @@ export const VerifyEmailView: React.FC = () => {
           <form onSubmit={handleVerify} className="space-y-4">
             {!initialEmail && (
               <div>
-                <label htmlFor="verifyemail-field-1" className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label htmlFor="verifyemail-field-1" className="block text-sm font-medium text-ink-2 mb-1.5">
                   Account Email
                 </label>
                 <input
@@ -226,13 +228,13 @@ export const VerifyEmailView: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-base sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#0f766e] transition-colors"
+                  className="w-full bg-site-card border border-site-line-strong rounded px-3 py-2 text-base sm:text-sm text-ink placeholder-ink-3 focus:outline-none focus:border-accent transition-colors"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-2 text-center">
+              <label className="block text-xs font-medium text-ink-2 mb-2 text-center">
                 6-Digit Verification Code
               </label>
 
@@ -253,7 +255,7 @@ export const VerifyEmailView: React.FC = () => {
                     value={digit}
                     onChange={(e) => handleDigitChange(idx, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(idx, e)}
-                    className="w-11 h-12 text-center text-lg font-bold text-slate-900 bg-white border border-slate-300 rounded focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] transition-colors"
+                    className="w-11 h-12 text-center text-lg font-bold text-ink bg-site-card border border-site-line-strong rounded focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   />
                 ))}
               </div>
@@ -262,11 +264,11 @@ export const VerifyEmailView: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading || digits.join('').length !== 6}
-              className="w-full mt-2 py-2.5 bg-[#0f766e] hover:bg-[#115e59] disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+              className="w-full mt-2 py-2.5 bg-accent-solid hover:bg-accent-solid-hover disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-900" />
+                  <Loader2 className="w-4 h-4 animate-spin text-ink" />
                   <span>Verifying Code...</span>
                 </>
               ) : (
@@ -276,13 +278,13 @@ export const VerifyEmailView: React.FC = () => {
           </form>
 
           {/* Resend Code Section */}
-          <div className="mt-5 pt-4 border-t border-slate-200 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Didn't receive code?</span>
+          <div className="mt-5 pt-4 border-t border-site-line flex items-center justify-between text-xs">
+            <span className="text-ink-3">Didn't receive code?</span>
             <button
               type="button"
               onClick={handleResend}
               disabled={cooldown > 0 || isResending}
-              className="text-[#0f766e] hover:text-[#115e59] font-medium disabled:text-slate-500 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
+              className="text-accent hover:text-accent-strong font-medium disabled:text-slate-500 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
             >
               {isResending ? (
                 <>
@@ -305,7 +307,7 @@ export const VerifyEmailView: React.FC = () => {
             <button
               type="button"
               onClick={() => router.push('/login')}
-              className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 text-[11px] text-ink-3 hover:text-ink transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3 h-3" />
               <span>Back to Sign In</span>
