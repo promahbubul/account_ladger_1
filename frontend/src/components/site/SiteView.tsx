@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Briefcase, CalendarDays, Download, HandCoins, Wallet } from 'lucide-react';
 import { Link, usePathname } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { SiteLayout } from './SiteLayout';
 import { APK_URL, CONTACT_EMAIL } from './siteConfig';
+import { SEO_PAGES } from './seo';
 
 const PRIMARY = 'btn-gradient inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md bg-accent-solid text-white';
 const SECONDARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-site-line-strong text-ink hover:bg-site-hover';
@@ -36,10 +37,24 @@ const PhoneFrame: React.FC<{ className?: string }> = ({ className = '' }) => (
   </div>
 );
 
+// True until the first render on a ready-made page has finished.
+let onReadyMadePage = typeof document !== 'undefined' && Boolean(document.documentElement.dataset.prerendered);
+
 // Fades content in the first time it scrolls into view. CSS turns this off for reduced motion.
 const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: string }> = ({ children, delay = 0, className = '' }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(false);
+  // The ready-made HTML has to show everything, because nothing runs to fade it in.
+  const [shown, setShown] = useState(typeof window === 'undefined');
+  const [instant, setInstant] = useState(false);
+
+  // On a ready-made page the content was already on screen, so it must not fade in a second time.
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element && onReadyMadePage && element.getBoundingClientRect().top < window.innerHeight) {
+      setInstant(true);
+      setShown(true);
+    }
+  }, []);
 
   useEffect(() => {
     const element = ref.current;
@@ -61,7 +76,7 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: 
   }, []);
 
   return (
-    <div ref={ref} className={`reveal ${shown ? 'reveal-in' : ''} ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={ref} className={`reveal ${shown ? 'reveal-in' : ''} ${className}`} style={instant ? { transition: 'none' } : { transitionDelay: `${delay}ms` }}>
       {children}
     </div>
   );
@@ -348,12 +363,21 @@ export const SiteView: React.FC = () => {
   const entry = PAGES[pathname.replace(/\/+$/, '')];
   const Page = entry?.Page || HomePage;
 
+  // Runs after every Reveal's layout effect above, so they all see the first render.
   useEffect(() => {
-    document.title = entry ? `${entry.title} | Account Ledger` : 'Account Ledger';
+    onReadyMadePage = false;
+    delete document.documentElement.dataset.prerendered;
+  }, []);
+
+  useEffect(() => {
+    // Moving between pages keeps the title and description in step with the ready-made HTML.
+    const seo = SEO_PAGES[pathname.replace(/\/+$/, '') || '/'] || SEO_PAGES['/'];
+    document.title = seo.title;
+    document.querySelector('meta[name="description"]')?.setAttribute('content', seo.description);
     return () => {
       document.title = 'Account Ledger';
     };
-  }, [entry]);
+  }, [pathname]);
 
   return (
     <SiteLayout>

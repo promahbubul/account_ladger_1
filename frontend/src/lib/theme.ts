@@ -8,6 +8,7 @@ const listeners = new Set<() => void>();
 
 const readPreference = (): ThemePreference => {
   try {
+    if (typeof window === 'undefined') return 'system';
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved === 'light' || saved === 'dark' ? saved : 'system';
   } catch {
@@ -18,14 +19,17 @@ const readPreference = (): ThemePreference => {
 let preference = readPreference();
 
 const apply = () => {
+  if (typeof window === 'undefined') return;
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const resolved = preference === 'system' ? (prefersDark ? 'dark' : 'light') : preference;
   document.documentElement.dataset.theme = resolved;
 };
 
 // The device's own setting applies live while the preference is "system".
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply);
-apply();
+if (typeof window !== 'undefined') {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply);
+  apply();
+}
 
 export const cycleTheme = () => {
   preference = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length];
@@ -44,4 +48,4 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
-export const useThemePreference = () => useSyncExternalStore(subscribe, () => preference);
+export const useThemePreference = () => useSyncExternalStore(subscribe, () => preference, () => 'system' as ThemePreference);

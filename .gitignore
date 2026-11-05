@@ -38,3 +38,4 @@ mobile/.env
 
 # The Android app lives in GitHub Releases, not in git.
 frontend/public/*.apk
+frontend/dist-ssr/
