@@ -4,12 +4,109 @@
       "source": "/AccountLedger-release.apk",
       "destination": "https://github.com/promahbubul/account_ladger_1/releases/latest/download/AccountLedger-release.apk",
       "permanent": false
+    },
+    {
+      "source": "/landing",
+      "destination": "/",
+      "permanent": true
     }
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/features",
+      "destination": "/features/index.html"
+    },
+    {
+      "source": "/download",
+      "destination": "/download/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/register",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/forgot-password",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/reset-password",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/verify-email",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/accounts",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/income",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/expenses",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/budgets",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/transfers",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/loans",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/projects",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/categories",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/transactions",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/reports",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/app.html"
     }
   ]
 }

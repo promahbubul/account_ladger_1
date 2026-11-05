@@ -11,12 +11,13 @@ export interface RouterContextType {
 
 const RouterContext = createContext<RouterContextType | null>(null);
 
-export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// initialPath is for rendering a page at build time, where there is no address bar.
+export const RouterProvider: React.FC<{ children: React.ReactNode; initialPath?: string }> = ({ children, initialPath }) => {
   const [currentPath, setCurrentPath] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return window.location.pathname || '/';
     }
-    return '/';
+    return initialPath || '/';
   });
 
   const [searchParams, setSearchParams] = useState<URLSearchParams>(() => {

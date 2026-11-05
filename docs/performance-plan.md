@@ -210,6 +210,16 @@ Theme: System → Light → Dark ঘোরে, শুরুতে System।
 - **Mobile:** `constants/theme.js`-এ দুই palette, `COLORS` বর্তমান theme পড়ে। Style-এ `StyleSheet.create` নয়, `themedStyles(() => ({...}))` ব্যবহার করুন। Theme বদলালে `RootNavigator` নতুন করে আঁকে আর একই screen-এ ফেরে, তাই ওই screen-এর আধা লেখা form মুছে যায়।
 - `frontend/public/screens`-এ প্রতিটা ছবির `-light` আর `-dark` আছে। App-এর চেহারা বদলালে আবার তুলতে হবে।
 
+## SEO
+
+`npm run build` শেষে `frontend/scripts/prerender.mjs` চলে: Home, Features, Download, Privacy, Terms-এর তৈরি HTML, `app.html` (app ও login পাতার জন্য, noindex), `404.html`, `sitemap.xml`, `robots.txt`। Title, description আর ঠিকানা `components/site/seo.ts`-এ।
+
+- নতুন website পাতা দিলে `seo.ts`-এ আর `frontend/vercel.json`-এর rewrites-এ যোগ করতে হবে। নতুন app পাতা দিলে rewrites-এও দিতে হবে, নইলে ওই ঠিকানা 404 দেবে।
+- Vercel `frontend/vercel.json` পড়ে, repo-র root-এরটা নয়।
+- Domain: মালিকের সিদ্ধান্ত `account-ladger.vercel.app`-ই থাকবে (2026-11-05)। কখনো বদলালে `seo.ts`-এর `SITE_URL` বদলান।
+- [ ] Google Search Console-এ যাচাই করে sitemap জমা দেওয়া।
+- [ ] মানুষের খোঁজার ভাষায় লেখা, আর একটা বাংলা Home পাতা।
+
 ## মালিকের নিজের কাজ
 
 এগুলো code দিয়ে হয় না।

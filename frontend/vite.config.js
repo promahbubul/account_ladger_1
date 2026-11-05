@@ -7,7 +7,7 @@ import { defineConfig, loadEnv } from 'vite';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, isSsrBuild }) => {
   const env = {
     ...loadEnv(mode, process.cwd(), ['VITE_', 'NEXT_PUBLIC_']),
     ...loadEnv(mode, __dirname, ['VITE_', 'NEXT_PUBLIC_']),
@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      rollupOptions: {
+      rollupOptions: isSsrBuild ? {} : {
         output: {
           // Libraries change less often than app code, so separate chunks stay cached across deploys.
           manualChunks(id) {

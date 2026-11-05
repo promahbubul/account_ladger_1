@@ -11,6 +11,8 @@ import { DateFilterProvider } from './context/DateFilterContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { RouterProvider, useRouter, usePathname } from './lib/router';
 import { AUTH_PATHS, isPublicPath } from './components/site/siteConfig';
+// Loaded with the app, so a ready-made page never blanks while a chunk downloads.
+import { SiteView } from './components/site/SiteView';
 
 const DashboardView = lazy(() => import('./components/dashboard/DashboardView').then((module) => ({ default: module.DashboardView })));
 const AccountsView = lazy(() => import('./components/accounts/AccountsView').then((module) => ({ default: module.AccountsView })));
@@ -29,7 +31,6 @@ const LoginView = lazy(() => import('./components/auth/LoginView').then((module)
 const ForgotPasswordView = lazy(() => import('./components/auth/ForgotPasswordView').then((module) => ({ default: module.ForgotPasswordView })));
 const ResetPasswordView = lazy(() => import('./components/auth/ResetPasswordView').then((module) => ({ default: module.ResetPasswordView })));
 const VerifyEmailView = lazy(() => import('./components/auth/VerifyEmailView').then((module) => ({ default: module.VerifyEmailView })));
-const SiteView = lazy(() => import('./components/site/SiteView').then((module) => ({ default: module.SiteView })));
 const ProfileView = lazy(() => import('./components/profile/ProfileView').then((module) => ({ default: module.ProfileView })));
 
 function AppContent() {
@@ -145,6 +146,11 @@ function AppContent() {
     toast.success(msg);
   };
 
+  // The public website doesn't wait for the session check.
+  if (isPublicPath(pathname)) {
+    return <SiteView />;
+  }
+
   if (isAuthLoading) {
     return (
       <div className={`min-h-screen ${'bg-site-sunken text-ink-3'} flex flex-col items-center justify-center`}>
@@ -155,15 +161,6 @@ function AppContent() {
         />
         <p className="text-xs text-gray-400">Loading Account Ledger...</p>
       </div>
-    );
-  }
-
-  // The public website
-  if (isPublicPath(pathname)) {
-    return (
-      <Suspense fallback={<div className="min-h-screen bg-white" />}>
-        <SiteView />
-      </Suspense>
     );
   }
 
@@ -182,11 +179,7 @@ function AppContent() {
     if (pathname === '/login' || pathname === '/register') {
       return <LoginView />;
     }
-    return (
-      <Suspense fallback={<div className="min-h-screen bg-white" />}>
-        <SiteView />
-      </Suspense>
-    );
+    return <SiteView />;
   }
 
   if (user.emailVerified === false) {
