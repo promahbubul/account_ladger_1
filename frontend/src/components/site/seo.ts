@@ -18,6 +18,10 @@ export const SEO_PAGES: Record<string, { title: string; description: string }> =
     title: 'Download the Android App | Account Ledger',
     description: 'Download the Account Ledger app for Android, with steps to install it and a QR code to scan from your computer.',
   },
+  '/contact': {
+    title: 'Contact | Account Ledger',
+    description: 'How to reach Account Ledger for help with your account or to report a problem.',
+  },
   '/privacy': {
     title: 'Privacy Policy | Account Ledger',
     description: 'What Account Ledger stores, how it is used, the services we rely on, and the choices you have over your data.',

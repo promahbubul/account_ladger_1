@@ -13,7 +13,7 @@ export const screenSrcSet = (name: string, theme: string) =>
   SCREENS[name].widths.map((w) => `/screens/${name}-${theme}-${w}.webp ${w}w`).join(', ');
 
 // The Contact page and its links appear once this is set.
-export const CONTACT_EMAIL = '';
+export const CONTACT_EMAIL = 'mahbublalam500@gmail.com';
 
 export const PUBLIC_PATHS = ['/', '/features', '/download', '/contact', '/privacy', '/terms', '/landing'];
 

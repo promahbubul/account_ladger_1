@@ -21,6 +21,10 @@
       "destination": "/download/index.html"
     },
     {
+      "source": "/contact",
+      "destination": "/contact/index.html"
+    },
+    {
       "source": "/privacy",
       "destination": "/privacy/index.html"
     },
