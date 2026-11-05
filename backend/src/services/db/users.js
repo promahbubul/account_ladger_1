@@ -599,7 +599,9 @@ export class UsersMethods {
     if (options.role && options.role !== 'ALL') {
       users = users.filter((u) => u.role === options.role);
     }
-    if (options.status && options.status !== 'ALL') {
+    if (options.status === 'UNVERIFIED') {
+      users = users.filter((u) => u.emailVerified !== true);
+    } else if (options.status && options.status !== 'ALL') {
       const isActive = options.status === 'ACTIVE';
       users = users.filter((u) => u.isActive === isActive);
     }

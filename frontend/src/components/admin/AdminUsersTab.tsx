@@ -305,6 +305,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
             <option value="ALL">All statuses</option>
             <option value="ACTIVE">Active</option>
             <option value="DEACTIVATED">Deactivated</option>
+            <option value="UNVERIFIED">Email not verified</option>
           </select>
         </div>
 
@@ -325,8 +326,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
       {/* Viewport-based Users Table */}
       <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+          <table className="block md:table w-full text-left text-xs border-collapse">
+            <thead className="hidden md:table-header-group sticky top-0 z-10 bg-surface-sunken shadow-sm">
               <tr className="border-b border-line text-gray-400 uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">User</th>
                 <th className="py-2.5 px-3 hidden md:table-cell">Email</th>
@@ -337,7 +338,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-divider">
+            <tbody className="block md:table-row-group divide-y divide-divider">
               {userError ? (
                 <TableErrorRow
                   colSpan={7}
@@ -380,10 +381,10 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                 userItems.map((u) => {
                   const isCurrent = u.id === currentUser?.id;
                   return (
-                    <tr key={u.id} className="hover:bg-surface-hover transition-colors">
-                      <td className="py-2.5 px-3">
+                    <tr key={u.id} className="grid grid-cols-[auto_auto_1fr] items-center gap-y-1.5 py-2.5 md:py-0 md:table-row hover:bg-surface-hover transition-colors">
+                      <td className="col-span-3 px-3 md:py-2.5">
                         <div className="font-medium text-gray-200 flex items-center gap-1.5">
-                          {u.fullName}
+                          {u.fullName || u.username}
                           {isCurrent && (
                             <span className="px-1.5 py-0.2 text-[9px] bg-blue-900/60 text-blue-300 border border-blue-700/60 rounded">
                               You
@@ -394,7 +395,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                         <div className="text-[11px] text-gray-400 md:hidden break-all">{u.email}</div>
                       </td>
                       <td className="py-2.5 px-3 text-gray-300 hidden md:table-cell">{u.email}</td>
-                      <td className="py-2.5 px-3">
+                      <td className="pl-3 pr-1.5 md:px-3 md:py-2.5">
                         <span
                           className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
                             u.role === 'ADMIN'
@@ -405,7 +406,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                           {u.role}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="px-1.5 md:px-3 md:py-2.5">
                         <button
                           onClick={() => handleStatusClick(u)}
                           disabled={isCurrent}
@@ -426,7 +427,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                       <td className="py-2.5 px-3 text-gray-400 text-[11px] whitespace-nowrap hidden lg:table-cell">
                         {u.createdAt ? formatDate(u.createdAt) : '-'}
                       </td>
-                      <td className="py-2.5 px-3 text-right">
+                      <td className="px-3 md:py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => {
@@ -611,7 +612,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               <input
                 type="text"
                 required
-                value={editUser.fullName}
+                value={editUser.fullName || ''}
                 onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })}
                 className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
               />

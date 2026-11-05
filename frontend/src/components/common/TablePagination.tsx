@@ -96,10 +96,10 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   const isNextDisabled = !hasNextPage || isLoading || (totalPages !== undefined && activePage >= totalPages);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3.5 py-2 bg-surface-sunken border-t border-line text-xs text-gray-400 select-none flex-shrink-0">
+    <div className="flex flex-row items-center justify-between gap-3 px-3.5 py-2 bg-surface-sunken border-t border-line text-xs text-gray-400 select-none flex-shrink-0">
       {/* Left side: Rows per page selector */}
       <div className="flex items-center gap-1.5">
-        <label htmlFor="rows-per-page-select" className="text-gray-400 font-medium whitespace-nowrap text-[11px]">
+        <label htmlFor="rows-per-page-select" className="sr-only sm:not-sr-only text-gray-400 font-medium whitespace-nowrap text-[11px]">
           Rows per page:
         </label>
         <select
@@ -182,7 +182,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
       </div>
 
       {/* Right side: Record count / loading indicator */}
-      <div className="text-gray-400 font-mono text-[11px] whitespace-nowrap">
+      <div className="hidden sm:block text-gray-400 font-mono text-[11px] whitespace-nowrap">
         {isLoading ? (
           <span className="flex items-center gap-1.5 text-blue-400">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

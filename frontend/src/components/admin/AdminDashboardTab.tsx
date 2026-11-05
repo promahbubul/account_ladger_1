@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import { formatDateTime } from '../../lib/formatters';
+import { actionBadgeStyle, actionLabel } from './auditActions';
 import { AdminStats, AuditLog } from './types';
 
-const Stat: React.FC<{ label: string; value?: number; onClick?: () => void; hint?: string }> = ({ label, value, onClick, hint }) => {
+const Stat: React.FC<{ label: string; value?: number; onClick?: () => void }> = ({ label, value, onClick }) => {
   const body = (
     <>
       <div className="text-xs text-gray-400">{label}</div>
-      <div className="text-xl font-bold font-mono text-gray-100 mt-1">{value ?? '-'}</div>
-      {hint && <div className="text-[11px] text-gray-500 mt-0.5">{hint}</div>}
+      <div className="text-xl font-semibold tabular-nums text-gray-100 mt-1">{value ?? '-'}</div>
     </>
   );
   const box = 'bg-surface border border-line rounded p-3 text-left';
@@ -55,9 +55,9 @@ export const AdminDashboardTab: React.FC<AdminDashboardTabProps> = ({ stats, ref
         <Stat label="Active users" value={stats?.activeUsers} />
         <Stat label="New this week" value={stats?.newUsersThisWeek} />
         <Stat label="Admins" value={stats?.adminCount} />
-        <Stat label="Email not verified" value={stats?.unverifiedUsers} hint="Can't sign in yet" />
+        <Stat label="Email not verified" value={stats?.unverifiedUsers} />
         <Stat label="Transactions" value={stats?.totalTransactions} />
-        <Stat label="Money accounts" value={stats?.totalAccounts} />
+        <Stat label="Accounts" value={stats?.totalAccounts} />
         <div className="bg-surface border border-line rounded p-3">
           <div className="text-xs text-gray-400">Database</div>
           <div className="text-sm font-semibold text-gray-100 mt-1.5">
@@ -82,10 +82,14 @@ export const AdminDashboardTab: React.FC<AdminDashboardTabProps> = ({ stats, ref
         ) : (
           <ul className="divide-y divide-divider">
             {recent.map((log) => (
-              <li key={log.id} className="px-3 py-2 text-xs flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-0.5">
-                <span className="font-mono text-[11px] text-gray-400 whitespace-nowrap">{formatDateTime(log.createdAt)}</span>
-                <span className="font-mono text-[11px] text-gray-300 whitespace-nowrap">{log.action}</span>
-                <span className="text-gray-200 truncate">{log.userEmail || '-'}</span>
+              <li key={log.id} className="px-3 py-2 text-xs grid grid-cols-[1fr_auto] sm:grid-cols-[10.5rem_11.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
+                <span className="text-[11px] tabular-nums text-gray-400 whitespace-nowrap">{formatDateTime(log.createdAt)}</span>
+                <span className="justify-self-end sm:justify-self-start">
+                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${actionBadgeStyle(log.action)}`}>
+                    {actionLabel(log.action)}
+                  </span>
+                </span>
+                <span className="col-span-2 sm:col-span-1 text-gray-200 break-all">{log.userEmail || '-'}</span>
               </li>
             ))}
           </ul>
