@@ -5,22 +5,20 @@ export interface ManagedUser {
   fullName: string;
   role: 'ADMIN' | 'USER';
   isActive: boolean;
+  emailVerified?: boolean;
   currency: string;
   createdAt: string;
 }
 
 export interface AdminStats {
-  status: {
-    connectedToNeon: boolean;
-    mode: string;
-    storageFile: string;
-    userCount: number;
-    accountCount: number;
-    transactionCount: number;
-  };
   totalUsers: number;
   activeUsers: number;
   adminCount: number;
+  unverifiedUsers: number;
+  newUsersThisWeek: number;
+  totalTransactions: number;
+  totalAccounts: number;
+  databaseConnected: boolean;
 }
 
 export interface AuditLog {
@@ -36,11 +34,7 @@ export interface AuditLog {
 }
 
 export interface SystemSettings {
-  appName: string;
-  maintenanceMode: boolean;
   allowUserRegistration: boolean;
   defaultCurrency: string;
-  sessionTimeoutHours: number;
-  auditLoggingEnabled: boolean;
-  updatedAt: string;
+  updatedAt?: string;
 }

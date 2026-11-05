@@ -105,6 +105,14 @@ export const formatDate = (dateInput?: string | Date | null): string => {
   return str;
 };
 
+export const formatDateTime = (dateInput?: string | Date | null): string => {
+  if (!dateInput) return '-';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return String(dateInput);
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return `${formatDate(d.toISOString())} ${time}`;
+};
+
 // Returns the amount as a number, or null if the text is not a clean positive amount.
 // Accepts grouped input such as 1,500 and 1,00,000, which parseFloat would truncate to 1.
 export const parseAmount = (input: string | number | null | undefined): number | null => {

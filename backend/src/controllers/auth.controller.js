@@ -29,6 +29,15 @@ export async function login(req, res) {
     const isMatch = await bcrypt.compare(String(password), user.passwordHash);
 
     if (!isMatch) {
+      await dbService.addAuditLog({
+        userId: user.id,
+        userEmail: user.email,
+        action: 'LOGIN_FAILED',
+        entityType: 'AUTH',
+        entityId: user.id,
+        details: 'Wrong password',
+        ipAddress: req.ip,
+      });
       res.status(401).json({ error: 'Invalid credentials. Please check your username/email and password.' });
       return;
     }
@@ -67,7 +76,7 @@ export async function login(req, res) {
 
 export async function register(req, res) {
   try {
-    const settings = dbService.getSystemSettings();
+    const settings = await dbService.getSystemSettings();
     if (!settings.allowUserRegistration) {
       res.status(403).json({ error: 'User registration is currently disabled by system administrator.' });
       return;
@@ -113,7 +122,7 @@ export async function register(req, res) {
       role: 'USER',
       isActive: true,
       emailVerified: false, // STRICT: Mandatory email verification for email/password accounts
-      currency: 'BDT',
+      currency: settings.defaultCurrency,
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
       createdAt: new Date().toISOString(),
@@ -274,7 +283,7 @@ export async function googleLogin(req, res) {
     }
 
     // 4. Create new user safely
-    const settings = dbService.getSystemSettings();
+    const settings = await dbService.getSystemSettings();
     if (!settings.allowUserRegistration) {
       res.status(403).json({ error: 'User registration is currently disabled by system administrator.' });
       return;
@@ -302,7 +311,7 @@ export async function googleLogin(req, res) {
       role: 'USER', // STRICT: Google authentication NEVER assigns ADMIN automatically!
       isActive: true,
       emailVerified: true, // Google confirmed verified
-      currency: 'BDT',
+      currency: settings.defaultCurrency,
       timezone: 'Asia/Dhaka',
       dateFormat: 'DD MMM YYYY',
       createdAt: new Date().toISOString(),

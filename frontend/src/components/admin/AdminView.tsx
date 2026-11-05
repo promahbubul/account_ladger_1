@@ -30,20 +30,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
   }, [initialSection]);
 
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [settings, setSettings] = useState<SystemSettings>({
-    appName: 'Account Ledger',
-    maintenanceMode: false,
-    allowUserRegistration: true,
-    defaultCurrency: 'BDT',
-    sessionTimeoutHours: 720,
-    auditLoggingEnabled: true,
-    updatedAt: new Date().toISOString(),
-  });
-  const [isStatsLoading, setIsStatsLoading] = useState(false);
+  // Stays empty until loaded, so the form can never save made-up values over the real ones.
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchStatsAndSettings = useCallback(async () => {
     if (!token) return;
     setIsStatsLoading(true);
+    setLoadError(null);
     try {
       const [statsRes, settingsRes] = await Promise.all([
         authFetch(`/api/admin/stats`),
@@ -56,8 +51,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
         const cfgData = await settingsRes.json();
         if (cfgData.settings) setSettings(cfgData.settings);
       }
+      if (!statsRes.ok || !settingsRes.ok) {
+        setLoadError('Some admin data could not be loaded. Use Refresh to try again.');
+      }
     } catch (err) {
       console.error('Failed to load stats/settings:', err);
+      setLoadError('Some admin data could not be loaded. Use Refresh to try again.');
     } finally {
       setIsStatsLoading(false);
     }
@@ -151,7 +150,26 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
       </div>
 
-      {activeSection === 'dashboard' && <AdminDashboardTab stats={stats} />}
+      {loadError && (
+        <div role="alert" className="p-2.5 rounded bg-red-950/40 border border-red-800/60 text-xs text-red-300 flex-shrink-0">
+          {loadError}
+        </div>
+      )}
+
+      {activeSection === 'dashboard' && (
+        <AdminDashboardTab
+          stats={stats}
+          refreshKey={refreshKey}
+          onOpenUsers={() => {
+            setActiveSection('users');
+            if (onNavigateTab) onNavigateTab('admin-users');
+          }}
+          onOpenLogs={() => {
+            setActiveSection('logs');
+            if (onNavigateTab) onNavigateTab('admin-logs');
+          }}
+        />
+      )}
       {activeSection === 'users' && (
         <AdminUsersTab
           refreshKey={refreshKey}
@@ -160,9 +178,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
         />
       )}
       {activeSection === 'logs' && <AdminLogsTab refreshKey={refreshKey} />}
-      {activeSection === 'settings' && (
-        <AdminSettingsTab settings={settings} setSettings={setSettings} onSuccessNotification={onSuccessNotification} />
-      )}
+      {activeSection === 'settings' &&
+        (settings ? (
+          <AdminSettingsTab settings={settings} setSettings={setSettings} onSuccessNotification={onSuccessNotification} />
+        ) : (
+          !loadError && <p className="text-xs text-gray-400">Loading settings...</p>
+        ))}
     </div>
   );
 };

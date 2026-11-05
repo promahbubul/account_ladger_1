@@ -332,7 +332,7 @@ class DatabaseService {
 
         CREATE TABLE IF NOT EXISTS audit_logs (
           id VARCHAR(64) PRIMARY KEY,
-          user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+          user_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
           user_email VARCHAR(128),
           action VARCHAR(64) NOT NULL,
           entity_type VARCHAR(64) NOT NULL,
@@ -379,6 +379,18 @@ class DatabaseService {
 
         -- Ensure schema integrity columns and constraints
         ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0 NOT NULL;
+
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'audit_logs_user_id_fkey' AND confdeltype = 'c'
+          ) THEN
+            ALTER TABLE audit_logs DROP CONSTRAINT audit_logs_user_id_fkey;
+            ALTER TABLE audit_logs ADD CONSTRAINT audit_logs_user_id_fkey
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+          END IF;
+        END $$;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128) UNIQUE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'LOCAL' NOT NULL;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;

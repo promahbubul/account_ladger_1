@@ -6,6 +6,8 @@ import {
   auditFilters,
 } from './helpers.js';
 
+const DEFAULT_SETTINGS = { allowUserRegistration: true, defaultCurrency: 'BDT' };
+
 export class AdminMethods {
   async addAuditLog(log) {
     const record = {
@@ -149,45 +151,71 @@ export class AdminMethods {
     };
   }
 
-  getSystemSettings() {
-    return (
-      this.inMemoryData.systemSettings || {
-        appName: 'Account Ledger',
-        maintenanceMode: false,
-        allowUserRegistration: true,
-        defaultCurrency: 'BDT',
-        sessionTimeoutHours: 720,
-        auditLoggingEnabled: true,
-        updatedAt: new Date().toISOString(),
-      }
-    );
+  async getSystemSettings() {
+    if (this.isPostgresConnected && this.pool) {
+      const { rows } = await this.pool.query(
+        'SELECT allow_user_registration, default_currency, updated_at FROM system_settings WHERE id = 1'
+      );
+      if (!rows[0]) return { ...DEFAULT_SETTINGS };
+      return {
+        allowUserRegistration: rows[0].allow_user_registration,
+        defaultCurrency: rows[0].default_currency,
+        updatedAt: rows[0].updated_at,
+      };
+    }
+    const saved = this.inMemoryData.systemSettings || {};
+    return {
+      allowUserRegistration: saved.allowUserRegistration !== false,
+      defaultCurrency: saved.defaultCurrency || DEFAULT_SETTINGS.defaultCurrency,
+      updatedAt: saved.updatedAt,
+    };
   }
 
   async updateSystemSettings(updates) {
-    this.inMemoryData.systemSettings = {
-      ...this.getSystemSettings(),
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
+    const next = { ...(await this.getSystemSettings()), ...updates };
+    if (this.isPostgresConnected && this.pool) {
+      await this.pool.query(
+        `INSERT INTO system_settings (id, allow_user_registration, default_currency, updated_at)
+         VALUES (1, $1, $2, NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           allow_user_registration = EXCLUDED.allow_user_registration,
+           default_currency = EXCLUDED.default_currency,
+           updated_at = NOW()`,
+        [next.allowUserRegistration, next.defaultCurrency]
+      );
+      return this.getSystemSettings();
+    }
+    this.inMemoryData.systemSettings = { ...next, updatedAt: new Date().toISOString() };
     this.persistLocalDb();
-    return this.inMemoryData.systemSettings;
+    return this.getSystemSettings();
   }
 
   async getAdminStats() {
-    const users = this.isPostgresConnected && this.pool
-      ? (await this.pool.query('SELECT role, is_active FROM users')).rows
-      : this.inMemoryData.users;
+    if (this.isPostgresConnected && this.pool) {
+      const { rows } = await this.pool.query(`
+        SELECT
+          (SELECT count(*)::int FROM users) AS "totalUsers",
+          (SELECT count(*)::int FROM users WHERE is_active) AS "activeUsers",
+          (SELECT count(*)::int FROM users WHERE role = 'ADMIN') AS "adminCount",
+          (SELECT count(*)::int FROM users WHERE NOT email_verified) AS "unverifiedUsers",
+          (SELECT count(*)::int FROM users WHERE created_at >= NOW() - INTERVAL '7 days') AS "newUsersThisWeek",
+          (SELECT count(*)::int FROM transactions) AS "totalTransactions",
+          (SELECT count(*)::int FROM accounts) AS "totalAccounts"
+      `);
+      return { ...rows[0], databaseConnected: true };
+    }
 
-    const totalUsers = users.length;
-    const activeUsers = users.filter((u) => u.is_active !== false && u.isActive !== false).length;
-    const adminUsers = users.filter((u) => u.role === 'ADMIN').length;
-
+    const { users, transactions, accounts } = this.inMemoryData;
+    const weekAgo = Date.now() - 7 * 86400000;
     return {
-      totalUsers,
-      activeUsers,
-      adminUsers,
-      databaseMode: this.isPostgresConnected ? 'PostgreSQL (Neon)' : 'Local Persistent JSON',
-      connectedToPostgres: this.isPostgresConnected,
+      totalUsers: users.length,
+      activeUsers: users.filter((u) => u.isActive !== false).length,
+      adminCount: users.filter((u) => u.role === 'ADMIN').length,
+      unverifiedUsers: users.filter((u) => u.emailVerified !== true).length,
+      newUsersThisWeek: users.filter((u) => new Date(u.createdAt).getTime() >= weekAgo).length,
+      totalTransactions: (transactions || []).length,
+      totalAccounts: (accounts || []).length,
+      databaseConnected: false,
     };
   }
 }

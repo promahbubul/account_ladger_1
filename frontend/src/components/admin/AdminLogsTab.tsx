@@ -1,18 +1,53 @@
-import { formatDate } from '../../lib/formatters';
+import { formatDateTime } from '../../lib/formatters';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
 import { Search } from 'lucide-react';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { AuditLog } from './types';
 import { getErrorMessage } from '../../lib/errors';
+
+const ACTIONS = [
+  'LOGIN',
+  'LOGIN_FAILED',
+  'LOGIN_GOOGLE',
+  'REGISTER_UNVERIFIED',
+  'REGISTER_GOOGLE',
+  'ACCOUNT_AUTO_LINKED_GOOGLE',
+  'PASSWORD_RESET',
+  'PASSWORD_RESET_REQUESTED',
+  'CREATE_USER',
+  'UPDATE_USER',
+  'ACTIVATE_USER',
+  'DEACTIVATE_USER',
+  'RESET_PASSWORD',
+  'DELETE_USER',
+  'UPDATE_SETTINGS',
+];
+
+const BADGE_STYLES = {
+  danger: 'bg-red-950/70 text-red-300 border border-red-800/60',
+  login: 'bg-blue-950/70 text-blue-300 border border-blue-800/60',
+  admin: 'bg-purple-950/70 text-purple-300 border border-purple-800/60',
+  other: 'bg-gray-800 text-gray-300 border border-gray-700',
+};
+
+const badgeStyle = (action: string) => {
+  if (action === 'LOGIN_FAILED' || action === 'DELETE_USER' || action === 'DEACTIVATE_USER') return BADGE_STYLES.danger;
+  if (action.startsWith('LOGIN')) return BADGE_STYLES.login;
+  if (action.includes('USER') || action === 'RESET_PASSWORD' || action === 'UPDATE_SETTINGS') return BADGE_STYLES.admin;
+  return BADGE_STYLES.other;
+};
 
 export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const { token } = useAuth();
   const { authFetch } = useFinance();
   const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [actionFilter, setActionFilter] = useState('ALL');
+  const debouncedSearch = useDebouncedValue(logSearchQuery);
 
   // Audit logs pagination state
   const [logItems, setLogItems] = useState<AuditLog[]>([]);
@@ -32,7 +67,8 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
       const params = new URLSearchParams();
       params.set('limit', String(logPagination.pageSize));
       if (logPagination.cursor) params.set('cursor', logPagination.cursor);
-      if (logSearchQuery.trim()) params.set('search', logSearchQuery.trim());
+      if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+      if (actionFilter !== 'ALL') params.set('action', actionFilter);
 
       const res = await authFetch(`/api/admin/audit-logs?${params.toString()}`);
       if (!res.ok) {
@@ -54,7 +90,7 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
     } finally {
       setIsLogsLoading(false);
     }
-  }, [token, authFetch, logPagination.pageSize, logPagination.cursor, logSearchQuery, logPagination.setPaginationMeta]);
+  }, [token, authFetch, logPagination.pageSize, logPagination.cursor, debouncedSearch, actionFilter, logPagination.setPaginationMeta]);
 
   useEffect(() => {
     fetchLogs();
@@ -69,7 +105,7 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
     <>
     <div className="flex-1 min-h-0 flex flex-col space-y-2.5">
       {/* Toolbar */}
-      <div className="bg-surface border border-line rounded p-2.5 flex items-center justify-between flex-shrink-0">
+      <div className="bg-surface border border-line rounded p-2.5 flex flex-col sm:flex-row sm:items-center gap-2.5 flex-shrink-0">
         <div className="relative w-full md:w-80">
           <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
           <input
@@ -80,6 +116,20 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
             className="w-full bg-app border border-line-strong rounded pl-8 pr-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 placeholder-gray-500"
           />
         </div>
+        <select
+          aria-label="Filter by action"
+          value={actionFilter}
+          onChange={(e) => {
+            setActionFilter(e.target.value);
+            logPagination.resetPagination();
+          }}
+          className="w-full sm:w-56 bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+        >
+          <option value="ALL">All actions</option>
+          {ACTIONS.map((action) => (
+            <option key={action} value={action}>{action}</option>
+          ))}
+        </select>
       </div>
 
       {/* Viewport-based Audit Logs Table */}
@@ -91,7 +141,7 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
                 <th className="py-2.5 px-3">Timestamp</th>
                 <th className="py-2.5 px-3">Action</th>
                 <th className="py-2.5 px-3">User / Actor</th>
-                <th className="py-2.5 px-3">Entity</th>
+                <th className="py-2.5 px-3 hidden lg:table-cell">Entity</th>
                 <th className="py-2.5 px-3">Details</th>
                 <th className="py-2.5 px-3">IP Address</th>
               </tr>
@@ -114,7 +164,7 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
                   colSpan={6}
                   title="No audit logs recorded"
                   description={
-                    logSearchQuery
+                    logSearchQuery || actionFilter !== 'ALL'
                       ? 'No security logs match your search filters.'
                       : undefined
                   }
@@ -123,23 +173,17 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
                 logItems.map((log) => (
                   <tr key={log.id} className="hover:bg-surface-hover transition-colors">
                     <td className="py-2.5 px-3 font-mono text-[11px] text-gray-400 whitespace-nowrap">
-                      {formatDate(log.createdAt)}
+                      {formatDateTime(log.createdAt)}
                     </td>
                     <td className="py-2.5 px-3">
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
-                        log.action === 'LOGIN'
-                          ? 'bg-blue-950/70 text-blue-300 border border-blue-800/60'
-                          : log.action.includes('USER')
-                          ? 'bg-purple-950/70 text-purple-300 border border-purple-800/60'
-                          : 'bg-gray-800 text-gray-300 border border-gray-700'
-                      }`}>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${badgeStyle(log.action)}`}>
                         {log.action}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-gray-200">
-                      {log.userEmail || log.userId}
+                      {log.userEmail || log.userId || '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px]">
+                    <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] hidden lg:table-cell">
                       {log.entityType}
                     </td>
                     <td className="py-2.5 px-3 text-gray-300">

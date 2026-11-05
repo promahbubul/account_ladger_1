@@ -6,6 +6,7 @@ import { UserPlus, KeyRound, Edit2, Trash2, Search } from 'lucide-react';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { ManagedUser } from './types';
 import { getErrorMessage } from '../../lib/errors';
@@ -20,6 +21,11 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
   const { user: currentUser, token } = useAuth();
   const { authFetch } = useFinance();
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const debouncedSearch = useDebouncedValue(userSearchQuery);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [deactivateConfirmUser, setDeactivateConfirmUser] = useState<ManagedUser | null>(null);
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -58,7 +64,9 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
       const params = new URLSearchParams();
       params.set('limit', String(userPagination.pageSize));
       if (userPagination.cursor) params.set('cursor', userPagination.cursor);
-      if (userSearchQuery.trim()) params.set('search', userSearchQuery.trim());
+      if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+      if (roleFilter !== 'ALL') params.set('role', roleFilter);
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
 
       const res = await authFetch(`/api/admin/users?${params.toString()}`);
       if (!res.ok) {
@@ -80,7 +88,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
     } finally {
       setIsUsersLoading(false);
     }
-  }, [token, authFetch, userPagination.pageSize, userPagination.cursor, userSearchQuery, userPagination.setPaginationMeta]);
+  }, [token, authFetch, userPagination.pageSize, userPagination.cursor, debouncedSearch, roleFilter, statusFilter, userPagination.setPaginationMeta]);
 
   useEffect(() => {
     fetchUsers();
@@ -165,28 +173,33 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
     }
   };
 
-  const handleToggleActive = async (u: ManagedUser) => {
-    if (u.id === currentUser?.id) {
-      alert('You cannot deactivate your own account.');
-      return;
-    }
+  // Turning an account off signs that person out, so it asks first. Turning one back on doesn't.
+  const handleStatusClick = (u: ManagedUser) => {
+    if (u.isActive) setDeactivateConfirmUser(u);
+    else setUserActive(u, true);
+  };
 
+  const setUserActive = async (u: ManagedUser, isActive: boolean) => {
+    setActionError(null);
     try {
       const res = await authFetch(`/api/admin/users/${u.id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ isActive: !u.isActive }),
+        body: JSON.stringify({ isActive }),
       });
       if (res.ok) {
-        const nextState = !u.isActive;
-        onSuccessNotification(`User @${u.username} is now ${nextState ? 'Active' : 'Deactivated'}.`);
+        onSuccessNotification(`User @${u.username} is now ${isActive ? 'Active' : 'Deactivated'}.`);
         fetchUsers();
         onUsersChanged();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setActionError(data.error || `Could not change the status of @${u.username}.`);
       }
     } catch (err) {
       console.error(err);
+      setActionError(`Could not change the status of @${u.username}. Check your connection and try again.`);
     }
   };
 
@@ -222,6 +235,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
 
   const handleDeleteUser = async () => {
     if (!deleteConfirmUser) return;
+    setActionError(null);
     try {
       const res = await authFetch(`/api/admin/users/${deleteConfirmUser.id}`, {
         method: 'DELETE',
@@ -231,18 +245,30 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
         setDeleteConfirmUser(null);
         fetchUsers();
         onUsersChanged();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setActionError(data.error || `Could not delete @${deleteConfirmUser.username}.`);
+        setDeleteConfirmUser(null);
       }
     } catch (err) {
       console.error(err);
+      setActionError(`Could not delete @${deleteConfirmUser.username}. Check your connection and try again.`);
+      setDeleteConfirmUser(null);
     }
   };
 
   return (
     <>
     <div className="flex-1 min-h-0 flex flex-col space-y-2.5">
+      {actionError && (
+        <div role="alert" className="p-2.5 rounded bg-red-950/40 border border-red-800/60 text-xs text-red-300 flex-shrink-0">
+          {actionError}
+        </div>
+      )}
+
       {/* Toolbar */}
-      <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 flex-shrink-0">
-        <div className="relative w-full md:w-80">
+      <div className="bg-surface border border-line rounded p-2.5 flex flex-col md:flex-row items-center gap-2.5 flex-shrink-0">
+        <div className="relative w-full md:w-72">
           <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
           <input
             type="text"
@@ -253,9 +279,41 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+        <div className="grid grid-cols-2 gap-2.5 w-full md:w-auto">
+          <select
+            aria-label="Filter by role"
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              userPagination.resetPagination();
+            }}
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">All roles</option>
+            <option value="ADMIN">Admins</option>
+            <option value="USER">Users</option>
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              userPagination.resetPagination();
+            }}
+            className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="DEACTIVATED">Deactivated</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto md:ml-auto justify-between md:justify-end">
           <button
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              setFormError(null);
+              setIsCreateModalOpen(true);
+            }}
             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-xs text-white font-medium rounded flex items-center gap-1.5 transition-colors"
           >
             <UserPlus className="w-3.5 h-3.5" />
@@ -271,11 +329,11 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
             <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
               <tr className="border-b border-line text-gray-400 uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">User</th>
-                <th className="py-2.5 px-3">Email</th>
+                <th className="py-2.5 px-3 hidden md:table-cell">Email</th>
                 <th className="py-2.5 px-3">Role</th>
                 <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">Currency</th>
-                <th className="py-2.5 px-3">Created</th>
+                <th className="py-2.5 px-3 hidden lg:table-cell">Currency</th>
+                <th className="py-2.5 px-3 hidden lg:table-cell">Created</th>
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -299,6 +357,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                   description={
                     userSearchQuery
                       ? 'No users match your search query.'
+                      : roleFilter !== 'ALL' || statusFilter !== 'ALL'
+                      ? 'No users match these filters.'
                       : undefined
                   }
                   action={{
@@ -331,8 +391,9 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                           )}
                         </div>
                         <div className="text-[11px] text-gray-500">@{u.username}</div>
+                        <div className="text-[11px] text-gray-400 md:hidden break-all">{u.email}</div>
                       </td>
-                      <td className="py-2.5 px-3 text-gray-300">{u.email}</td>
+                      <td className="py-2.5 px-3 text-gray-300 hidden md:table-cell">{u.email}</td>
                       <td className="py-2.5 px-3">
                         <span
                           className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
@@ -346,9 +407,9 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                       </td>
                       <td className="py-2.5 px-3">
                         <button
-                          onClick={() => handleToggleActive(u)}
+                          onClick={() => handleStatusClick(u)}
                           disabled={isCurrent}
-                          title={isCurrent ? 'Cannot deactivate self' : 'Toggle status'}
+                          title={isCurrent ? "You can't deactivate your own account" : u.isActive ? 'Deactivate this user' : 'Activate this user'}
                           className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
                             u.isActive
                               ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/60'
@@ -357,9 +418,12 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                         >
                           {u.isActive ? 'ACTIVE' : 'DEACTIVATED'}
                         </button>
+                        {u.emailVerified === false && (
+                          <div className="text-[10px] text-amber-400 mt-1 whitespace-nowrap">Email not verified</div>
+                        )}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-gray-400">{u.currency}</td>
-                      <td className="py-2.5 px-3 text-gray-400 text-[11px] whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-gray-400 hidden lg:table-cell">{u.currency}</td>
+                      <td className="py-2.5 px-3 text-gray-400 text-[11px] whitespace-nowrap hidden lg:table-cell">
                         {u.createdAt ? formatDate(u.createdAt) : '-'}
                       </td>
                       <td className="py-2.5 px-3 text-right">
@@ -487,6 +551,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
             <input
               type="password"
               required
+              minLength={6}
+              autoComplete="new-password"
               value={createForm.password}
               onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
               placeholder="At least 6 characters"
@@ -633,6 +699,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               <input
                 type="password"
                 required
+                minLength={6}
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="At least 6 characters"
@@ -666,8 +734,21 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
         onClose={() => setDeleteConfirmUser(null)}
         onConfirm={handleDeleteUser}
         title="Delete User"
-        message={`Are you sure you want to permanently remove user @${deleteConfirmUser?.username}? All associated data will be removed.`}
+        message={`Permanently delete @${deleteConfirmUser?.username}? All of their accounts, transactions, loans and projects will be deleted and can't be restored. The audit log keeps its record of their activity.`}
         confirmLabel="Delete User"
+        isDestructive={true}
+      />
+
+      <ConfirmModal
+        isOpen={!!deactivateConfirmUser}
+        onClose={() => setDeactivateConfirmUser(null)}
+        onConfirm={() => {
+          if (deactivateConfirmUser) setUserActive(deactivateConfirmUser, false);
+          setDeactivateConfirmUser(null);
+        }}
+        title="Deactivate User"
+        message={`Deactivate @${deactivateConfirmUser?.username}? They will be signed out and can't sign in until you activate the account again. Their records are kept.`}
+        confirmLabel="Deactivate"
         isDestructive={true}
       />
     </>

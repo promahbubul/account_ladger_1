@@ -344,7 +344,7 @@ const PrivacyPage: React.FC = () => (
     </div>
     <div>
       <h2>Your choices</h2>
-      <p>You can change your name in your profile and download a backup of your records from Settings. To delete your account and its records, contact us at <ContactLine />.</p>
+      <p>You can change your name in your profile and download a backup of your records from Settings. To delete your account and its records, contact us at <ContactLine />. A security log of sign-ins and admin actions, which includes your email address, is kept for up to one year, even after an account is deleted.</p>
     </div>
   </Legal>
 );
