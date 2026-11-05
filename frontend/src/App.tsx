@@ -10,6 +10,7 @@ import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { DateFilterProvider } from './context/DateFilterContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { RouterProvider, useRouter, usePathname } from './lib/router';
+import { isPublicPath } from './components/site/siteConfig';
 
 const DashboardView = lazy(() => import('./components/dashboard/DashboardView').then((module) => ({ default: module.DashboardView })));
 const AccountsView = lazy(() => import('./components/accounts/AccountsView').then((module) => ({ default: module.AccountsView })));
@@ -28,7 +29,8 @@ const LoginView = lazy(() => import('./components/auth/LoginView').then((module)
 const ForgotPasswordView = lazy(() => import('./components/auth/ForgotPasswordView').then((module) => ({ default: module.ForgotPasswordView })));
 const ResetPasswordView = lazy(() => import('./components/auth/ResetPasswordView').then((module) => ({ default: module.ResetPasswordView })));
 const VerifyEmailView = lazy(() => import('./components/auth/VerifyEmailView').then((module) => ({ default: module.VerifyEmailView })));
-const LandingPageView = lazy(() => import('./components/landing/LandingPageView').then((module) => ({ default: module.LandingPageView })));
+const SiteView = lazy(() => import('./components/site/SiteView').then((module) => ({ default: module.SiteView })));
+const ProfileView = lazy(() => import('./components/profile/ProfileView').then((module) => ({ default: module.ProfileView })));
 
 function AppContent() {
   const router = useRouter();
@@ -51,6 +53,7 @@ function AppContent() {
   const getTabFromPath = useCallback(
     (path: string): NavTab => {
       const clean = path.replace(/\/+$/, '') || '/';
+      if (clean === '/profile') return 'profile';
       if (isAdmin) {
         if (clean === '/admin/users') return 'admin-users';
         if (clean === '/admin/logs') return 'admin-logs';
@@ -92,6 +95,7 @@ function AppContent() {
         transactions: '/transactions',
         reports: '/reports',
         settings: '/settings',
+        profile: '/profile',
         'admin-dashboard': '/admin',
         'admin-users': '/admin/users',
         'admin-logs': '/admin/logs',
@@ -105,7 +109,15 @@ function AppContent() {
 
   // Strict route security guard: enforce role separation & path canonicalization
   useEffect(() => {
-    if (!user || isAuthLoading) return;
+    if (isAuthLoading) return;
+    // The website stays open to everyone, signed in or not.
+    if (isPublicPath(pathname)) return;
+    if (!user) {
+      // App pages need an account, for example right after signing out.
+      const authPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+      if (!authPages.includes(pathname)) router.replace('/');
+      return;
+    }
     if (user.emailVerified === false) {
       if (pathname !== '/verify-email') {
         router.replace('/verify-email');
@@ -115,20 +127,16 @@ function AppContent() {
 
     const clean = pathname.replace(/\/+$/, '') || '/';
 
-    if (clean === '/download' || clean === '/landing') {
-      return;
-    }
-
     const isSignInPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(clean);
 
     if (isAdmin) {
-      if (!clean.startsWith('/admin')) {
+      if (!clean.startsWith('/admin') && clean !== '/profile') {
         router.replace('/admin');
       }
     } else {
       if (clean.startsWith('/admin')) {
         router.replace('/dashboard');
-      } else if (clean === '/' || isSignInPage) {
+      } else if (isSignInPage) {
         router.replace('/dashboard');
       }
     }
@@ -151,9 +159,13 @@ function AppContent() {
     );
   }
 
-  // Public Landing / Download Hub
-  if (pathname === '/download' || pathname === '/landing') {
-    return <LandingPageView />;
+  // The public website
+  if (isPublicPath(pathname)) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-white" />}>
+        <SiteView />
+      </Suspense>
+    );
   }
 
   // Public & unverified views
@@ -171,7 +183,11 @@ function AppContent() {
     if (pathname === '/login' || pathname === '/register') {
       return <LoginView />;
     }
-    return <LandingPageView />;
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-white" />}>
+        <SiteView />
+      </Suspense>
+    );
   }
 
   if (user.emailVerified === false) {
@@ -212,6 +228,8 @@ function AppContent() {
         return 'Reports';
       case 'settings':
         return 'Settings';
+      case 'profile':
+        return 'Profile';
       default:
         return 'AccountLedger';
     }
@@ -357,6 +375,8 @@ function AppContent() {
               {currentTab === 'reports' && <ReportsView />}
 
               {currentTab === 'settings' && <SettingsView />}
+
+              {currentTab === 'profile' && <ProfileView />}
             </>
           )}
           </Suspense>

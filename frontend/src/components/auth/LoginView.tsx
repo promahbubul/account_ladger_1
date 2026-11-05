@@ -8,7 +8,7 @@ import { getErrorMessage } from '../../lib/errors';
 export const LoginView: React.FC = () => {
   const router = useRouter();
   const { login, register, loginWithGoogle } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'register'>('signin');
+  const [mode, setMode] = useState<'signin' | 'register'>(() => (window.location.pathname === '/register' ? 'register' : 'signin'));
 
 
   // Sign in state

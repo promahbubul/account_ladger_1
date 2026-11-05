@@ -192,6 +192,13 @@
 
 - Web Tailwind CSS v4-এ বানানো। চলে Firefox 128+, Chrome 111+, Safari 16.4+-এ। এর পুরোনো browser-এ (যেমন Firefox 87) design ছাড়া শুধু লেখা দেখায়। সমাধান browser update; পুরোনো browser চালাতে Tailwind v3-এ ফেরা বড় কাজ।
 
+## Website
+
+`components/landing` সরিয়ে `components/site`: Home, Features, Download, Privacy, Terms আলাদা পাতা, হালকা design। Login থাকলেও website খোলা থাকে; header-এর account menu থেকে Dashboard ও Profile। নতুন `/profile` পাতা। ছবিগুলো `frontend/public/screens`-এ, আসল app-এর sample data দিয়ে তোলা; app-এর design বদলালে আবার তুলতে হবে।
+
+- [ ] **Contact পাতা:** `components/site/siteConfig.ts`-এ `CONTACT_EMAIL` দিলেই পাতা আর link চালু হয়। এখন যোগাযোগের জায়গায় GitHub Issues দেখায়।
+- [ ] **Login ও app-এর ভেতরের design:** এখনো আগের মতো গাঢ়, এই কাজে বদলায়নি।
+
 ## মালিকের নিজের কাজ
 
 এগুলো code দিয়ে হয় না।

@@ -34,6 +34,7 @@ export type NavTab =
   | 'transactions'
   | 'reports'
   | 'settings'
+  | 'profile'
   // Admin modules
   | 'admin-dashboard'
   | 'admin-users'
@@ -208,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* User profile footer */}
         <div className="p-3 border-t border-line bg-[#0a0c0e]">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
+            <Link href="/profile" aria-label="Your profile" className="flex items-center gap-2.5 min-w-0 rounded hover:opacity-80">
               <div className="w-7 h-7 rounded bg-[#20232b] border border-[#2b2e37] flex items-center justify-center text-xs font-medium text-gray-300 flex-shrink-0">
                 {getInitials(user?.fullName || user?.username)}
               </div>
@@ -227,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <p className="text-[10px] text-gray-500 truncate">{user?.email}</p>
               </div>
-            </div>
+            </Link>
 
             <button
               onClick={logout}

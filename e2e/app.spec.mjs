@@ -147,10 +147,63 @@ test('the expenses page adds, edits and deletes a record, and keeps bulk rows be
   await expect(row).toHaveCount(0);
 });
 
-test('the landing page downloads the APK from the newest release', async ({ page }) => {
+test('the download page links to the newest release and has a real QR code', async ({ page }) => {
   await page.goto('/download');
-  const link = page.locator('a[href$=".apk"]').first();
+  const link = page.locator('main a[href$=".apk"]').first();
   await expect(link).toHaveAttribute('href', /github\.com\/promahbubul\/account_ladger_1\/releases\/latest\/download\//);
+  await expect(page.getByLabel('QR code linking to the Android download')).toBeVisible();
+});
+
+test('every website page opens, and fits a phone screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [href, heading] of [
+    ['/', 'Know where your money went.'],
+    ['/features', 'Features'],
+    ['/download', 'Download for Android'],
+    ['/privacy', 'Privacy Policy'],
+    ['/terms', 'Terms of Use'],
+  ]) {
+    await page.goto(href);
+    await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, `sideways scroll on ${href}`).toBeLessThanOrEqual(0);
+  }
+});
+
+test('create account opens the registration form', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Create account' }).click();
+  await expect(page).toHaveURL(//register$/);
+  await expect(page.locator('input[type="email"]')).toBeVisible();
+  await expect(page.locator('input[autocomplete="username"]')).toHaveCount(0);
+});
+
+test('a signed-in user stays on the website and reaches the app from the account menu', async ({ page }) => {
+  await signIn(page);
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Know where your money went.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Create account' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Profile' }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await page.getByLabel('Full Name').fill('E2E Profile Name');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('aside').getByText('E2E Profile Name')).toBeVisible();
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Dashboard' }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.locator('aside').getByRole('link', { name: 'Your profile' }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible();
 });
 
 test('an admin can open users and audit logs', async ({ page }) => {

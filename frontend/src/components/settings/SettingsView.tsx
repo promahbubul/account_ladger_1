@@ -5,7 +5,6 @@ import {
   Upload,
   RefreshCw,
   Server,
-  User,
   Coins,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
@@ -149,29 +148,6 @@ export const SettingsView: React.FC = () => {
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Sync State</span>
         </button>
-      </div>
-
-      {/* User Profile */}
-      <div className="bg-surface border border-line rounded p-3.5 flex items-center justify-between text-xs">
-        <div className="space-y-0.5">
-          <div className="font-medium text-gray-200 flex items-center gap-2">
-            <User className="w-4 h-4 text-gray-400" />
-            <span>{user?.fullName} (@{user?.username})</span>
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] border ${
-                user?.role === 'ADMIN'
-                  ? 'bg-purple-950 text-purple-300 border-purple-800'
-                  : 'bg-gray-800 text-gray-300 border-gray-700'
-              }`}
-            >
-              {user?.role}
-            </span>
-          </div>
-          <div className="text-gray-400 text-[11px]">{user?.email}</div>
-        </div>
-        <div className="text-xs font-mono text-gray-400">
-          {user?.currency || 'BDT'}
-        </div>
       </div>
 
       {/* Currency & Preferences */}
