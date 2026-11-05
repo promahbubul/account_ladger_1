@@ -4,6 +4,7 @@ import { Briefcase, CalendarDays, Download, HandCoins, Wallet } from 'lucide-rea
 import { Link, usePathname } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { SiteLayout } from './SiteLayout';
+import { SITE_URL } from './seo';
 import { APK_URL, CONTACT_EMAIL, SCREENS, screenSrcSet } from './siteConfig';
 import { SEO_PAGES } from './seo';
 
@@ -269,12 +270,15 @@ const DownloadPage: React.FC = () => (
         The app isn't on the Play Store yet, so you install it directly. Your account works on both the app and the website.
       </p>
       <div className="mt-6"><ApkButton /></div>
+      <p className="mt-3 text-sm text-ink-3">
+        Nothing downloading? Open this page in Chrome and tap the button again. The finished file is in your Downloads folder.
+      </p>
 
       <div className="mt-8 hidden sm:flex items-center gap-4">
         <div className="p-2 border border-site-line rounded-md bg-[#fff]">
-          <QRCodeSVG value={APK_URL} size={112} aria-label="QR code linking to the Android download" />
+          <QRCodeSVG value={`${SITE_URL}/download`} size={112} aria-label="QR code linking to this page, to open on your phone" />
         </div>
-        <p className="text-sm text-ink-2">On a computer? Scan this with your phone's camera to download there.</p>
+        <p className="text-sm text-ink-2">On a computer? Scan this with your phone's camera to open this page there, then tap the download button.</p>
       </div>
 
       <h2 className="mt-10 font-semibold text-ink">How to install</h2>

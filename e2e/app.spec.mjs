@@ -152,7 +152,7 @@ test('the download page links to the newest release and has a real QR code', asy
   await page.goto('/download');
   const link = page.locator('main a[href$=".apk"]').first();
   await expect(link).toHaveAttribute('href', /github\.com\/promahbubul\/account_ladger_1\/releases\/latest\/download\//);
-  await expect(page.getByLabel('QR code linking to the Android download')).toBeVisible();
+  await expect(page.getByLabel('QR code linking to this page, to open on your phone')).toBeVisible();
 });
 
 test('every website page opens, and fits a phone screen', async ({ page }) => {
@@ -161,6 +161,7 @@ test('every website page opens, and fits a phone screen', async ({ page }) => {
     ['/', 'Know where your money went.'],
     ['/features', 'Features'],
     ['/download', 'Download for Android'],
+    ['/contact', 'Contact'],
     ['/privacy', 'Privacy Policy'],
     ['/terms', 'Terms of Use'],
   ]) {

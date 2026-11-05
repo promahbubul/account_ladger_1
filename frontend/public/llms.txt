@@ -6,5 +6,6 @@
 
 - [Features](https://account-ladger.vercel.app/features): what the app does
 - [Download](https://account-ladger.vercel.app/download): the Android app and how to install it
+- [Contact](https://account-ladger.vercel.app/contact): how to reach us
 - [Privacy Policy](https://account-ladger.vercel.app/privacy): what is stored and why
 - [Terms of Use](https://account-ladger.vercel.app/terms): the terms of the service
