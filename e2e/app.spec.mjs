@@ -171,6 +171,56 @@ test('every website page opens, and fits a phone screen', async ({ page }) => {
   }
 });
 
+test('sign in and create account pages link to each other, and Back works', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Create an account' }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByRole('heading', { name: 'Create your account', level: 1 })).toBeVisible();
+  await expect(page.locator('#register-password')).toHaveAttribute('autocomplete', 'new-password');
+  await expect(page.getByRole('link', { name: 'Terms' })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+});
+
+test('clicking a label focuses its field, and the password can be shown', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByText('Username or email').click();
+  await expect(page.getByLabel('Username or email')).toBeFocused();
+
+  const password = page.locator('#login-password');
+  await password.fill('secret-value');
+  await expect(password).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+});
+
+test('a wrong password shows an error and keeps the form', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Username or email').fill(USER.email);
+  await page.locator('#login-password').fill('not-the-password');
+  await page.locator('form button[type="submit"]').click();
+  await expect(page.getByRole('alert')).toContainText('Invalid credentials');
+  await expect(page.getByLabel('Username or email')).toHaveValue(USER.email);
+});
+
+test('forgot and reset password lead back to sign in, not the home page', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Forgot password?' }).click();
+  await expect(page).toHaveURL(/\/forgot-password$/);
+  await page.getByRole('button', { name: 'Back to Sign In' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.goto('/forgot-password');
+  await page.getByLabel('Email Address').fill('someone@example.com');
+  await page.locator('form button[type="submit"]').click();
+  await page.getByRole('button', { name: 'Return to Sign In' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test('create account opens the registration form', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Create account' }).click();

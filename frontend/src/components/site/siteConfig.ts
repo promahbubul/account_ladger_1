@@ -7,3 +7,5 @@ export const CONTACT_EMAIL = '';
 export const PUBLIC_PATHS = ['/', '/features', '/download', '/contact', '/privacy', '/terms', '/landing'];
 
 export const isPublicPath = (path: string) => PUBLIC_PATHS.includes(path.replace(/\/+$/, '') || '/');
+
+export const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];

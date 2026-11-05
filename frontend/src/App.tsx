@@ -10,7 +10,7 @@ import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { DateFilterProvider } from './context/DateFilterContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { RouterProvider, useRouter, usePathname } from './lib/router';
-import { isPublicPath } from './components/site/siteConfig';
+import { AUTH_PATHS, isPublicPath } from './components/site/siteConfig';
 
 const DashboardView = lazy(() => import('./components/dashboard/DashboardView').then((module) => ({ default: module.DashboardView })));
 const AccountsView = lazy(() => import('./components/accounts/AccountsView').then((module) => ({ default: module.AccountsView })));
@@ -114,8 +114,7 @@ function AppContent() {
     if (isPublicPath(pathname)) return;
     if (!user) {
       // App pages need an account, for example right after signing out.
-      const authPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
-      if (!authPages.includes(pathname)) router.replace('/');
+      if (!AUTH_PATHS.includes(pathname)) router.replace('/');
       return;
     }
     if (user.emailVerified === false) {
@@ -148,7 +147,7 @@ function AppContent() {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-[#0d0f12] text-gray-400 flex flex-col items-center justify-center">
+      <div className={`min-h-screen ${isPublicPath(pathname) || AUTH_PATHS.includes(pathname) ? 'bg-white text-slate-500' : 'bg-[#0d0f12] text-gray-400'} flex flex-col items-center justify-center`}>
         <img
           src="/logo.png"
           alt="AccountLedger Logo"
