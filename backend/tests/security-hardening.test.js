@@ -38,6 +38,28 @@ test('Production configuration fails closed', async (t) => {
     assert.match(result.stderr, /DATABASE_URL must be set/);
   });
 
+  await t.test('an unknown site gets 403, not a server error', () => {
+    const source = `
+      const { createApp } = await import('./src/app.js');
+      const server = createApp().listen(0, '127.0.0.1', async () => {
+        const url = 'http://127.0.0.1:' + server.address().port + '/api/nothing';
+        const stranger = await fetch(url, { headers: { Origin: 'https://not-allowed.example' } });
+        const body = await stranger.json();
+        const noOrigin = await fetch(url);
+        await noOrigin.text();
+        console.log(JSON.stringify({ status: stranger.status, code: body.error.code, noOrigin: noOrigin.status }));
+        server.closeAllConnections();
+        server.close();
+      });
+    `;
+    const result = runInProduction(source, { JWT_SECRET: STRONG_SECRET, DATABASE_URL: UNREACHABLE_DB });
+    assert.equal(result.status, 0, result.stderr);
+    const seen = JSON.parse(result.stdout.trim().split('\n').pop());
+    assert.equal(seen.status, 403);
+    assert.equal(seen.code, 'CORS_ORIGIN_NOT_ALLOWED');
+    assert.equal(seen.noOrigin, 404);
+  });
+
   await t.test('starts with valid settings', () => {
     const result = runInProduction(LOAD_CONFIG, { JWT_SECRET: STRONG_SECRET, DATABASE_URL: UNREACHABLE_DB });
     assert.equal(result.status, 0, result.stderr);

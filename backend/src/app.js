@@ -40,7 +40,7 @@ export function createApp() {
         if (allowedOrigins.includes(origin) || !config.isProduction) {
           return callback(null, true);
         }
-        return callback(new Error(`CORS policy: origin ${origin} not allowed.`));
+        return callback(Object.assign(new Error(`CORS policy: origin ${origin} not allowed.`), { statusCode: 403, code: 'CORS_ORIGIN_NOT_ALLOWED' }));
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
