@@ -1,3 +1,4 @@
+/* global document, window -- these lines run inside the browser page. */
 // Browser tests for the main web flows: login, moving between pages, bulk expenses, reports and projects.
 // They run against the throwaway API started by playwright.config.mjs, signed in as the seeded demo user.
 import { test, expect } from '@playwright/test';
@@ -173,7 +174,7 @@ test('every website page opens, and fits a phone screen', async ({ page }) => {
 test('create account opens the registration form', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(//register$/);
+  await expect(page).toHaveURL(/\/register$/);
   await expect(page.locator('input[type="email"]')).toBeVisible();
   await expect(page.locator('input[autocomplete="username"]')).toHaveCount(0);
 });
