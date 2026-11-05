@@ -1,0 +1,10 @@
+# Account Ledger
+
+> A free money manager for Bangladesh, on the web and on Android. Record cash, bank and bKash accounts, daily expenses, loans and project costs.
+
+## Pages
+
+- [Features](https://account-ladger.vercel.app/features): what the app does
+- [Download](https://account-ladger.vercel.app/download): the Android app and how to install it
+- [Privacy Policy](https://account-ladger.vercel.app/privacy): what is stored and why
+- [Terms of Use](https://account-ladger.vercel.app/terms): the terms of the service

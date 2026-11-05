@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_BASE_URL, parseResponseJson } from '../services/api';
-import { signOutFirebase } from '../lib/firebase';
 import { getErrorMessage } from '../lib/errors';
 
 export interface AuthUser {
@@ -270,7 +269,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    signOutFirebase();
+    // Firebase is large, so it only loads when it is needed. A failed Google sign-out must not stop this one.
+    import('../lib/firebase').then(({ signOutFirebase }) => signOutFirebase()).catch(() => {});
   };
 
   const refreshUser = async () => {

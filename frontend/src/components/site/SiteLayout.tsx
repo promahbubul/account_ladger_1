@@ -106,7 +106,7 @@ export const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 font-semibold text-ink whitespace-nowrap">
-              <img src="/logo.png" alt="" className="w-7 h-7 object-contain" />
+              <img src="/logo-small.png" width={96} height={96} alt="" className="w-7 h-7 object-contain" />
               Account Ledger
             </Link>
             <nav aria-label="Main" className="hidden md:flex items-center gap-6">

@@ -4,19 +4,35 @@ import { Briefcase, CalendarDays, Download, HandCoins, Wallet } from 'lucide-rea
 import { Link, usePathname } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { SiteLayout } from './SiteLayout';
-import { APK_URL, CONTACT_EMAIL } from './siteConfig';
+import { APK_URL, CONTACT_EMAIL, SCREENS, screenSrcSet } from './siteConfig';
 import { SEO_PAGES } from './seo';
 
 const PRIMARY = 'btn-gradient inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md bg-accent-solid text-white';
 const SECONDARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-site-line-strong text-ink hover:bg-site-hover';
 
 // Each picture exists in both themes, and only the one matching the page is shown and loaded.
-const Screenshot: React.FC<{ name: string; alt: string }> = ({ name, alt }) => (
-  <>
-    <img src={`/screens/${name}-light.jpg`} alt={alt} loading="lazy" className="only-light block w-full h-auto" />
-    <img src={`/screens/${name}-dark.jpg`} alt={alt} loading="lazy" className="only-dark block w-full h-auto" />
-  </>
-);
+// Width and height reserve the space, so nothing jumps when the picture arrives.
+const Screenshot: React.FC<{ name: string; alt: string }> = ({ name, alt }) => {
+  const { width, height, sizes, widths } = SCREENS[name];
+  return (
+    <>
+      {(['light', 'dark'] as const).map((theme) => (
+        <img
+          key={theme}
+          src={`/screens/${name}-${theme}-${widths[0]}.webp`}
+          srcSet={screenSrcSet(name, theme)}
+          sizes={sizes}
+          width={width}
+          height={height}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className={`only-${theme} block w-full h-auto`}
+        />
+      ))}
+    </>
+  );
+};
 
 const BrowserFrame: React.FC<{ name: string; alt: string; className?: string }> = ({ name, alt, className = '' }) => (
   <div className={`mockup-shadow rounded-xl border border-site-line bg-site-card overflow-hidden ${className}`}>

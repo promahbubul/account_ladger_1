@@ -155,7 +155,7 @@ function AppContent() {
     return (
       <div className={`min-h-screen ${'bg-site-sunken text-ink-3'} flex flex-col items-center justify-center`}>
         <img
-          src="/logo.png"
+          src="/logo-small.png" width={96} height={96}
           alt="Account Ledger Logo"
           className="w-12 h-12 object-contain mb-3 animate-pulse"
         />

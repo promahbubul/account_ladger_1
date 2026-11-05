@@ -65,7 +65,7 @@ export const ForgotPasswordView: React.FC = () => {
       <ThemeToggle className="fixed top-3 right-3" />
       <div className="w-full max-w-sm">
         <Link href="/" className="flex items-center justify-center gap-2 font-semibold text-ink mb-6">
-          <img src="/logo.png" alt="" className="w-8 h-8 object-contain" />
+          <img src="/logo-small.png" width={96} height={96} alt="" className="w-8 h-8 object-contain" />
           Account Ledger
         </Link>
 

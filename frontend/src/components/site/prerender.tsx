@@ -6,6 +6,7 @@ import { RouterProvider } from '../../lib/router';
 import { SiteView } from './SiteView';
 
 export { SEO_IMAGE, SEO_PAGES, SEO_STRUCTURED_DATA, SITE_URL } from './seo';
+export { SCREENS, screenSrcSet } from './siteConfig';
 
 export const renderPage = (path: string) =>
   renderToString(
