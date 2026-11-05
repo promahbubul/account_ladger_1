@@ -24,13 +24,15 @@ export const LoansScreen = ({ navigation }) => {
 
   const loansQuery = usePagedQuery({
     queryKey: ['loansList', typeFilter, search],
-    fetchPage: (page) => loansApi.getLoans({ type: typeFilter, search, page, limit: 50 }),
+    paging: 'cursor',
+    fetchPage: (cursor) => loansApi.getLoans({ type: typeFilter, search, cursor, limit: 50 }),
     enabled: activeTab === 'LOANS',
   });
 
   const repaymentsQuery = usePagedQuery({
     queryKey: ['repaymentsList', search],
-    fetchPage: (page) => loansApi.getRepayments({ search, page, limit: 50 }),
+    paging: 'cursor',
+    fetchPage: (cursor) => loansApi.getRepayments({ search, cursor, limit: 50 }),
     enabled: activeTab === 'REPAYMENTS',
   });
 
