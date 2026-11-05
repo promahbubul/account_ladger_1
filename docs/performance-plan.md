@@ -160,6 +160,34 @@
 7. **Web bundle:** মূল JS 410 KB। Vite-এ `manualChunks` দিন।
 8. **Type:** Frontend-এ `any` কমান।
 
+## বাকি কাজের তালিকা
+
+এক জায়গায় সব বাকি কাজ, জরুরি থেকে কম জরুরি। প্রতিটা শেষ হলে এখানে আর উপরের ধাপে টিক দিন।
+
+**জরুরি (user-রা সমস্যায় পড়ছে)**
+
+- [ ] **মাঝে মাঝে CORS / "Failed to fetch" error:** অনেক user-এর হয়, মালিকের PC-তে হয় না। API-র CORS ঠিক আছে (`account-ladger.vercel.app` থেকে preflight 204 দেয়)। সম্ভাব্য কারণ hosting-এর Imunify360 bot protection: block বা challenge করা উত্তরে CORS header থাকে না। মালিকের IP whitelist করা, আর বাংলাদেশে অনেক user এক IP ভাগ করে (CGNAT), তাই এক জন ধরা পড়লে সবাই আটকায়। cPanel-এ ModSecurity এই subdomain-এ বন্ধ করা হয়েছে, IP Blocker খালি। বাকি: Putul Host support-কে `accountladger-api.nutrimedbd.com`-এ bot protection / captcha বন্ধ করতে বলা, আর resource limit (EP / 508) দেখতে বলা। User-এর F12 → Network-এ ব্যর্থ request-এর status (403 / 503 / 508) দেখলে কারণ নিশ্চিত হবে। Support রাজি না হলে বিকল্প: Vercel rewrite দিয়ে API একই origin-এ আনা।
+
+**Code-এর কাজ (Claude করতে পারে)**
+
+- [ ] **অচেনা origin-এ 500:** `backend/src/app.js`-এর CORS callback error দেয়, তাই অচেনা site থেকে request এলে 500 হয়। 403 দেওয়া উচিত, তাতে log পড়া সহজ।
+- [ ] **6.2 বড় view ভাগ:** `AdminView`, `ExpensesView`, `ActionModals`, `FinanceContext`। একবারে একটা, প্রতিবার e2e চালিয়ে।
+- [ ] **6.4 দুই রকম paging:** Web cursor, mobile page। একটায় আনা। পুরোনো APK এখনো page ব্যবহার করে, তাই API থেকে page সরানো যাবে না।
+- [ ] **6.8 Frontend-এ `any` কমানো।**
+- [ ] **Login-এর পর ঠিকানা `/login` থাকে**, যদিও Dashboard দেখায়। `/dashboard`-এ নেওয়া উচিত (ধাপ 5-এ লেখা)।
+- [ ] **4.3 Project list paging:** সংখ্যা কম, জরুরি নয়।
+- [ ] **4.4 `pg_trgm` search index:** data বাড়লে, Neon-এ extension চলে কি না দেখে।
+
+**মালিকের সিদ্ধান্ত লাগবে**
+
+- [ ] **4.5 Audit log কত দিন রাখা হবে** (যেমন 90 দিন / 1 বছর)। বললে পুরোনো log মোছার কাজ যোগ হবে।
+- [ ] **6.3 Prisma রাখা না সরানো।** `src`-এ Prisma ব্যবহার হয় না; সরালে `backend/prisma` আর dependency যাবে।
+- [ ] **6.6 21 MB APK git থেকে সরানো:** Expo-র download link নাকি GitHub Releases।
+
+**জানা সীমাবদ্ধতা**
+
+- Web Tailwind CSS v4-এ বানানো। চলে Firefox 128+, Chrome 111+, Safari 16.4+-এ। এর পুরোনো browser-এ (যেমন Firefox 87) design ছাড়া শুধু লেখা দেখায়। সমাধান browser update; পুরোনো browser চালাতে Tailwind v3-এ ফেরা বড় কাজ।
+
 ## মালিকের নিজের কাজ
 
 এগুলো code দিয়ে হয় না।
@@ -169,6 +197,7 @@
 - [ ] নতুন APK install করে দেখা form-এ লেখার সময় keyboard ঘর ঢাকে কি না।
 - [ ] APK ঠিক থাকলে Landing page-এর APK বদলানোর কথা জানানো।
 - [ ] Admin password বদলানো।
+- [x] Test চালানোর ভুলে production-এ ঢোকা দুই `@test.local` user আর তাদের 270টা row মোছা হয়েছে (2026-11-05), পরে আবার দেখে নিশ্চিত।
 - [ ] Production-এ পুরোনো `user@example.com` আর দ্বিতীয় admin সরানো, audit log দেখা। Claude Code-এ production database পড়া আটকানো আছে; চাইলে permission দিতে হবে, আর মোছার আগে তালিকা দেখে আলাদা সম্মতি দিতে হবে।
 
 ## কাজের সময় যা মনে রাখবেন
