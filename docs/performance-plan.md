@@ -218,7 +218,8 @@ Theme: System → Light → Dark ঘোরে, শুরুতে System।
 - Vercel `frontend/vercel.json` পড়ে, repo-র root-এরটা নয়।
 - Domain: মালিকের সিদ্ধান্ত `account-ladger.vercel.app`-ই থাকবে (2026-11-05)। কখনো বদলালে `seo.ts`-এর `SITE_URL` বদলান।
 - [ ] Google Search Console-এ যাচাই করে sitemap জমা দেওয়া।
-- [ ] মানুষের খোঁজার ভাষায় লেখা, আর একটা বাংলা Home পাতা।
+- মানুষের খোঁজার ভাষায় লেখা ঠিক করা বাকি। বাংলা পাতা হবে না, মালিকের সিদ্ধান্ত।
+- Website-এর ছবি `public/screens`-এ WebP, মাপ `siteConfig.ts`-এর `SCREENS`-এ। Google Fonts ব্যবহার হয় না, তাই সরানো হয়েছে। Firebase শুধু Google login-এর সময় লোড হয়।
 
 ## মালিকের নিজের কাজ
 

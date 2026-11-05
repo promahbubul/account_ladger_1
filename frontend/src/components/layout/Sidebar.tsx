@@ -125,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="h-14 flex items-center justify-between px-4 border-b border-line">
           <div className="flex items-center gap-2.5">
             <img
-              src="/logo.png"
+              src="/logo-small.png" width={96} height={96}
               alt="Account Ledger Logo"
               className="w-7 h-7 object-contain"
             />

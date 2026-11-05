@@ -12,7 +12,7 @@ const ssrDir = path.join(root, 'dist-ssr');
 // The app reads saved sign-in details as it starts. A build has none.
 globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 
-const { renderPage, SEO_IMAGE, SEO_PAGES, SEO_STRUCTURED_DATA, SITE_URL } = await import(
+const { renderPage, SCREENS, screenSrcSet, SEO_IMAGE, SEO_PAGES, SEO_STRUCTURED_DATA, SITE_URL } = await import(
   pathToFileURL(path.join(ssrDir, 'prerender.js')).href
 );
 
@@ -29,6 +29,13 @@ const stripHeadMeta = (html) =>
     .replace(/\s*<meta name="description"[^>]*>/, '')
     .replace(/\s*<meta property="og:[^>]*>/g, '')
     .replace(/\s*<meta name="twitter:[^>]*>/g, '');
+
+// Only the page's own theme and screen size are known in the browser, so this picks the picture there.
+const preloadFirstPicture = () => {
+  const set = (name, theme) => JSON.stringify({ srcset: screenSrcSet(name, theme), sizes: SCREENS[name].sizes });
+  const options = `{"wide-light":${set('dashboard', 'light')},"wide-dark":${set('dashboard', 'dark')},"narrow-light":${set('mobile', 'light')},"narrow-dark":${set('mobile', 'dark')}}`;
+  return `<script>(function(){var o=${options}[(innerWidth>=640?'wide-':'narrow-')+(document.documentElement.dataset.theme==='dark'?'dark':'light')];var l=document.createElement('link');l.rel='preload';l.as='image';l.imageSrcset=o.srcset;l.imageSizes=o.sizes;l.setAttribute('fetchpriority','high');document.head.appendChild(l);})();</script>`;
+};
 
 const urlOf = (route) => (route === '/' ? `${SITE_URL}/` : `${SITE_URL}${route}`);
 
@@ -49,6 +56,7 @@ for (const [route, { title, description }] of Object.entries(SEO_PAGES)) {
     `<meta property="og:image:height" content="630" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     route === '/' ? `<script type="application/ld+json">${JSON.stringify(SEO_STRUCTURED_DATA)}</script>` : '',
+    route === '/' ? preloadFirstPicture() : '',
   ].filter(Boolean).join('\n    ');
 
   let html = stripHeadMeta(shell);

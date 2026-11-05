@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { signInWithGoogle } from '../../lib/firebase';
 import { Link, usePathname, useRouter } from '../../lib/router';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '../../lib/errors';
@@ -155,6 +154,7 @@ export const LoginView: React.FC = () => {
 
     try {
       // 1. Authenticate with official Firebase Google popup
+      const { signInWithGoogle } = await import('../../lib/firebase');
       const { idToken } = await signInWithGoogle();
 
       // 2. Send verified Firebase ID token to backend for server-side verification and passwordless auto-linking
@@ -175,7 +175,7 @@ export const LoginView: React.FC = () => {
       <ThemeToggle className="fixed top-3 right-3" />
       <div className="w-full max-w-sm">
         <Link href="/" className="flex items-center justify-center gap-2 font-semibold text-ink mb-6">
-          <img src="/logo.png" alt="" className="w-8 h-8 object-contain" />
+          <img src="/logo-small.png" width={96} height={96} alt="" className="w-8 h-8 object-contain" />
           Account Ledger
         </Link>
 
