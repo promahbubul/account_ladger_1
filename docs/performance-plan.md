@@ -18,11 +18,11 @@
 | ধাপ | কাজ | অবস্থা |
 |---|---|---|
 | 1 | Backend: আসল SQL paging, index, gzip | ✅ শেষ (`2b1e3a2`) |
-| 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (branch `perf/web-stop-loading-all-transactions`) |
+| 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (`a1f13ac`) |
 | 3 | Mobile: admin paging, list-এর গতি | ✅ শেষ |
 | 4 | Backend: ছোট বাকি কাজ | 🟡 1-2 শেষ; 3-4 পরে, 5 মালিকের সিদ্ধান্ত |
 | 5 | Test ও CI | ✅ শেষ |
-| 6 | Structure পরিষ্কার | ⬜ পরের কাজ, সবচেয়ে কম জরুরি |
+| 6 | Structure পরিষ্কার | 🟡 1, 5, 7 শেষ; 3, 6 মালিকের সিদ্ধান্ত; 2, 4, 8 বাকি |
 
 ## কেন এই plan
 
@@ -139,9 +139,17 @@
 1. **Vercel-এ test ছাড়াই deploy:** `.github/workflows/ci.yml`-এ `branches-ignore: [main]`, তাই `main`-এ CI চলে না। Backend deploy নিজে test চালায়, কিন্তু web আর mobile build চালায় না। `main`-এও CI চালান, আর mobile build-এর আগে lint দিন।
 2. **Frontend test নেই:** Playwright দিয়ে browser test repo-তে যোগ করুন। এখনকার Chrome test-গুলো এক PC-র temp ফোল্ডারে আছে, repo-তে নেই, তাই আবার লিখতে হবে। ঢাকতে হবে: login, bulk expense, reports, projects, পাতা বদল।
 
-## ধাপ 6: Structure
+## ধাপ 6: Structure 🟡
 
 ধীরে ধীরে করুন, একবারে একটা, আর আচরণ না বদলে।
+
+**যা হয়েছে:**
+
+- 1: `db.service.js` 3,595 লাইন থেকে 847। বাকি method আছে `backend/src/services/db/`-এ: `users`, `accounts`, `categories`, `reports`, `transactions`, `transfers`, `loans`, `budgets`, `admin`, আর shared `helpers.js`। Connection, schema, seed আর `queryPage` মূল file-এ। প্রতিটা file একটা class, যার method মূল class-এ বসানো হয়; একই নাম দুবার থাকলে চালু হওয়ার সময় error দেয়। Code লাইন ধরে ধরে সরানো, আচরণ বদলায়নি; বাইরে থেকে `dbService` আগের মতোই import হয়।
+- 5: `AdminView` এখন `authFetch` ব্যবহার করে।
+- 7: Vite `manualChunks`: মূল JS 409 KB থেকে 95 KB।
+
+**যা বাকি:** 2 (বড় view ভাগ), 4 (paging এক রকম), 8 (`any` কমানো)। 3 আর 6 মালিকের সিদ্ধান্ত।
 
 1. `db.service.js` (৩,০০০+ লাইন) ভাগ করুন: account, transaction, transfer, loan, admin আলাদা ফাইলে।
 2. বড় view ভাগ করুন: `AdminView`, `ExpensesView`, `ActionModals`, `FinanceContext`।
