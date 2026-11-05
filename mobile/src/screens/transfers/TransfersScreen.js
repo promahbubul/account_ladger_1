@@ -25,7 +25,8 @@ export const TransfersScreen = ({ navigation }) => {
 
   const transfersQuery = usePagedQuery({
     queryKey: ['transfersList', search],
-    fetchPage: (page) => transfersApi.getTransfers({ search, page, limit: 50 }),
+    paging: 'cursor',
+    fetchPage: (cursor) => transfersApi.getTransfers({ search, cursor, limit: 50 }),
   });
 
   const onRefresh = useCallback(() => {

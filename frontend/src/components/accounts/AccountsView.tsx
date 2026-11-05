@@ -18,10 +18,12 @@ import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { useToast } from '../../context/ToastContext';
+import { getErrorMessage } from '../../lib/errors';
+import type { NavTab } from '../layout/Sidebar';
 
 interface AccountsViewProps {
   onOpenTransferModal: (accountId?: string) => void;
-  onNavigateTab: (tab: any) => void;
+  onNavigateTab: (tab: NavTab) => void;
   onSuccessNotification?: (msg: string) => void;
 }
 
@@ -106,9 +108,9 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
         hasNextPage: Boolean(data.hasNextPage),
         hasPreviousPage: Boolean(data.hasPreviousPage),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch accounts error:', err);
-      setErrorMsg(err.message || 'Error fetching accounts');
+      setErrorMsg(getErrorMessage(err) || 'Error fetching accounts');
     } finally {
       setIsLoading(false);
     }
@@ -227,8 +229,8 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
       } else {
         toast.updateToast(toastId, { type: 'error', message: res.error || 'Failed to create account' });
       }
-    } catch (err: any) {
-      toast.updateToast(toastId, { type: 'error', message: err?.message || 'Network error while creating account' });
+    } catch (err: unknown) {
+      toast.updateToast(toastId, { type: 'error', message: getErrorMessage(err) || 'Network error while creating account' });
     } finally {
       setIsSubmitting(false);
     }
@@ -334,7 +336,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
         <div className="flex items-center gap-2 w-full md:w-auto text-xs">
           <select
             value={filterType}
-            onChange={(e) => handleTypeChange(e.target.value as any)}
+            onChange={(e) => handleTypeChange(e.target.value as 'CASH' | 'BANK' | 'MOBILE_BANKING' | 'ALL')}
             className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Account Types</option>
@@ -345,7 +347,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
 
           <select
             value={filterStatus}
-            onChange={(e) => handleStatusChange(e.target.value as any)}
+            onChange={(e) => handleStatusChange(e.target.value as 'ACTIVE' | 'ARCHIVED' | 'ALL')}
             className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ACTIVE">Active Accounts</option>
@@ -532,7 +534,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
               </label>
               <select
                 value={newType}
-                onChange={(e) => setNewType(e.target.value as any)}
+                onChange={(e) => setNewType(e.target.value as 'CASH' | 'BANK' | 'MOBILE_BANKING')}
                 className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="BANK">Bank Account</option>
@@ -622,7 +624,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 </label>
                 <select
                   value={editAccountState.type}
-                  onChange={(e) => setEditAccountState({ ...editAccountState, type: e.target.value as any })}
+                  onChange={(e) => setEditAccountState({ ...editAccountState, type: e.target.value as 'CASH' | 'BANK' | 'MOBILE_BANKING' })}
                   className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="BANK">Bank Account</option>
@@ -663,7 +665,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                 </label>
                 <select
                   value={editAccountState.status}
-                  onChange={(e) => setEditAccountState({ ...editAccountState, status: e.target.value as any })}
+                  onChange={(e) => setEditAccountState({ ...editAccountState, status: e.target.value as 'ACTIVE' | 'ARCHIVED' })}
                   className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="ACTIVE">Active</option>
@@ -745,7 +747,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({
                       .map((tx) => (
                         <tr key={tx.id} className="hover:bg-surface-hover">
                           <td className="py-2 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">{formatDate(tx.date)}</td>
-                          <td className="py-2 px-3 text-gray-200">{tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : '-'))}</td>
+                          <td className="py-2 px-3 text-gray-200">{tx.description && tx.description !== 'Daily Expense' ? tx.description : (tx.desc || (tx.category ? `${tx.category} Expense` : '-'))}</td>
                           <td className="py-2 px-3 text-gray-400 text-[10px]">{tx.type}</td>
                           <td className="py-2 px-3 text-right font-mono font-medium text-gray-100">
                             {formatBDT(tx.amount)}

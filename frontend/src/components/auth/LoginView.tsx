@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { signInWithGoogle } from '../../lib/firebase';
 import { useRouter } from '../../lib/router';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { getErrorMessage } from '../../lib/errors';
 
 export const LoginView: React.FC = () => {
   const router = useRouter();
@@ -111,8 +112,8 @@ export const LoginView: React.FC = () => {
       if (!res.success) {
         setErrorMessage(res.error || 'Google authentication failed.');
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Google authentication could not be completed.');
+    } catch (err: unknown) {
+      setErrorMessage(getErrorMessage(err) || 'Google authentication could not be completed.');
     } finally {
       setIsGoogleLoading(false);
     }

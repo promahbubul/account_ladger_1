@@ -23,6 +23,7 @@ import {
   TableLoadingRow,
 } from '../common/StateViews';
 import { useBatchId } from '../expenses/CategoryExpenseGroups';
+import { getErrorMessage } from '../../lib/errors';
 
 const FIELD = 'w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500';
 const LABEL = 'block text-xs text-gray-300 font-medium mb-1';
@@ -101,8 +102,8 @@ const ProjectFormModal: React.FC<{
       };
       const data = project ? await api(`/${project.id}`, 'PUT', payload) : await api('', 'POST', payload);
       onSaved(data.project);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -235,8 +236,8 @@ const EntriesModal: React.FC<{
       }
       toast.success(entry ? `${noun} updated.` : `Saved ${entries.length} ${noun.toLowerCase()}${entries.length === 1 ? '' : 's'}.`);
       onSaved();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -249,8 +250,8 @@ const EntriesModal: React.FC<{
       await api(`/${project.id}/entries/${entry.id}`, 'DELETE');
       toast.success(`${noun} deleted.`);
       onSaved();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -493,8 +494,8 @@ const NamedList: React.FC<{
       setEditingId('');
       setName('');
       setPhone('');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -503,8 +504,8 @@ const NamedList: React.FC<{
   const handleDelete = async (id: string) => {
     try {
       await onDelete(id);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     }
   };
 
@@ -629,8 +630,8 @@ const ProjectDetail: React.FC<{ projectId: string; onBack: () => void }> = ({ pr
       const { items } = await api(`/${project.id}/entries?all=true`);
       if (format === 'pdf') exportProjectPdf(project, items);
       else exportProjectCsv(project, items);
-    } catch (err: any) {
-      toast.error(err.message || 'Could not export this report.');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || 'Could not export this report.');
     } finally {
       setExporting('');
     }
@@ -642,8 +643,8 @@ const ProjectDetail: React.FC<{ projectId: string; onBack: () => void }> = ({ pr
       await api(`/${project.id}`, 'DELETE');
       toast.success(`Deleted "${project.name}".`);
       onBack();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     }
   };
 

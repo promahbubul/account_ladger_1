@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
-import { Transaction } from '../../mock/data';
+import { Category, Transaction } from '../../mock/data';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
@@ -19,6 +19,7 @@ import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateVi
 import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
 import { useToast } from '../../context/ToastContext';
 import { sortTransactions } from '../../lib/sorting';
+import { getErrorMessage } from '../../lib/errors';
 
 interface IncomeViewProps {
   onOpenAddIncomeModal?: () => void;
@@ -190,9 +191,9 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
         hasPreviousPage: Boolean(data.hasPreviousPage),
         nextCursor: data.nextCursor || null,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch income error:', err);
-      setErrorMsg(err.message || 'Error fetching income');
+      setErrorMsg(getErrorMessage(err) || 'Error fetching income');
     } finally {
       setIsLoading(false);
     }
@@ -296,9 +297,9 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       setFormSubcat('');
 
       await fetchIncome();
-    } catch (err: any) {
-      setFormValidationMsg(err.message || 'Failed to record income.');
-      toast.error(err.message || 'Failed to record income.');
+    } catch (err: unknown) {
+      setFormValidationMsg(getErrorMessage(err) || 'Failed to record income.');
+      toast.error(getErrorMessage(err) || 'Failed to record income.');
     } finally {
       setIsSavingAdd(false);
     }
@@ -374,9 +375,9 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
       setEditingTx(null);
 
       await fetchIncome();
-    } catch (err: any) {
-      setEditErrorMsg(err.message || 'Failed to save changes.');
-      toast.error(err.message || 'Failed to save changes');
+    } catch (err: unknown) {
+      setEditErrorMsg(getErrorMessage(err) || 'Failed to save changes.');
+      toast.error(getErrorMessage(err) || 'Failed to save changes');
     } finally {
       setIsSavingEdit(false);
     }
@@ -923,7 +924,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({
 };
 
 // Helper to list categories with subcategories indented
-function incomeCategoriesList(allCats: any[]) {
+function incomeCategoriesList(allCats: Category[]) {
   const main = allCats.filter(c => !c.parentId);
   return main;
 }

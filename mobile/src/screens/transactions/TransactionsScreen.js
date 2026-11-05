@@ -29,12 +29,13 @@ export const TransactionsScreen = ({ navigation }) => {
 
   const transactionsQuery = usePagedQuery({
     queryKey: ['transactionsList', typeFilter, startDate, endDate, search],
-    fetchPage: (page) => transactionsApi.getTransactions({
+    paging: 'cursor',
+    fetchPage: (cursor) => transactionsApi.getTransactions({
       type: typeFilter,
       startDate,
       endDate,
       search,
-      page,
+      cursor,
       limit: 50,
     }),
   });

@@ -19,6 +19,7 @@ import {
   TableLoadingRow,
 } from '../common/StateViews';
 import { Transaction } from '../../mock/data';
+import type { NavTab } from '../layout/Sidebar';
 
 const RECENT_COUNT = 6;
 
@@ -32,7 +33,7 @@ interface PeriodLedger {
 
 interface DashboardViewProps {
   onOpenQuickAction: (actionType: 'income' | 'expense' | 'transfer' | 'loan' | 'daily_bulk') => void;
-  onNavigateTab: (tab: any) => void;
+  onNavigateTab: (tab: NavTab) => void;
   selectedPeriod?: string;
 }
 
@@ -342,7 +343,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {formatDate(tx.date)}
                       </td>
                       <td className="py-2 px-3 text-gray-300 truncate max-w-[150px]">
-                        {tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : 'Transaction'))}
+                        {tx.description && tx.description !== 'Daily Expense' ? tx.description : (tx.desc || (tx.category ? `${tx.category} Expense` : 'Transaction'))}
                       </td>
                       <td className="py-2 px-3 text-gray-400 truncate max-w-[120px]">
                         {tx.accountName}

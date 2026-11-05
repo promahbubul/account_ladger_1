@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from '../../lib/router';
 import { API_BASE_URL, parseResponseJson } from '../../services/api';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ArrowLeft, KeyRound } from 'lucide-react';
+import { getErrorMessage } from '../../lib/errors';
 
 export const ResetPasswordView: React.FC = () => {
   const router = useRouter();
@@ -45,7 +46,7 @@ export const ResetPasswordView: React.FC = () => {
           }
           setIsVerifying(false);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (isMounted) {
           setTokenError('Unable to verify reset link. Please check your network connection.');
           setIsVerifying(false);
@@ -95,8 +96,8 @@ export const ResetPasswordView: React.FC = () => {
       } else {
         setIsSuccess(true);
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Network error occurred. Please try again.');
+    } catch (err: unknown) {
+      setErrorMessage(getErrorMessage(err) || 'Network error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

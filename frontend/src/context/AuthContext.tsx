@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_BASE_URL, parseResponseJson } from '../services/api';
 import { signOutFirebase } from '../lib/firebase';
+import { getErrorMessage } from '../lib/errors';
 
 export interface AuthUser {
   id: string;
@@ -113,8 +114,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Unable to connect to authentication server.' };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) || 'Unable to connect to authentication server.' };
     }
   };
 
@@ -139,8 +140,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Unable to connect to authentication server.' };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) || 'Unable to connect to authentication server.' };
     }
   };
 
@@ -168,8 +169,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailVerified: false,
         email: data.email || formData.email,
       };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Registration request failed.' };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) || 'Registration request failed.' };
     }
   };
 
@@ -201,8 +202,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Verification service error.' };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) || 'Verification service error.' };
     }
   };
 
@@ -229,8 +230,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         success: true,
         message: data.message,
       };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Resend request failed.' };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) || 'Resend request failed.' };
     }
   };
 
@@ -259,8 +260,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Update request failed.' };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) || 'Update request failed.' };
     }
   };
 

@@ -119,6 +119,8 @@ function AppContent() {
       return;
     }
 
+    const isSignInPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(clean);
+
     if (isAdmin) {
       if (!clean.startsWith('/admin')) {
         router.replace('/admin');
@@ -126,7 +128,7 @@ function AppContent() {
     } else {
       if (clean.startsWith('/admin')) {
         router.replace('/dashboard');
-      } else if (clean === '/') {
+      } else if (clean === '/' || isSignInPage) {
         router.replace('/dashboard');
       }
     }

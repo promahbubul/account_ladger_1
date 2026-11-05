@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from '../../lib/router';
 import { API_BASE_URL, parseResponseJson } from '../../services/api';
 import { Mail, ArrowLeft, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { getErrorMessage } from '../../lib/errors';
 
 export const ForgotPasswordView: React.FC = () => {
   const router = useRouter();
@@ -51,8 +52,8 @@ export const ForgotPasswordView: React.FC = () => {
             'If an account exists for this email address, you will receive a password reset link shortly.'
         );
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Network error. Please check your connection and try again.');
+    } catch (err: unknown) {
+      setErrorMessage(getErrorMessage(err) || 'Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }

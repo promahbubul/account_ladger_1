@@ -22,12 +22,13 @@ export const ExpensesScreen = ({ navigation }) => {
 
   const expensesQuery = usePagedQuery({
     queryKey: ['expensesList', startDate, endDate, search],
-    fetchPage: (page) => transactionsApi.getTransactions({
+    paging: 'cursor',
+    fetchPage: (cursor) => transactionsApi.getTransactions({
       type: 'EXPENSE',
       startDate,
       endDate,
       search,
-      page,
+      cursor,
       limit: 50,
     }),
   });

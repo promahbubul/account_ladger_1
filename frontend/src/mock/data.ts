@@ -27,6 +27,8 @@ export interface Category {
 
 export interface Transaction {
   id: string;
+  // Older records may carry the description under this name.
+  desc?: string;
   date: string;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'LOAN_LENT' | 'LOAN_BORROWED' | 'LOAN_REPAYMENT';
   category?: string;

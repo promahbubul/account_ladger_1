@@ -14,6 +14,7 @@ import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { useToast } from '../../context/ToastContext';
+import { getErrorMessage } from '../../lib/errors';
 
 interface LoansViewProps {
   onOpenAddLoanModal: () => void;
@@ -108,9 +109,9 @@ export const LoansView: React.FC<LoansViewProps> = ({
         hasNextPage: Boolean(data.hasNextPage),
         hasPreviousPage: Boolean(data.hasPreviousPage),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch loans error:', err);
-      setLoanError(err.message || 'Error loading loans');
+      setLoanError(getErrorMessage(err) || 'Error loading loans');
     } finally {
       setIsLoansLoading(false);
     }
@@ -145,9 +146,9 @@ export const LoansView: React.FC<LoansViewProps> = ({
         hasNextPage: Boolean(data.hasNextPage),
         hasPreviousPage: Boolean(data.hasPreviousPage),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch repayments error:', err);
-      setRepError(err.message || 'Error loading repayments');
+      setRepError(getErrorMessage(err) || 'Error loading repayments');
     } finally {
       setIsRepsLoading(false);
     }
@@ -234,8 +235,8 @@ export const LoansView: React.FC<LoansViewProps> = ({
         setErrorMessage(err);
         toast.updateToast(toastId, { type: 'error', message: err });
       }
-    } catch (err: any) {
-      const errMsg = err?.message || 'Network error while recording loan';
+    } catch (err: unknown) {
+      const errMsg = getErrorMessage(err) || 'Network error while recording loan';
       setErrorMessage(errMsg);
       toast.updateToast(toastId, { type: 'error', message: errMsg });
     } finally {
@@ -295,8 +296,8 @@ export const LoansView: React.FC<LoansViewProps> = ({
       } else {
         toast.updateToast(toastId, { type: 'error', message: res.error || 'Failed to record repayment' });
       }
-    } catch (err: any) {
-      toast.updateToast(toastId, { type: 'error', message: err?.message || 'Network error while recording repayment' });
+    } catch (err: unknown) {
+      toast.updateToast(toastId, { type: 'error', message: getErrorMessage(err) || 'Network error while recording repayment' });
     } finally {
       setIsSubmitting(false);
     }
@@ -372,7 +373,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
             <div className="flex items-center gap-2 w-full md:w-auto text-xs">
               <select
                 value={typeFilter}
-                onChange={(e) => handleTypeFilterChange(e.target.value as any)}
+                onChange={(e) => handleTypeFilterChange(e.target.value as 'LENT' | 'BORROWED' | 'ALL')}
                 className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Loan Types</option>
@@ -382,7 +383,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
 
               <select
                 value={statusFilter}
-                onChange={(e) => handleStatusFilterChange(e.target.value as any)}
+                onChange={(e) => handleStatusFilterChange(e.target.value as 'ACTIVE' | 'SETTLED' | 'ALL')}
                 className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
               >
                 <option value="ALL">All Statuses</option>
@@ -656,7 +657,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
               </label>
               <select
                 value={loanType}
-                onChange={(e) => setLoanType(e.target.value as any)}
+                onChange={(e) => setLoanType(e.target.value as 'LENT' | 'BORROWED')}
                 className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="LENT">Money Lent (Receivable)</option>

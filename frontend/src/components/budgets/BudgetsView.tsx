@@ -10,10 +10,11 @@ import { useToast } from '../../context/ToastContext';
 import { formatBDT } from '../../lib/formatters';
 import { Modal, ConfirmModal } from '../common/Modal';
 import { DataLoadErrorBanner, LoadedValue, TableEmptyRow, TableErrorRow, TableLoadingRow } from '../common/StateViews';
+import type { NavTab } from '../layout/Sidebar';
 
 interface BudgetsViewProps {
   onSuccessNotification: (msg: string) => void;
-  onNavigateTab: (tab: any) => void;
+  onNavigateTab: (tab: NavTab) => void;
 }
 
 export const BudgetsView: React.FC<BudgetsViewProps> = ({

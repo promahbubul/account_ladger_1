@@ -22,7 +22,7 @@
 | 3 | Mobile: admin paging, list-এর গতি | ✅ শেষ |
 | 4 | Backend: ছোট বাকি কাজ | 🟡 1-2 শেষ; 3-4 পরে, 5 মালিকের সিদ্ধান্ত |
 | 5 | Test ও CI | ✅ শেষ |
-| 6 | Structure পরিষ্কার | 🟡 1, 5, 7 শেষ; 3, 6 মালিকের সিদ্ধান্ত; 2, 4, 8 বাকি |
+| 6 | Structure পরিষ্কার | 🟡 1, 2, 4, 5, 7, 8 শেষ; 3, 6 মালিকের সিদ্ধান্ত |
 
 ## কেন এই plan
 
@@ -132,9 +132,9 @@
 **যা হয়েছে:**
 
 - `ci.yml` এখন `main`-সহ সব push-এ চলে। Mobile build (`build-mobile.yml`) EAS-এ পাঠানোর আগে `eslint mobile` চালায়।
-- Playwright browser test repo-তে: `e2e/app.spec.mjs`, `playwright.config.mjs`, চালাতে `npm run test:e2e`। ঢাকে: login (সাথে login-এ `all=true` নেই), sidebar-এর সব পাতা কোনো error ছাড়া খোলে, bulk expense save হয়ে Dashboard আর Reports-এ দেখায়, project তৈরি ও খোলা।
+- Playwright browser test repo-তে: `e2e/app.spec.mjs`, `playwright.config.mjs`, চালাতে `npm run test:e2e`। পরে যোগ হয়েছে: quick entry modal, Expenses page-এর add/edit/delete, admin-এর user তৈরি ও মোছা। ঢাকে: login (সাথে login-এ `all=true` নেই), sidebar-এর সব পাতা কোনো error ছাড়া খোলে, bulk expense save হয়ে Dashboard আর Reports-এ দেখায়, project তৈরি ও খোলা।
 - Test-এর API `e2e/start-backend.mjs` চালায়, নতুন JSON file-এ। Projects শুধু Postgres-এ চলে, তাই CI-র `e2e` job একটা throwaway Postgres দেয় (`E2E_DATABASE_URL`)। Local-এ ওটা না থাকলে project test বাদ পড়ে। `neon.tech` বা `nutrimedbd` থাকা URL পেলে server চালু হয় না।
-- Login-এর পর ঠিকানা `/login`-ই থাকে, যদিও Dashboard দেখায়। Test এটা ধরে নেয় না; চাইলে পরে ঠিক করা যায়।
+- Login-এর পর ঠিকানা `/dashboard`-এ যায়, test এটা যাচাই করে।
 
 1. **Vercel-এ test ছাড়াই deploy:** `.github/workflows/ci.yml`-এ `branches-ignore: [main]`, তাই `main`-এ CI চলে না। Backend deploy নিজে test চালায়, কিন্তু web আর mobile build চালায় না। `main`-এও CI চালান, আর mobile build-এর আগে lint দিন।
 2. **Frontend test নেই:** Playwright দিয়ে browser test repo-তে যোগ করুন। এখনকার Chrome test-গুলো এক PC-র temp ফোল্ডারে আছে, repo-তে নেই, তাই আবার লিখতে হবে। ঢাকতে হবে: login, bulk expense, reports, projects, পাতা বদল।
@@ -148,8 +148,12 @@
 - 1: `db.service.js` 3,595 লাইন থেকে 847। বাকি method আছে `backend/src/services/db/`-এ: `users`, `accounts`, `categories`, `reports`, `transactions`, `transfers`, `loans`, `budgets`, `admin`, আর shared `helpers.js`। Connection, schema, seed আর `queryPage` মূল file-এ। প্রতিটা file একটা class, যার method মূল class-এ বসানো হয়; একই নাম দুবার থাকলে চালু হওয়ার সময় error দেয়। Code লাইন ধরে ধরে সরানো, আচরণ বদলায়নি; বাইরে থেকে `dbService` আগের মতোই import হয়।
 - 5: `AdminView` এখন `authFetch` ব্যবহার করে।
 - 7: Vite `manualChunks`: মূল JS 409 KB থেকে 95 KB।
+- 2: বড় view ভাগ হয়েছে। `ActionModals` 962 লাইন থেকে 40 (প্রতিটা modal `components/modals/`-এ আলাদা)। `AdminView` 1,217 থেকে প্রায় 170 (tab আর `types.ts`)। `ExpensesView` 1,223 থেকে প্রায় 480 (`BulkEntryTab`, তিনটা form modal, `QuickAccountModal`, `useExpenseCategories`)। `FinanceContext` 989 থেকে প্রায় 340 (`context/finance/`-এ প্রতি বিষয়ে এক ফাইল)।
+- 2-এ ইচ্ছা করে যা বদলেছে: modal এখন শুধু খোলা থাকলে mount হয়, তাই প্রতিবার পরিষ্কার form আসে। আগে Daily Expenses save-এর পরও পুরোনো লেখা থেকে যেত, আর একই batch id থাকায় আবার save করলে নতুন কিছু জমা হতো না। Repayment আর Daily Expenses-এ save চলার সময় বাটন বন্ধ থাকে, যাতে দুবার চাপলে দুবার জমা না হয়। Admin-এর Refresh বাটন এখন শুধু stats লোড হওয়া পর্যন্ত ঘোরে।
+- 4: Mobile-এর Transactions, Expenses, Income, Loans, Repayments, Transfers এখন cursor দিয়ে পাতা আনে, web-এর মতো। `page` আছে শুধু পুরোনো APK আর Project entries-এর জন্য। Project entries-এর API-তে cursor নেই, আর project-এ নতুন row একসাথে কম আসে, তাই ওটা বদলানো হয়নি।
+- 8: `any` প্রায় 96 থেকে 2। `catch` এখন `unknown`, message পড়ে `lib/errors.ts`-এর `getErrorMessage`। বাকি 2টা `useStableActions`-এ, ওখানে সব action-এর signature নিতে হয়।
 
-**যা বাকি:** 2 (বড় view ভাগ), 4 (paging এক রকম), 8 (`any` কমানো)। 3 আর 6 মালিকের সিদ্ধান্ত।
+**যা বাকি:** 3 আর 6, দুটোই মালিকের সিদ্ধান্ত।
 
 1. `db.service.js` (৩,০০০+ লাইন) ভাগ করুন: account, transaction, transfer, loan, admin আলাদা ফাইলে।
 2. বড় view ভাগ করুন: `AdminView`, `ExpensesView`, `ActionModals`, `FinanceContext`।
@@ -170,13 +174,13 @@
 
 **Code-এর কাজ (Claude করতে পারে)**
 
-- [ ] **অচেনা origin-এ 500:** `backend/src/app.js`-এর CORS callback error দেয়, তাই অচেনা site থেকে request এলে 500 হয়। 403 দেওয়া উচিত, তাতে log পড়া সহজ।
-- [ ] **6.2 বড় view ভাগ:** `AdminView`, `ExpensesView`, `ActionModals`, `FinanceContext`। একবারে একটা, প্রতিবার e2e চালিয়ে।
-- [ ] **6.4 দুই রকম paging:** Web cursor, mobile page। একটায় আনা। পুরোনো APK এখনো page ব্যবহার করে, তাই API থেকে page সরানো যাবে না।
-- [ ] **6.8 Frontend-এ `any` কমানো।**
-- [ ] **Login-এর পর ঠিকানা `/login` থাকে**, যদিও Dashboard দেখায়। `/dashboard`-এ নেওয়া উচিত (ধাপ 5-এ লেখা)।
-- [ ] **4.3 Project list paging:** সংখ্যা কম, জরুরি নয়।
-- [ ] **4.4 `pg_trgm` search index:** data বাড়লে, Neon-এ extension চলে কি না দেখে।
+- [x] **অচেনা origin-এ 500:** এখন 403 দেয় (`CORS_ORIGIN_NOT_ALLOWED`), আর 5xx ছাড়া অন্য error-এ log-এ stack trace যায় না। Test: `backend/tests/security-hardening.test.js`।
+- [x] **6.2 বড় view ভাগ:** চারটাই শেষ।
+- [x] **6.4 দুই রকম paging:** Mobile-ও এখন cursor। পুরোনো APK এখনো page ব্যবহার করে, তাই API থেকে page সরানো যাবে না।
+- [x] **6.8 Frontend-এ `any` কমানো।**
+- [x] **Login-এর পর ঠিকানা:** এখন `/dashboard`-এ যায়। `/register`, `/forgot-password`, `/reset-password`-এও তাই।
+- [ ] **4.3 Project list paging:** সংখ্যা কম, জরুরি নয়। ইচ্ছা করে করা হয়নি; একজনের project কয়েক ডজন ছাড়ালে করুন।
+- [ ] **4.4 `pg_trgm` search index:** ইচ্ছা করে করা হয়নি। Data বাড়লে করুন, Neon-এ extension চলে কি না দেখে।
 
 **মালিকের সিদ্ধান্ত লাগবে**
 

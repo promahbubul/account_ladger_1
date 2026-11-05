@@ -5,7 +5,9 @@ export const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || (err.name === 'ValidationError' ? 400 : 500);
   const message = err.message || 'Internal Server Error';
 
-  logger.error(`${req.method} ${req.originalUrl || req.url}:`, err);
+  // Only server faults need a stack trace in the log.
+  if (statusCode >= 500) logger.error(`${req.method} ${req.originalUrl || req.url}:`, err);
+  else logger.warn(`${req.method} ${req.originalUrl || req.url}: ${statusCode} ${message}`);
 
   res.status(statusCode).json({
     status: 'error',

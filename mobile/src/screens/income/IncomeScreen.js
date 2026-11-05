@@ -22,12 +22,13 @@ export const IncomeScreen = ({ navigation }) => {
 
   const incomeQuery = usePagedQuery({
     queryKey: ['incomeList', startDate, endDate, search],
-    fetchPage: (page) => transactionsApi.getTransactions({
+    paging: 'cursor',
+    fetchPage: (cursor) => transactionsApi.getTransactions({
       type: 'INCOME',
       startDate,
       endDate,
       search,
-      page,
+      cursor,
       limit: 50,
     }),
   });

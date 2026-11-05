@@ -19,6 +19,7 @@ import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateVi
 import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
 import { useToast } from '../../context/ToastContext';
 import { sortTransactions } from '../../lib/sorting';
+import { getErrorMessage } from '../../lib/errors';
 
 export const TransactionsView: React.FC = () => {
   const { accounts, categories, deleteTransaction, editTransaction, authFetch } = useFinance();
@@ -141,9 +142,9 @@ export const TransactionsView: React.FC = () => {
         hasNextPage: Boolean(data.hasNextPage),
         hasPreviousPage: Boolean(data.hasPreviousPage),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch transactions error:', err);
-      setErrorMsg(err.message || 'Error loading transactions');
+      setErrorMsg(getErrorMessage(err) || 'Error loading transactions');
     } finally {
       setIsLoading(false);
     }
@@ -252,9 +253,9 @@ export const TransactionsView: React.FC = () => {
       setEditingTx(null);
 
       await fetchTransactions();
-    } catch (err: any) {
-      setEditErrorMsg(err.message || 'Failed to save changes.');
-      toast.error(err.message || 'Failed to save changes');
+    } catch (err: unknown) {
+      setEditErrorMsg(getErrorMessage(err) || 'Failed to save changes.');
+      toast.error(getErrorMessage(err) || 'Failed to save changes');
     } finally {
       setIsSavingEdit(false);
     }
@@ -422,7 +423,7 @@ export const TransactionsView: React.FC = () => {
                       {getTypeBadge(tx.type)}
                     </td>
                     <td className="py-2.5 px-3 font-medium text-gray-200">
-                      {tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : '-'))}
+                      {tx.description && tx.description !== 'Daily Expense' ? tx.description : (tx.desc || (tx.category ? `${tx.category} Expense` : '-'))}
                     </td>
                     <td className="py-2.5 px-3 text-gray-400">
                       {tx.category ? (
