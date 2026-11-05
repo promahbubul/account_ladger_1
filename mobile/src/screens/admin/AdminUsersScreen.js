@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { showMessage } from '../../utils/notify';
-import { View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePagedQuery } from '../../hooks/usePagedQuery';
 import { LoadMoreFooter } from '../../components/common/LoadMoreFooter';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Input } from '../../components/common/Input';
 import { Badge } from '../../components/common/Badge';
@@ -133,7 +133,7 @@ export const AdminUsersScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -195,4 +195,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
-});
+}));

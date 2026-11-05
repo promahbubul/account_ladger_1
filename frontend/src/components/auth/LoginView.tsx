@@ -1,25 +1,64 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { signInWithGoogle } from '../../lib/firebase';
-import { useRouter } from '../../lib/router';
+import { Link, usePathname, useRouter } from '../../lib/router';
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '../../lib/errors';
+import { ThemeToggle } from '../common/ThemeToggle';
+
+const FIELD =
+  'w-full bg-site-card border border-site-line-strong rounded-md px-3 py-2 text-base sm:text-sm text-ink placeholder-ink-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent';
+const LABEL = 'block text-sm font-medium text-ink-2 mb-1.5';
+const LINK = 'text-accent hover:text-accent-strong font-medium';
+const SUBMIT =
+  'w-full py-2.5 bg-accent-solid hover:bg-accent-solid-hover disabled:opacity-50 text-white text-sm font-medium rounded-md flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed';
+
+const PasswordField: React.FC<{
+  id: string;
+  autoComplete: string;
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ id, autoComplete, placeholder, value, onChange }) => {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={visible ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        required
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${FIELD} pr-10`}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((current) => !current)}
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        className="absolute inset-y-0 right-0 px-3 flex items-center text-ink-3 hover:text-ink"
+      >
+        {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
+    </div>
+  );
+};
 
 export const LoginView: React.FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { login, register, loginWithGoogle } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'register'>('signin');
-
+  // The address decides the form, so links and the Back button both work.
+  const isRegister = pathname === '/register';
 
   // Sign in state
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
   // Register state
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Status state
   const [isLoading, setIsLoading] = useState(false);
@@ -28,8 +67,19 @@ export const LoginView: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
+  useEffect(() => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setUnverifiedEmail(null);
+    document.title = `${isRegister ? 'Create account' : 'Sign in'} | Account Ledger`;
+    return () => {
+      document.title = 'Account Ledger';
+    };
+  }, [isRegister]);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setErrorMessage(null);
     setSuccessMessage(null);
     setUnverifiedEmail(null);
@@ -59,6 +109,7 @@ export const LoginView: React.FC = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setErrorMessage(null);
     setSuccessMessage(null);
     setUnverifiedEmail(null);
@@ -120,111 +171,136 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0f12] text-gray-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-site-sunken text-ink flex flex-col items-center justify-center p-4 py-10">
+      <ThemeToggle className="fixed top-3 right-3" />
       <div className="w-full max-w-sm">
-        {/* Back to Home / Download Mobile App */}
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="text-xs text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
-          >
-            <span>&larr; Back to Website &amp; Download App</span>
-          </button>
-        </div>
+        <Link href="/" className="flex items-center justify-center gap-2 font-semibold text-ink mb-6">
+          <img src="/logo.png" alt="" className="w-8 h-8 object-contain" />
+          Account Ledger
+        </Link>
 
-        {/* Brand */}
-        <div className="text-center mb-6">
-          <img
-            src="/logo.png"
-            alt="AccountLedger Logo"
-            className="w-12 h-12 object-contain mx-auto mb-3"
-          />
-          <h1 className="text-xl font-bold tracking-tight text-white">AccountLedger</h1>
-        </div>
+        <div className="bg-site-card border border-site-line rounded-md p-6">
+          <h1 className="text-xl font-semibold tracking-tight text-ink mb-5">
+            {isRegister ? 'Create your account' : 'Sign in'}
+          </h1>
 
-        {/* Card */}
-        <div className="bg-[#14171d] border border-line rounded p-6 shadow-sm">
-          {/* Mode switch */}
-          <div className="flex border-b border-line mb-5 pb-1">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signin');
-                setErrorMessage(null);
-                setSuccessMessage(null);
-              }}
-              className={`flex-1 py-1.5 text-xs font-medium text-center transition-colors border-b-2 ${
-                mode === 'signin'
-                  ? 'text-white border-blue-500'
-                  : 'text-gray-400 border-transparent hover:text-gray-200'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('register');
-                setErrorMessage(null);
-                setSuccessMessage(null);
-              }}
-              className={`flex-1 py-1.5 text-xs font-medium text-center transition-colors border-b-2 ${
-                mode === 'register'
-                  ? 'text-white border-blue-500'
-                  : 'text-gray-400 border-transparent hover:text-gray-200'
-              }`}
-            >
-              Create Account
-            </button>
-          </div>
-
-          {/* Error Message */}
           {errorMessage && (
-            <div className="mb-4 p-2.5 rounded bg-red-950/40 border border-red-800/60 text-xs text-red-300">
+            <div role="alert" className="mb-4 p-3 rounded-md bg-danger-bg border border-danger-line text-sm text-danger-ink">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                <span className="leading-snug">{errorMessage}</span>
+                <AlertCircle className="w-4 h-4 text-danger-ink flex-shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
               </div>
               {unverifiedEmail && (
-                <div className="mt-2 pt-2 border-t border-red-800/40 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`)}
-                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 underline cursor-pointer"
-                  >
-                    Enter verification code &rarr;
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`)}
+                  className="mt-2 ml-6 font-medium underline cursor-pointer"
+                >
+                  Enter verification code
+                </button>
               )}
             </div>
           )}
 
-          {/* Success Message */}
           {successMessage && (
-            <div className="mb-4 p-2.5 rounded bg-emerald-950/40 border border-emerald-800/60 flex items-start gap-2 text-xs text-emerald-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <span className="leading-snug">{successMessage}</span>
+            <div role="status" className="mb-4 p-3 rounded-md bg-ok-bg border border-ok-line flex items-start gap-2 text-sm text-ok-ink">
+              <CheckCircle2 className="w-4 h-4 text-ok-ink flex-shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
             </div>
           )}
 
-          {/* Official Google Social Sign-In Button */}
+          {isRegister ? (
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <label htmlFor="register-email" className={LABEL}>Email</label>
+                <input
+                  id="register-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  className={FIELD}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="register-password" className={LABEL}>Password</label>
+                <PasswordField
+                  id="register-password"
+                  autoComplete="new-password"
+                  placeholder="At least 6 characters"
+                  value={regPassword}
+                  onChange={setRegPassword}
+                />
+              </div>
+
+              <button type="submit" disabled={isLoading || isGoogleLoading} className={SUBMIT}>
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isLoading ? 'Creating account...' : 'Create account'}
+              </button>
+
+              <p className="text-xs text-ink-3">
+                By creating an account, you agree to our <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div>
+                <label htmlFor="login-identifier" className={LABEL}>Username or email</label>
+                <input
+                  id="login-identifier"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className={FIELD}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="login-password" className="block text-sm font-medium text-ink-2">Password</label>
+                  <Link href="/forgot-password" className={`text-sm ${LINK}`}>Forgot password?</Link>
+                </div>
+                <PasswordField
+                  id="login-password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={setPassword}
+                />
+              </div>
+
+              <button type="submit" disabled={isLoading || isGoogleLoading} className={SUBMIT}>
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isLoading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
+          )}
+
+          <div className="flex items-center gap-3 my-4" aria-hidden="true">
+            <div className="border-t border-site-line flex-1" />
+            <span className="text-xs text-ink-3">or</span>
+            <div className="border-t border-site-line flex-1" />
+          </div>
+
           <button
             type="button"
             id="btn-google-auth"
-            aria-label="Continue with Google"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}
-            className="w-full mb-4 py-2 px-3 bg-surface-hover hover:bg-surface-raised border border-field-line text-gray-200 hover:text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full py-2.5 px-3 bg-site-card hover:bg-site-hover border border-site-line-strong text-ink text-sm font-medium rounded-md flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {isGoogleLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                <Loader2 className="w-4 h-4 animate-spin text-ink-3" />
                 <span>Connecting with Google...</span>
               </>
             ) : (
               <>
-                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -246,136 +322,16 @@ export const LoginView: React.FC = () => {
               </>
             )}
           </button>
-
-          {/* Divider */}
-          <div className="relative flex items-center justify-center mb-4">
-            <div className="border-t border-line w-full"></div>
-            <span className="bg-[#14171d] px-2 text-[10px] text-gray-400 uppercase tracking-wider">
-              or
-            </span>
-            <div className="border-t border-line w-full"></div>
-          </div>
-
-          {mode === 'signin' ? (
-            <form onSubmit={handleSignIn} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                  Username or Email
-                </label>
-                <input
-                  type="text"
-                  autoComplete="username"
-                  required
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full bg-field border border-field-line rounded px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-gray-300">
-                    Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => router.push('/forgot-password')}
-                    className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-field border border-field-line rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-200 transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || isGoogleLoading}
-                className="w-full mt-2 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
-              >
-                {isLoading ? <span>Signing In...</span> : <span>Sign In</span>}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  className="w-full bg-field border border-field-line rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showRegPassword ? 'text' : 'password'}
-                    required
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="At least 6 characters"
-                    className="w-full bg-field border border-field-line rounded pl-3 pr-9 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRegPassword(!showRegPassword)}
-                    aria-label={showRegPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-200 transition-colors"
-                  >
-                    {showRegPassword ? (
-                      <EyeOff className="w-3.5 h-3.5" />
-                    ) : (
-                      <Eye className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || isGoogleLoading}
-                className="w-full mt-3 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <span>Creating Account...</span>
-                ) : (
-                  <span>Create Account</span>
-                )}
-              </button>
-            </form>
-          )}
         </div>
+
+        <p className="mt-5 text-center text-sm text-ink-2">
+          {isRegister ? (
+            <>Already have an account? <Link href="/login" className={LINK}>Sign in</Link></>
+          ) : (
+            <>New to Account Ledger? <Link href="/register" className={LINK}>Create an account</Link></>
+          )}
+        </p>
       </div>
     </div>
   );
 };
-

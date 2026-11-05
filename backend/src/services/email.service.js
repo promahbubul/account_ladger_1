@@ -64,7 +64,7 @@ class EmailService {
 
   async sendMail({ to, subject, html, text }) {
     const senderEmail = config.smtpUser || process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@accountledger.com';
-    const senderName = config.appName || 'AccountLedger';
+    const senderName = config.appName || 'Account Ledger';
     const fromAddress = `"${senderName}" <${senderEmail}>`;
 
     // Record in local test audit log
@@ -100,7 +100,7 @@ class EmailService {
 
   async sendPasswordResetEmail({ to, resetUrl, userDisplayName, expirationMinutes = 20 }) {
     const name = userDisplayName || 'Valued User';
-    const appName = config.appName || 'AccountLedger';
+    const appName = config.appName || 'Account Ledger';
     const subject = `Password Reset Request — ${appName}`;
 
     const html = `
@@ -133,7 +133,7 @@ class EmailService {
 
   async sendWelcomeEmail({ to, userDisplayName }) {
     const name = userDisplayName || 'Valued User';
-    const appName = config.appName || 'AccountLedger';
+    const appName = config.appName || 'Account Ledger';
     const subject = `Welcome to ${appName}!`;
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0d0f12; color: #f3f4f6; border-radius: 8px;">
@@ -159,7 +159,7 @@ class EmailService {
 
   async sendEmailVerificationCode({ to, code, userDisplayName, expirationMinutes = 10 }) {
     const name = userDisplayName || 'Valued User';
-    const appName = config.appName || 'AccountLedger';
+    const appName = config.appName || 'Account Ledger';
     const subject = `Your Verification Code: ${code} — ${appName}`;
 
     const html = `

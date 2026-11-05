@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { showMessage } from '../../utils/notify';
-import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
+import { View, Text, ScrollView, Switch } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { QueryErrorState } from '../../components/common/QueryStates';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { adminApi } from '../../services/api/admin.api';
+import { ThemeToggle } from '../../components/common/ThemeToggle';
 
 export const AdminSettingsScreen = ({ navigation }) => {
   const queryClient = useQueryClient();
@@ -52,7 +53,7 @@ export const AdminSettingsScreen = ({ navigation }) => {
   if (settingsQuery.isError && !settingsQuery.data) {
     return (
       <View style={styles.container}>
-        <Header title="System Settings" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
+        <Header title="System Settings" showBack onBack={() => navigation.goBack()} showDateFilter={false} rightAction={<ThemeToggle />} />
         <QueryErrorState title="Could not load settings" onRetry={() => settingsQuery.refetch()} />
       </View>
     );
@@ -61,7 +62,7 @@ export const AdminSettingsScreen = ({ navigation }) => {
   if (settingsQuery.isLoading) {
     return (
       <View style={styles.container}>
-        <Header title="System Settings" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
+        <Header title="System Settings" showBack onBack={() => navigation.goBack()} showDateFilter={false} rightAction={<ThemeToggle />} />
         <LoadingSpinner message="Loading settings..." fullScreen />
       </View>
     );
@@ -69,7 +70,7 @@ export const AdminSettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Header title="System Settings" showBack onBack={() => navigation.goBack()} showDateFilter={false} />
+      <Header title="System Settings" showBack onBack={() => navigation.goBack()} showDateFilter={false} rightAction={<ThemeToggle />} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Card>
@@ -119,7 +120,7 @@ export const AdminSettingsScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -145,4 +146,4 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 2,
   },
-});
+}));

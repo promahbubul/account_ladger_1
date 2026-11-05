@@ -1,7 +1,7 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet } from 'react-native';
+import { Modal, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { Button } from './Button';
 
 export const ConfirmModal = ({
@@ -57,7 +57,7 @@ export const ConfirmModal = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -116,4 +116,4 @@ const styles = StyleSheet.create({
   confirmBtn: {
     flex: 1,
   },
-});
+}));

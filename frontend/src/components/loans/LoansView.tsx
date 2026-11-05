@@ -896,7 +896,7 @@ export const LoansView: React.FC<LoansViewProps> = ({
                     <th className="py-2 px-3 text-right">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1e2129]">
+                <tbody className="divide-y divide-line-strong">
                   {repItems.filter(r => r.loanId === viewHistoryLoan.id).length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-6 text-center text-gray-500">

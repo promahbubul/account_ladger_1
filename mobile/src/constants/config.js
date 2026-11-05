@@ -48,6 +48,6 @@ const getDevApiUrl = () => {
 };
 
 export const API_BASE_URL = getDevApiUrl();
-export const APP_NAME = 'AccountLedger.com';
+export const APP_NAME = 'Account Ledger';
 export const APP_VERSION = Constants.expoConfig?.version || '';
 

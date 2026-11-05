@@ -1,6 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 
 export const Button = ({
   title,
@@ -53,7 +53,7 @@ export const Button = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -122,4 +122,4 @@ const styles = StyleSheet.create({
   textSize_lg: {
     fontSize: FONT_SIZE.md,
   },
-});
+}));

@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { Button } from './Button';
 
 export const EmptyState = ({
@@ -31,7 +31,7 @@ export const EmptyState = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -62,4 +62,4 @@ const styles = StyleSheet.create({
   actionBtn: {
     marginTop: SPACING.lg,
   },
-});
+}));

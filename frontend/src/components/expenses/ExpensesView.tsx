@@ -361,7 +361,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         </td>
                         <td className="py-2.5 px-3 text-gray-400">
                           <div className="flex flex-col gap-0.5">
-                            <span className="px-1.5 py-0.5 rounded bg-app border border-[#242730] text-[11px] text-gray-300 w-max">
+                            <span className="px-1.5 py-0.5 rounded bg-app border border-line-strong text-[11px] text-gray-300 w-max">
                               {tx.category || 'General Expense'}
                             </span>
                             {tx.subcategory && (

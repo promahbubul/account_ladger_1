@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "AccountLedger",
+    "name": "Account Ledger",
     "slug": "accountledger",
     "scheme": "accountledger",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.accountledger.mobile"

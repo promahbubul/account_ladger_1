@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, Modal, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Modal, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 
 const SEARCH_THRESHOLD = 8;
 
@@ -116,7 +116,7 @@ export const Select = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     marginBottom: SPACING.md,
   },
@@ -225,4 +225,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: SPACING.xl,
   },
-});
+}));

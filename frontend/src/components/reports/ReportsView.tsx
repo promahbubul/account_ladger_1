@@ -159,7 +159,7 @@ export const ReportsView: React.FC = () => {
                 onClick={() => setSelectedPeriod(p)}
                 className={`px-2.5 py-1 rounded text-xs transition-colors ${
                   selectedPeriod === p
-                    ? 'bg-[#252934] text-gray-100 font-medium'
+                    ? 'bg-surface-raised text-gray-100 font-medium'
                     : 'text-gray-400 hover:text-gray-200'
                 }`}
               >
@@ -173,7 +173,7 @@ export const ReportsView: React.FC = () => {
 
           <button
             onClick={handleExportCSVReport}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1e222a] hover:bg-[#262b35] text-gray-200 rounded text-xs font-medium border border-[#2e323d] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-raised hover:bg-surface-raised text-gray-200 rounded text-xs font-medium border border-line-strong transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
@@ -251,7 +251,7 @@ export const ReportsView: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px] uppercase">
+              <tr className="border-b border-line bg-surface text-gray-400 text-[10px] uppercase">
                 <th className="py-2.5 px-3">Category</th>
                 <th className="py-2.5 px-3 text-right">Transactions</th>
                 <th className="py-2.5 px-3 text-right">Total Spent</th>
@@ -314,7 +314,7 @@ export const ReportsView: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-line bg-[#14161c] text-gray-400 text-[10px] uppercase">
+              <tr className="border-b border-line bg-surface text-gray-400 text-[10px] uppercase">
                 <th className="py-2.5 px-3">Account</th>
                 <th className="py-2.5 px-3">Type</th>
                 <th className="py-2.5 px-3 text-right">Opening Balance</th>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 
 export const Input = ({
   label,
@@ -70,7 +70,7 @@ export const Input = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     marginBottom: SPACING.md,
   },
@@ -121,4 +121,4 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     marginTop: 4,
   },
-});
+}));

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { showMessage } from '../../utils/notify';
-import { View, Text, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, Text, ScrollView, Modal } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Select } from '../../components/common/Select';
 import { accountsApi } from '../../services/api/accounts.api';
@@ -313,7 +313,7 @@ export const TransactionDetailScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   modalScroll: {
     maxHeight: 460,
   },
@@ -395,4 +395,4 @@ const styles = StyleSheet.create({
   modalBtn: {
     flex: 1,
   },
-});
+}));

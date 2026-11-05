@@ -53,7 +53,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, se
             type="text"
             value={settings.appName}
             onChange={(e) => setSettings({ ...settings, appName: e.target.value })}
-            className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+            className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
           />
         </div>
 
@@ -65,7 +65,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, se
             <select
               value={settings.defaultCurrency}
               onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
             >
               {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
                 <option key={code} value={code}>{code} ({symbol})</option>
@@ -83,13 +83,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, se
               max="8760"
               value={settings.sessionTimeoutHours}
               onChange={(e) => setSettings({ ...settings, sessionTimeoutHours: Number(e.target.value) })}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
 
         <div className="space-y-3 pt-3 border-t border-line">
-          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-[#14161c]">
+          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-surface">
             <div>
               <div className="text-xs font-medium text-gray-200">Public User Registration</div>
             </div>
@@ -97,11 +97,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, se
               type="checkbox"
               checked={settings.allowUserRegistration}
               onChange={(e) => setSettings({ ...settings, allowUserRegistration: e.target.checked })}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-field-line"
+              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-surface-raised border-field-line"
             />
           </label>
 
-          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-[#14161c]">
+          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-surface">
             <div>
               <div className="text-xs font-medium text-gray-200">Maintenance Mode</div>
               <div className="text-[11px] text-gray-400">Display maintenance advisory to non-admin users</div>
@@ -110,11 +110,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, se
               type="checkbox"
               checked={settings.maintenanceMode}
               onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-field-line"
+              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-surface-raised border-field-line"
             />
           </label>
 
-          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-[#14161c]">
+          <label className="flex items-center justify-between p-2.5 rounded bg-app border border-line cursor-pointer hover:bg-surface">
             <div>
               <div className="text-xs font-medium text-gray-200">Security Audit Logging</div>
             </div>
@@ -122,7 +122,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, se
               type="checkbox"
               checked={settings.auditLoggingEnabled}
               onChange={(e) => setSettings({ ...settings, auditLoggingEnabled: e.target.checked })}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-[#1e2129] border-field-line"
+              className="w-4 h-4 rounded text-blue-600 focus:ring-0 bg-surface-raised border-field-line"
             />
           </label>
         </div>

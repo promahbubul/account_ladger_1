@@ -152,7 +152,7 @@ export class AdminMethods {
   getSystemSettings() {
     return (
       this.inMemoryData.systemSettings || {
-        appName: 'AccountLedger.com',
+        appName: 'Account Ledger',
         maintenanceMode: false,
         allowUserRegistration: true,
         defaultCurrency: 'BDT',

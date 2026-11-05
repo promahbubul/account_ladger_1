@@ -1,4 +1,7 @@
-export const COLORS = {
+import { StyleSheet } from 'react-native';
+
+const PALETTES = {
+  dark: {
   // Foundations: Dark, modern, neutral fintech palette
   background: '#090A0E',
   surface: '#12141A',
@@ -39,6 +42,71 @@ export const COLORS = {
 
   card: '#12141A',
   cardHover: '#181B24',
+},
+  light: {
+  // Foundations
+  background: '#F8FAFC',
+  surface: '#FFFFFF',
+  surfaceElevated: '#F1F5F9',
+  surfaceSelected: '#E2E8F0',
+  surfaceGhost: 'rgba(15, 23, 42, 0.03)',
+
+  // Borders & Dividers
+  border: '#E2E8F0',
+  borderLight: '#CBD5E1',
+  borderSubtle: 'rgba(15, 23, 42, 0.08)',
+  borderHairline: 'rgba(15, 23, 42, 0.06)',
+
+  // Accents
+  primary: '#2563EB',
+  primaryDark: '#1D4ED8',
+  primaryLight: 'rgba(37, 99, 235, 0.10)',
+
+  // Financial Semantics, darker so they stay readable on white
+  success: '#047857',
+  successLight: 'rgba(4, 120, 87, 0.10)',
+  danger: '#BE123C',
+  dangerLight: 'rgba(190, 18, 60, 0.10)',
+  warning: '#B45309',
+  warningLight: 'rgba(180, 83, 9, 0.10)',
+  purple: '#6D28D9',
+  purpleLight: 'rgba(109, 40, 217, 0.10)',
+
+  // Typography Contrast
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#64748B',
+  textInverse: '#FFFFFF',
+
+  // The same series colours in both themes, so a series keeps its identity.
+  chartPrimary: '#3987E5',
+  chartSecondary: '#D95926',
+
+  card: '#FFFFFF',
+  cardHover: '#F1F5F9',
+},
+};
+
+let activeTheme = 'dark';
+
+export const setActiveTheme = (theme) => {
+  activeTheme = theme;
+};
+
+// Reads from whichever theme is active at the moment it is used.
+export const COLORS = new Proxy({}, {
+  get: (_, key) => PALETTES[activeTheme][key],
+});
+
+// StyleSheet.create for styles that use COLORS: builds one sheet per theme, the first time each is needed.
+export const themedStyles = (build) => {
+  const sheets = {};
+  return new Proxy({}, {
+    get: (_, key) => {
+      if (!sheets[activeTheme]) sheets[activeTheme] = StyleSheet.create(build());
+      return sheets[activeTheme][key];
+    },
+  });
 };
 
 export const SPACING = {

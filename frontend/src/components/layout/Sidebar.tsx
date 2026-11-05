@@ -34,6 +34,7 @@ export type NavTab =
   | 'transactions'
   | 'reports'
   | 'settings'
+  | 'profile'
   // Admin modules
   | 'admin-dashboard'
   | 'admin-users'
@@ -116,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-[#0d0f12] border-r border-line flex flex-col transition-transform duration-150 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-surface-sunken border-r border-line flex flex-col transition-transform duration-150 ease-in-out lg:translate-x-0 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -125,14 +126,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-center gap-2.5">
             <img
               src="/logo.png"
-              alt="AccountLedger Logo"
+              alt="Account Ledger Logo"
               className="w-7 h-7 object-contain"
             />
             <div>
-              <span className="font-semibold text-sm tracking-tight text-gray-100">AccountLedger</span>
+              <span className="font-semibold text-sm tracking-tight text-gray-100">Account Ledger</span>
             </div>
           </div>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#181a20] text-gray-300 border border-[#2b2e37]">
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-hover text-gray-300 border border-line-strong">
             {isAdmin ? 'ADMIN' : (user?.currency || 'BDT')}
           </span>
         </div>
@@ -153,8 +154,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded text-sm transition-colors ${
                       isActive
-                        ? 'bg-[#1e1b2e] text-purple-400 font-medium border-l-2 border-purple-500'
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-[#14161c]'
+                        ? 'bg-surface-raised text-purple-400 font-medium border-l-2 border-purple-500'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-surface'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -180,8 +181,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded text-sm transition-colors ${
                       isActive
-                        ? 'bg-[#181b22] text-blue-400 font-medium border-l-2 border-blue-500'
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-[#14161c]'
+                        ? 'bg-surface-hover text-blue-400 font-medium border-l-2 border-blue-500'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-surface'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -206,10 +207,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* User profile footer */}
-        <div className="p-3 border-t border-line bg-[#0a0c0e]">
+        <div className="p-3 border-t border-line bg-surface-sunken">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded bg-[#20232b] border border-[#2b2e37] flex items-center justify-center text-xs font-medium text-gray-300 flex-shrink-0">
+            <Link href="/profile" aria-label="Your profile" className="flex items-center gap-2.5 min-w-0 rounded hover:opacity-80">
+              <div className="w-7 h-7 rounded bg-surface-raised border border-line-strong flex items-center justify-center text-xs font-medium text-gray-300 flex-shrink-0">
                 {getInitials(user?.fullName || user?.username)}
               </div>
               <div className="min-w-0">
@@ -227,12 +228,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <p className="text-[10px] text-gray-500 truncate">{user?.email}</p>
               </div>
-            </div>
+            </Link>
 
             <button
               onClick={logout}
               title="Sign Out"
-              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-[#181a20] rounded transition-colors"
+              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-surface-hover rounded transition-colors"
             >
               <LogOut className="w-4 h-4" />
             </button>

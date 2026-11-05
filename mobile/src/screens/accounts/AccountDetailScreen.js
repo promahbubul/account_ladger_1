@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { showMessage } from '../../utils/notify';
-import { View, Text, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, Text, ScrollView, Modal } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { ProviderField } from '../../components/common/ProviderField';
 import { Button } from '../../components/common/Button';
@@ -238,7 +238,7 @@ export const AccountDetailScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -324,4 +324,4 @@ const styles = StyleSheet.create({
   modalBtn: {
     flex: 1,
   },
-});
+}));

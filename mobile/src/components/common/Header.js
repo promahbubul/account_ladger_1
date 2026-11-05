@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { useDateFilter } from '../../context/DateFilterContext';
 import { formatDate } from '../../utils/formatters';
 import { Button } from './Button';
@@ -176,7 +176,7 @@ export const Header = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     backgroundColor: COLORS.background,
     borderBottomWidth: 1,
@@ -313,4 +313,4 @@ const styles = StyleSheet.create({
   applyBtn: {
     marginTop: SPACING.md,
   },
-});
+}));

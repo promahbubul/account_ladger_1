@@ -1,3 +1,4 @@
+/* global document, window -- these lines run inside the browser page. */
 // Browser tests for the main web flows: login, moving between pages, bulk expenses, reports and projects.
 // They run against the throwaway API started by playwright.config.mjs, signed in as the seeded demo user.
 import { test, expect } from '@playwright/test';
@@ -147,10 +148,146 @@ test('the expenses page adds, edits and deletes a record, and keeps bulk rows be
   await expect(row).toHaveCount(0);
 });
 
-test('the landing page downloads the APK from the newest release', async ({ page }) => {
+test('the download page links to the newest release and has a real QR code', async ({ page }) => {
   await page.goto('/download');
-  const link = page.locator('a[href$=".apk"]').first();
+  const link = page.locator('main a[href$=".apk"]').first();
   await expect(link).toHaveAttribute('href', /github\.com\/promahbubul\/account_ladger_1\/releases\/latest\/download\//);
+  await expect(page.getByLabel('QR code linking to the Android download')).toBeVisible();
+});
+
+test('every website page opens, and fits a phone screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [href, heading] of [
+    ['/', 'Know where your money went.'],
+    ['/features', 'Features'],
+    ['/download', 'Download for Android'],
+    ['/privacy', 'Privacy Policy'],
+    ['/terms', 'Terms of Use'],
+  ]) {
+    await page.goto(href);
+    await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, `sideways scroll on ${href}`).toBeLessThanOrEqual(0);
+  }
+});
+
+test('sign in and create account pages link to each other, and Back works', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Create an account' }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByRole('heading', { name: 'Create your account', level: 1 })).toBeVisible();
+  await expect(page.locator('#register-password')).toHaveAttribute('autocomplete', 'new-password');
+  await expect(page.getByRole('link', { name: 'Terms' })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+});
+
+test('clicking a label focuses its field, and the password can be shown', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByText('Username or email').click();
+  await expect(page.getByLabel('Username or email')).toBeFocused();
+
+  const password = page.locator('#login-password');
+  await password.fill('secret-value');
+  await expect(password).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+});
+
+test('a wrong password shows an error and keeps the form', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Username or email').fill(USER.email);
+  await page.locator('#login-password').fill('not-the-password');
+  await page.locator('form button[type="submit"]').click();
+  await expect(page.getByRole('alert')).toContainText('Invalid credentials');
+  await expect(page.getByLabel('Username or email')).toHaveValue(USER.email);
+});
+
+test('forgot and reset password lead back to sign in, not the home page', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Forgot password?' }).click();
+  await expect(page).toHaveURL(/\/forgot-password$/);
+  await page.getByRole('button', { name: 'Back to Sign In' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.goto('/forgot-password');
+  await page.getByLabel('Email Address').fill('someone@example.com');
+  await page.locator('form button[type="submit"]').click();
+  await page.getByRole('button', { name: 'Return to Sign In' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test('the theme follows the device, and the button changes and remembers it', async ({ page }) => {
+  const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await expect.poll(theme).toBe('dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect.poll(theme).toBe('light');
+
+  const button = page.getByRole('button', { name: /^Theme:/ });
+  await button.click();
+  await expect.poll(theme).toBe('light');
+  await button.click();
+  await expect.poll(theme).toBe('dark');
+  await page.reload();
+  await expect.poll(theme).toBe('dark');
+
+  await page.getByRole('button', { name: /^Theme:/ }).click();
+  await expect.poll(theme).toBe('light');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('accountledger_theme'))).toBeNull();
+});
+
+test('the app name has a space wherever people read it', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('header').getByText('Account Ledger')).toBeVisible();
+  await expect(page.getByText('AccountLedger')).toHaveCount(0);
+  await page.goto('/login');
+  await expect(page.getByText('Account Ledger').first()).toBeVisible();
+  await expect(page.getByText('AccountLedger')).toHaveCount(0);
+  await signIn(page);
+  await expect(page.locator('aside').getByText('Account Ledger')).toBeVisible();
+  await expect(page.getByText('AccountLedger')).toHaveCount(0);
+});
+
+test('create account opens the registration form', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Create account' }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.locator('input[type="email"]')).toBeVisible();
+  await expect(page.locator('input[autocomplete="username"]')).toHaveCount(0);
+});
+
+test('a signed-in user stays on the website and reaches the app from the account menu', async ({ page }) => {
+  await signIn(page);
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Know where your money went.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Create account' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Profile' }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await page.getByLabel('Full Name').fill('E2E Profile Name');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('aside').getByText('E2E Profile Name')).toBeVisible();
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Dashboard' }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.locator('aside').getByRole('link', { name: 'Your profile' }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible();
 });
 
 test('an admin can open users and audit logs', async ({ page }) => {

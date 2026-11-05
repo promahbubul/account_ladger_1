@@ -221,7 +221,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         id={id}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full bg-app border border-line-strong hover:border-[#383d4a] focus:border-blue-500 rounded px-3 py-1.5 flex items-center justify-between text-xs transition-colors ${
+        className={`w-full bg-app border border-line-strong hover:border-line-strong focus:border-blue-500 rounded px-3 py-1.5 flex items-center justify-between text-xs transition-colors ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
         } ${isOpen ? 'border-blue-500 ring-1 ring-blue-500/30' : ''}`}
         aria-haspopup="dialog"
@@ -289,7 +289,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     isSelected
                       ? 'bg-blue-600 text-white font-bold shadow-sm'
                       : cell.isCurrentMonth
-                      ? 'text-gray-200 hover:bg-surface-raised hover:text-white'
+                      ? 'text-gray-200 hover:bg-surface-raised hover:text-ink'
                       : 'text-gray-600 hover:bg-surface-hover hover:text-gray-400'
                   } ${isToday && !isSelected ? 'border border-blue-500/70 text-blue-400 font-semibold' : ''}`}
                 >
@@ -304,7 +304,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <button
               type="button"
               onClick={handleSelectToday}
-              className="px-2 py-1 rounded bg-[#1e222a] hover:bg-[#272c37] text-blue-400 font-medium transition-colors"
+              className="px-2 py-1 rounded bg-surface-raised hover:bg-surface-raised text-blue-400 font-medium transition-colors"
             >
               Today
             </button>

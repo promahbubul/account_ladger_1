@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Skeleton } from '../../components/common/Skeleton';
 import { QueryErrorBanner } from '../../components/common/QueryStates';
@@ -194,7 +194,7 @@ export const AdminDashboardScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   kpiSkeleton: {
     marginTop: SPACING.xs,
   },
@@ -277,4 +277,4 @@ const styles = StyleSheet.create({
   headerProfileBtn: {
     padding: 2,
   },
-});
+}));

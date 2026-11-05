@@ -443,7 +443,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               required
               value={createForm.fullName}
               onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -455,7 +455,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                 required
                 value={createForm.username}
                 onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
@@ -463,7 +463,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               <select
                 value={createForm.role}
                 onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'ADMIN' | 'USER' })}
-                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
               >
                 <option value="USER">Normal User</option>
                 <option value="ADMIN">System Admin</option>
@@ -478,7 +478,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               required
               value={createForm.email}
               onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -490,7 +490,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               value={createForm.password}
               onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
               placeholder="At least 6 characters"
-              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -499,7 +499,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
             <select
               value={createForm.currency}
               onChange={(e) => setCreateForm({ ...createForm, currency: e.target.value })}
-              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
             >
               {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
                 <option key={code} value={code}>{code} ({symbol})</option>
@@ -511,7 +511,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(false)}
-              className="px-3 py-1.5 text-xs text-gray-400 hover:text-white"
+              className="px-3 py-1.5 text-xs text-gray-400 hover:text-ink"
             >
               Cancel
             </button>
@@ -547,7 +547,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                 required
                 value={editUser.fullName}
                 onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })}
-                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -558,7 +558,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                 required
                 value={editUser.email}
                 onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
-                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -569,7 +569,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                   value={editUser.role}
                   disabled={editUser.id === currentUser?.id}
                   onChange={(e) => setEditUser({ ...editUser, role: e.target.value as 'ADMIN' | 'USER' })}
-                  className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                  className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500 disabled:opacity-60"
                 >
                   <option value="USER">Normal User</option>
                   <option value="ADMIN">System Admin</option>
@@ -581,7 +581,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                 <select
                   value={editUser.currency}
                   onChange={(e) => setEditUser({ ...editUser, currency: e.target.value })}
-                  className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
                 >
                   {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
                     <option key={code} value={code}>{code} ({symbol})</option>
@@ -594,7 +594,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               <button
                 type="button"
                 onClick={() => setEditUser(null)}
-                className="px-3 py-1.5 text-xs text-gray-400 hover:text-white"
+                className="px-3 py-1.5 text-xs text-gray-400 hover:text-ink"
               >
                 Cancel
               </button>
@@ -625,7 +625,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
             )}
 
             <p className="text-xs text-gray-300">
-              Resetting password for user <span className="font-semibold text-white">@{resetPasswordUser.username}</span> ({resetPasswordUser.email}).
+              Resetting password for user <span className="font-semibold text-ink">@{resetPasswordUser.username}</span> ({resetPasswordUser.email}).
             </p>
 
             <div>
@@ -636,7 +636,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-field border border-field-line rounded px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -644,7 +644,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ refreshKey, onUser
               <button
                 type="button"
                 onClick={() => setResetPasswordUser(null)}
-                className="px-3 py-1.5 text-xs text-gray-400 hover:text-white"
+                className="px-3 py-1.5 text-xs text-gray-400 hover:text-ink"
               >
                 Cancel
               </button>

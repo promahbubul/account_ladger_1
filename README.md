@@ -1,13 +1,13 @@
-# AccountLedger — Personal Accounting Ledger & Money Manager
+# Account Ledger — Personal Accounting Ledger & Money Manager
 
-AccountLedger is a modern, production-grade personal financial accounting engine designed for tracking income, expenses, accounts, transfers, and loans in BDT. The application is cleanly structured into two independent services: a frontend Single Page Application (`frontend/`) and a dedicated Express.js REST API service with PostgreSQL (`backend/`).
+Account Ledger is a modern, production-grade personal financial accounting engine designed for tracking income, expenses, accounts, transfers, and loans in BDT. The application is cleanly structured into two independent services: a frontend Single Page Application (`frontend/`) and a dedicated Express.js REST API service with PostgreSQL (`backend/`).
 
 ---
 
 ## 1. Project Architecture
 
 ```text
-AccountLedger/
+Account Ledger/
 ├── frontend/
 │   ├── public/
 │   ├── src/

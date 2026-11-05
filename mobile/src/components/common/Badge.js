@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { View, Text } from 'react-native';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 
 export const Badge = ({ label, variant = 'default', style, textStyle }) => {
   return (
@@ -10,7 +10,7 @@ export const Badge = ({ label, variant = 'default', style, textStyle }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   badge: {
     paddingHorizontal: SPACING.sm + 2,
     paddingVertical: 3,
@@ -57,4 +57,4 @@ const styles = StyleSheet.create({
   text_purple: {
     color: COLORS.purple,
   },
-});
+}));

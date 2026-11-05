@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { Button } from './Button';
 
 // Keeps one failed screen from blanking the whole app.
@@ -30,7 +30,7 @@ export class ErrorBoundary extends React.Component {
   }
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -53,4 +53,4 @@ const styles = StyleSheet.create({
   button: {
     marginTop: SPACING.xl,
   },
-});
+}));

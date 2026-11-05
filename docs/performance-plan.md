@@ -192,6 +192,24 @@
 
 - Web Tailwind CSS v4-এ বানানো। চলে Firefox 128+, Chrome 111+, Safari 16.4+-এ। এর পুরোনো browser-এ (যেমন Firefox 87) design ছাড়া শুধু লেখা দেখায়। সমাধান browser update; পুরোনো browser চালাতে Tailwind v3-এ ফেরা বড় কাজ।
 
+## Website
+
+`components/landing` সরিয়ে `components/site`: Home, Features, Download, Privacy, Terms আলাদা পাতা, হালকা design। Login থাকলেও website খোলা থাকে; header-এর account menu থেকে Dashboard ও Profile। নতুন `/profile` পাতা। ছবিগুলো `frontend/public/screens`-এ, আসল app-এর sample data দিয়ে তোলা; app-এর design বদলালে আবার তুলতে হবে।
+
+- Mockup, gradient আর animation-এর style `index.css`-এ (`site-gradient`, `reveal`, `float-slow`, `btn-gradient`)। Device-এ motion কমানো থাকলে সব animation বন্ধ হয়।
+- [ ] **Contact পাতা:** `components/site/siteConfig.ts`-এ `CONTACT_EMAIL` দিলেই পাতা আর link চালু হয়। এখন যোগাযোগের জায়গায় GitHub Issues দেখায়।
+- [ ] **Login ও app-এর ভেতরের design:** এখনো আগের মতো গাঢ়, এই কাজে বদলায়নি।
+
+## Theme ও নাম
+
+দেখানোর নাম "Account Ledger"। Package ID, EAS slug, APK ফাইলের নাম, `accountledger_*` storage key আর API-র service name ইচ্ছা করে বদলানো হয়নি, কারণ ওগুলো বদলালে update আর login ভাঙে।
+
+Theme: System → Light → Dark ঘোরে, শুরুতে System।
+
+- **Web:** `lib/theme.ts` আর `index.css`। App-এর class গাঢ় ধরে লেখা, তাই light mode-এ `--color-gray-*` ইত্যাদির মান বদলে যায়। Website আর sign-in পাতা `ink`, `site-*`, `accent` নামের রং ব্যবহার করে। নতুন code-এ সরাসরি hex রং দেবেন না; সাদা লেখা শুধু রঙিন বাটনে।
+- **Mobile:** `constants/theme.js`-এ দুই palette, `COLORS` বর্তমান theme পড়ে। Style-এ `StyleSheet.create` নয়, `themedStyles(() => ({...}))` ব্যবহার করুন। Theme বদলালে `RootNavigator` নতুন করে আঁকে আর একই screen-এ ফেরে, তাই ওই screen-এর আধা লেখা form মুছে যায়।
+- `frontend/public/screens`-এ প্রতিটা ছবির `-light` আর `-dark` আছে। App-এর চেহারা বদলালে আবার তুলতে হবে।
+
 ## মালিকের নিজের কাজ
 
 এগুলো code দিয়ে হয় না।

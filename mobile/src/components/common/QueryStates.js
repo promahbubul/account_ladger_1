@@ -1,7 +1,7 @@
 import React from 'react';
-import { Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { EmptyState } from './EmptyState';
 
 // Full-size replacement for a list's empty state when its request failed.
@@ -29,7 +29,7 @@ export const QueryErrorBanner = ({ message = 'Could not load data.', onRetry, st
   </TouchableOpacity>
 );
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -50,4 +50,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.danger,
   },
-});
+}));

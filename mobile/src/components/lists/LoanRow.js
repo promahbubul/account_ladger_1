@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT_SIZE, themedStyles } from '../../constants/theme';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { Badge } from '../common/Badge';
 
@@ -48,7 +48,7 @@ export const LoanRow = React.memo(function LoanRow({ loan, onPress }) {
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -111,4 +111,4 @@ const styles = StyleSheet.create({
   statusBadge: {
     marginTop: 4,
   },
-});
+}));

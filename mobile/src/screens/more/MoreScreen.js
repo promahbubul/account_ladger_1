@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
+import { COLORS, SPACING, FONT_SIZE, RADIUS, themedStyles } from '../../constants/theme';
 import { Header } from '../../components/common/Header';
 import { Card } from '../../components/common/Card';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { useAuth } from '../../context/AuthContext';
 import { APP_NAME, APP_VERSION } from '../../constants/config';
+import { ThemeToggle } from '../../components/common/ThemeToggle';
 
 export const MoreScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
@@ -14,7 +15,7 @@ export const MoreScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Header title="More" showDateFilter={false} />
+      <Header title="More" showDateFilter={false} rightAction={<ThemeToggle />} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* User Profile Card */}
@@ -173,7 +174,7 @@ export const MoreScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -282,4 +283,4 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
   },
-});
+}));

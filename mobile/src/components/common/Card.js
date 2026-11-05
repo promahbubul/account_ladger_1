@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../constants/theme';
+import { View, TouchableOpacity } from 'react-native';
+import { COLORS, SPACING, RADIUS, themedStyles } from '../../constants/theme';
 
 export const Card = ({
   children,
@@ -37,7 +37,7 @@ export const Card = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     backgroundColor: COLORS.surface,
     borderWidth: 1,
@@ -56,4 +56,4 @@ const styles = StyleSheet.create({
   noPadding: {
     padding: 0,
   },
-});
+}));
