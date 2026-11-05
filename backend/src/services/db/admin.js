@@ -44,6 +44,26 @@ export class AdminMethods {
     return record;
   }
 
+  // Removes logs older than the limit and returns how many went.
+  async deleteOldAuditLogs(retentionDays) {
+    if (!Number.isFinite(retentionDays) || retentionDays <= 0) return 0;
+
+    if (this.isPostgresConnected && this.pool) {
+      const res = await this.pool.query(
+        'DELETE FROM audit_logs WHERE created_at < NOW() - make_interval(days => $1)',
+        [Math.floor(retentionDays)]
+      );
+      return res.rowCount;
+    }
+
+    const cutoff = Date.now() - retentionDays * 86400000;
+    const before = this.inMemoryData.auditLogs.length;
+    this.inMemoryData.auditLogs = this.inMemoryData.auditLogs.filter((l) => new Date(l.createdAt).getTime() >= cutoff);
+    const removed = before - this.inMemoryData.auditLogs.length;
+    if (removed > 0) this.persistLocalDb();
+    return removed;
+  }
+
   async getAuditLogs(options = {}) {
     if (this.isPostgresConnected && this.pool) {
       const res = await this.pool.query(

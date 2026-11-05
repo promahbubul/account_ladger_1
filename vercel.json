@@ -1,6 +1,13 @@
 {
   "buildCommand": "npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
+  "redirects": [
+    {
+      "source": "/AccountLedger-release.apk",
+      "destination": "https://github.com/promahbubul/account_ladger_1/releases/latest/download/AccountLedger-release.apk",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

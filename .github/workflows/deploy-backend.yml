@@ -70,7 +70,7 @@ jobs:
         run: |
           mkdir -p deploy-backend/tmp
           cd backend
-          cp -r src prisma server.js package.json package-lock.json ../deploy-backend/
+          cp -r src server.js package.json package-lock.json ../deploy-backend/
           # Touching this file makes Passenger restart the app after upload.
           date -u > ../deploy-backend/tmp/restart.txt
 

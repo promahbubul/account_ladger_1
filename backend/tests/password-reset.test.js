@@ -28,6 +28,8 @@ test('Password Reset & Forgot Password Complete Lifecycle Tests', async (t) => {
   // Setup dedicated test user
   const initialPassword = 'OriginalPassword123!';
   const updatedPassword = 'NewSecretPassword456#';
+  // Two resets race below, and the password that won is the one that must work afterwards.
+  let winningPassword;
   const testEmail = `pwdreset_${Date.now()}@example.com`;
 
   const regRes = await fetch(`${baseUrl}/api/auth/register`, {
@@ -196,6 +198,7 @@ test('Password Reset & Forgot Password Complete Lifecycle Tests', async (t) => {
     assert.ok(statuses.includes(400), 'Second concurrent request must fail');
 
     const successRes = res1.status === 200 ? res1 : res2;
+    winningPassword = res1.status === 200 ? updatedPassword : 'ConcurrentPassword999!';
     const succData = await successRes.json();
     assert.equal(succData.success, true);
   });
@@ -215,7 +218,7 @@ test('Password Reset & Forgot Password Complete Lifecycle Tests', async (t) => {
     const res = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: testEmail, password: updatedPassword }),
+      body: JSON.stringify({ identifier: testEmail, password: winningPassword }),
     });
     assert.equal(res.status, 200);
     const data = await res.json();
