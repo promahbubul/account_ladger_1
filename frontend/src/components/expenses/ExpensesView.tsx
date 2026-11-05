@@ -1,12 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  buildExpenseItems,
-  CategoryExpenseGroups,
-  expenseGroupsTotal,
-  newExpenseGroups,
-  selectableExpenseCategories,
-  useBatchId,
-} from './CategoryExpenseGroups';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   FileSpreadsheet,
@@ -14,22 +6,25 @@ import {
   Search,
   Eye,
   Pencil,
-  AlertTriangle,
-  Loader2,
-  AlertCircle,
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
 import { Transaction } from '../../mock/data';
-import { Modal, ConfirmModal } from '../common/Modal';
+import { ConfirmModal } from '../common/Modal';
 import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { useDateFilter } from '../../context/DateFilterContext';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
-import { DatePicker, getDhakaTodayISO, normalizeToISODate } from '../common/DatePicker';
 import { useToast } from '../../context/ToastContext';
 import { sortTransactions } from '../../lib/sorting';
 import { useRouter, useSearchParams } from '../../lib/router';
+import { AddExpenseModal } from './AddExpenseModal';
+import { BulkEntryTab } from './BulkEntryTab';
+import { EditExpenseModal } from './EditExpenseModal';
+import { ExpenseDetailsModal } from './ExpenseDetailsModal';
+import { QuickAccountModal } from './QuickAccountModal';
+import { useExpenseCategories } from './useExpenseCategories';
+import { getErrorMessage } from '../../lib/errors';
 
 interface ExpensesViewProps {
   onOpenSingleExpenseModal?: () => void;
@@ -39,16 +34,8 @@ interface ExpensesViewProps {
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
   onSuccessNotification,
 }) => {
-  const {
-    accounts,
-    categories,
-    addAccount,
-    addExpense,
-    editTransaction,
-    addBulkExpenses,
-    deleteTransaction,
-    authFetch,
-  } = useFinance();
+  const { accounts, deleteTransaction, authFetch } = useFinance();
+  const { allExpenseCategories } = useExpenseCategories();
   const { filter: dateFilter } = useDateFilter();
   const toast = useToast();
 
@@ -60,48 +47,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     router.replace(tab === 'BULK_ENTRY' ? '/expenses?tab=bulk' : '/expenses?tab=records');
   };
 
-  // Quick Add Account Modal State
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
-  const [quickAccName, setQuickAccName] = useState('');
-  const [quickAccType, setQuickAccType] = useState<'BANK' | 'CASH' | 'MOBILE_BANKING'>('BANK');
-  const [quickAccBalance, setQuickAccBalance] = useState('0');
-  const [isSavingQuickAccount, setIsSavingQuickAccount] = useState(false);
-  const [quickAccountError, setQuickAccountError] = useState<string | null>(null);
-
-  const handleCreateQuickAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setQuickAccountError(null);
-    if (!quickAccName.trim()) {
-      setQuickAccountError('Account name is required.');
-      return;
-    }
-    setIsSavingQuickAccount(true);
-    try {
-      const initialBal = parseFloat(quickAccBalance) || 0;
-      const res = await addAccount({
-        name: quickAccName.trim(),
-        type: quickAccType,
-        openingBalance: initialBal,
-        currentBalance: initialBal,
-        currency: 'BDT',
-        status: 'ACTIVE',
-      });
-      if (res.success && res.account) {
-        setBulkAccount(res.account.id);
-        setSingleAccount(res.account.id);
-        toast.success(`Account "${res.account.name}" created and selected!`);
-        setIsAddAccountModalOpen(false);
-        setQuickAccName('');
-        setQuickAccBalance('0');
-      } else {
-        setQuickAccountError(res.error || 'Failed to create account.');
-      }
-    } catch (err: any) {
-      setQuickAccountError(err.message || 'Error creating account');
-    } finally {
-      setIsSavingQuickAccount(false);
-    }
-  };
+  const [preferredAccountId, setPreferredAccountId] = useState('');
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,41 +57,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
   // Modals
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+    const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
-
-  // Error feedback
-  const [formValidationMsg, setFormValidationMsg] = useState<string | null>(null);
-  const [editErrorMsg, setEditErrorMsg] = useState<string | null>(null);
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [isSavingAdd, setIsSavingAdd] = useState(false);
-
-  // Add Single Expense Form State
-  const [singleDate, setSingleDate] = useState<string>(getDhakaTodayISO());
-  const [singleCat, setSingleCat] = useState('');
-  const [singleSubcat, setSingleSubcat] = useState('');
-  const [singleAccount, setSingleAccount] = useState(accounts[0]?.id || '');
-  const [singleAmount, setSingleAmount] = useState('');
-  const [singleDesc, setSingleDesc] = useState('');
-  const [singleRef, setSingleRef] = useState('');
-
-  // Edit Expense Form State
-  const [editDate, setEditDate] = useState<string>(getDhakaTodayISO());
-  const [editCat, setEditCat] = useState('');
-  const [editSubcat, setEditSubcat] = useState('');
-  const [editAccount, setEditAccount] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [editRef, setEditRef] = useState('');
-
-  // Daily Bulk Entry State
-  const [bulkDate, setBulkDate] = useState<string>(getDhakaTodayISO());
-  const [bulkAccount, setBulkAccount] = useState(accounts[0]?.id || '');
-  const [bulkGroups, setBulkGroups] = useState(newExpenseGroups);
-  const [isSavingBulk, setIsSavingBulk] = useState(false);
-  const batchIdFor = useBatchId();
 
   // Paginated state
   const [items, setItems] = useState<Transaction[]>([]);
@@ -168,64 +83,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     resetPagination,
     setPaginationMeta,
   } = useCursorPagination({ initialPageSize: 50 });
-
-  // Filter all expense categories
-  const allExpenseCategories = useMemo(
-    () => categories.filter((c) => c.type === 'EXPENSE'),
-    [categories]
-  );
-
-  // Main (parent) expense categories
-  const mainExpenseCategories = useMemo(
-    () => allExpenseCategories.filter((c) => !c.parentId),
-    [allExpenseCategories]
-  );
-
-  // Helper to extract subcategories for a given main category name
-  const getSubcategoriesForCategory = useCallback(
-    (mainCatName: string): string[] => {
-      const parent = allExpenseCategories.find((c) => c.name === mainCatName && !c.parentId);
-      if (!parent) return [];
-
-      const childCategories = allExpenseCategories
-        .filter((c) => c.parentId === parent.id)
-        .map((c) => c.name);
-
-      const arraySubs = parent.subcategories || [];
-      const combined = Array.from(new Set([...childCategories, ...arraySubs]));
-      return combined;
-    },
-    [allExpenseCategories]
-  );
-
-  // Set default category when categories load
-  useEffect(() => {
-    if (!singleCat && mainExpenseCategories.length > 0) {
-      setSingleCat(mainExpenseCategories[0].name);
-    }
-  }, [mainExpenseCategories, singleCat]);
-
-  // Set default account when accounts load
-  useEffect(() => {
-    if (!singleAccount && accounts.length > 0) {
-      setSingleAccount(accounts[0].id);
-    }
-    if (!bulkAccount && accounts.length > 0) {
-      setBulkAccount(accounts[0].id);
-    }
-  }, [accounts, singleAccount, bulkAccount]);
-
-  // Available subcategories for Add Single Expense Form
-  const singleSubcategories = useMemo(
-    () => getSubcategoriesForCategory(singleCat),
-    [getSubcategoriesForCategory, singleCat]
-  );
-
-  // Available subcategories for Edit Expense Form
-  const editSubcategories = useMemo(
-    () => getSubcategoriesForCategory(editCat),
-    [getSubcategoriesForCategory, editCat]
-  );
 
   // Reset pagination when date filter changes
   useEffect(() => {
@@ -274,9 +131,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         hasPreviousPage: Boolean(data.hasPreviousPage),
         nextCursor: data.nextCursor || null,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch expenses error:', err);
-      setErrorMsg(err.message || 'Error loading expenses');
+      setErrorMsg(getErrorMessage(err) || 'Error loading expenses');
     } finally {
       setIsLoading(false);
     }
@@ -331,179 +188,27 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     [categoryFilter, accountFilter, dateFilter.startDate, dateFilter.endDate, searchQuery]
   );
 
-  // Bulk Entry Handlers
-  const bulkCategories = useMemo(() => selectableExpenseCategories(mainExpenseCategories), [mainExpenseCategories]);
-  const bulkGrandTotal = expenseGroupsTotal(bulkGroups);
-
-  const handleSaveBulkBatch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormValidationMsg(null);
-    if (!bulkAccount) {
-      setFormValidationMsg('Please select a payment account.');
-      return;
+  const handleExpenseAdded = async (newTx: Transaction) => {
+    if (matchesActiveFilters(newTx)) {
+      setItems((prev) => sortTransactions([newTx, ...prev]));
     }
-
-    if (isSavingBulk) return;
-    const { items, error: itemsError } = buildExpenseItems(bulkGroups, bulkCategories);
-    if (itemsError) {
-      setFormValidationMsg(itemsError);
-      return;
-    }
-
-    setIsSavingBulk(true);
-    const batchPayload = { accountId: bulkAccount, date: bulkDate, items };
-    const res = await addBulkExpenses({ ...batchPayload, batchId: batchIdFor(batchPayload) });
-    setIsSavingBulk(false);
-
-    if (res && res.success === false) {
-      setFormValidationMsg(res.error || 'Failed to record bulk expenses.');
-      toast.error(res.error || 'Failed to record bulk expenses.');
-      return;
-    }
-
-    const accName = accounts.find((a) => a.id === bulkAccount)?.name || 'Account';
-    onSuccessNotification(`Recorded ${items.length} daily expenses totaling ${formatBDT(bulkGrandTotal)} from ${accName}.`);
-
-    // Reset to a clean form so the user can immediately enter another batch.
-    setBulkGroups(newExpenseGroups());
-    setBulkDate(getDhakaTodayISO());
-    resetPagination();
-    fetchExpenses();
+    setTotalCount((prev) => prev + 1);
+    await fetchExpenses();
   };
 
-  // Add Single Expense Handler
-  const handleSaveSingleExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormValidationMsg(null);
-    const amountNum = parseFloat(singleAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setFormValidationMsg('Please enter a valid amount greater than 0.');
-      return;
+  // Immediate deterministic re-sort, then reconcile pagination, counts and page boundaries with the backend.
+  const handleExpenseEdited = async (updated: Transaction) => {
+    if (matchesActiveFilters(updated)) {
+      setItems((prev) => sortTransactions(prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t))));
+    } else {
+      // Record moved outside active date range or filters: remove from current view
+      setItems((prev) => prev.filter((t) => t.id !== updated.id));
+      setTotalCount((prev) => Math.max(0, prev - 1));
     }
-    if (!singleDesc.trim()) {
-      setFormValidationMsg('Please enter a description for the expense.');
-      return;
+    if (selectedTx && selectedTx.id === updated.id) {
+      setSelectedTx(updated);
     }
-
-    try {
-      setIsSavingAdd(true);
-      const res = await addExpense({
-        accountId: singleAccount || accounts[0]?.id || '',
-        category: singleCat || mainExpenseCategories[0]?.name || 'Miscellaneous',
-        subcategory: singleSubcat || undefined,
-        amount: amountNum,
-        date: singleDate,
-        description: singleDesc.trim(),
-        reference: singleRef.trim() || undefined,
-      });
-
-      if (!res.success || !res.transaction) {
-        setFormValidationMsg(res.error || 'Failed to record expense.');
-        toast.error(res.error || 'Failed to record expense.');
-        return;
-      }
-
-      const newTx = res.transaction;
-      if (matchesActiveFilters(newTx)) {
-        setItems((prev) => sortTransactions([newTx, ...prev]));
-      }
-      setTotalCount((prev) => prev + 1);
-
-      toast.success('Expense added successfully');
-      setIsAddExpenseOpen(false);
-      setSingleAmount('');
-      setSingleDesc('');
-      setSingleRef('');
-      setSingleSubcat('');
-
-      await fetchExpenses();
-    } catch (err: any) {
-      setFormValidationMsg(err.message || 'Failed to record expense.');
-      toast.error(err.message || 'Failed to record expense.');
-    } finally {
-      setIsSavingAdd(false);
-    }
-  };
-
-  // Open Edit Modal with prefilled values
-  const handleOpenEdit = (tx: Transaction) => {
-    setEditingTx(tx);
-    setEditDate(normalizeToISODate(tx.date));
-    setEditAmount(String(tx.amount));
-    setEditAccount(tx.accountId);
-    setEditCat(tx.category || mainExpenseCategories[0]?.name || 'Miscellaneous');
-    setEditSubcat(tx.subcategory || '');
-    setEditDesc(tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : '')));
-    setEditRef(tx.reference || '');
-    setEditErrorMsg(null);
-    setIsEditModalOpen(true);
-  };
-
-  // Save Edit Handler with immediate deterministic re-sort and server pagination reconciliation
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingTx || isSavingEdit) return;
-    setEditErrorMsg(null);
-
-    const amountNum = parseFloat(editAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setEditErrorMsg('Please enter a valid positive amount.');
-      return;
-    }
-    if (!editDesc.trim()) {
-      setEditErrorMsg('Description cannot be empty.');
-      return;
-    }
-
-    try {
-      setIsSavingEdit(true);
-      const res = await editTransaction(editingTx.id, {
-        accountId: editAccount,
-        amount: amountNum,
-        date: editDate,
-        category: editCat,
-        subcategory: editSubcat || undefined,
-        description: editDesc.trim(),
-        reference: editRef.trim() || undefined,
-      });
-
-      if (!res.success || !res.transaction) {
-        setEditErrorMsg(res.error || 'Failed to update expense.');
-        toast.error(res.error || 'Failed to save changes');
-        return;
-      }
-
-      const updated = res.transaction;
-      const matches = matchesActiveFilters(updated);
-
-      if (matches) {
-        // Immediate local state update with deterministic date-based sorting
-        setItems((prev) => {
-          const replaced = prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
-          return sortTransactions(replaced);
-        });
-      } else {
-        // Record moved outside active date range or filters: remove from current view
-        setItems((prev) => prev.filter((t) => t.id !== updated.id));
-        setTotalCount((prev) => Math.max(0, prev - 1));
-      }
-
-      if (selectedTx && selectedTx.id === updated.id) {
-        setSelectedTx(updated);
-      }
-
-      toast.success('Expense updated successfully');
-      setIsEditModalOpen(false);
-      setEditingTx(null);
-
-      // Reconcile server pagination, counts, and page boundaries with backend
-      await fetchExpenses();
-    } catch (err: any) {
-      setEditErrorMsg(err.message || 'Failed to save changes.');
-      toast.error(err.message || 'Failed to save changes');
-    } finally {
-      setIsSavingEdit(false);
-    }
+    await fetchExpenses();
   };
 
   const confirmDeleteExpense = async () => {
@@ -552,7 +257,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           <button
             onClick={() => {
               setIsAddExpenseOpen(true);
-              setFormValidationMsg(null);
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
           >
@@ -653,7 +357,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           {formatDate(tx.date)}
                         </td>
                         <td className="py-2.5 px-3 font-medium text-gray-200">
-                          {tx.description && tx.description !== 'Daily Expense' ? tx.description : ((tx as any).desc || (tx.category ? `${tx.category} Expense` : 'Expense'))}
+                          {tx.description && tx.description !== 'Daily Expense' ? tx.description : (tx.desc || (tx.category ? `${tx.category} Expense` : 'Expense'))}
                         </td>
                         <td className="py-2.5 px-3 text-gray-400">
                           <div className="flex flex-col gap-0.5">
@@ -679,7 +383,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => handleOpenEdit(tx)}
+                              onClick={() => setEditingTx(tx)}
                               title="Edit Expense"
                               className="p-1 text-gray-400 hover:text-blue-400 hover:bg-line-soft rounded"
                             >
@@ -726,411 +430,27 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             />
           </div>
         </>
-      ) : (
-        /* Daily Bulk Entry Grid */
-        <div className="space-y-4 flex-1 min-h-0 overflow-y-auto">
-          {formValidationMsg && (
-            <div className="p-3 bg-amber-950/40 border border-amber-800 text-amber-200 text-xs rounded flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <span>{formValidationMsg}</span>
-            </div>
-          )}
+      ) : null}
 
-          <form onSubmit={handleSaveBulkBatch} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-surface border border-line rounded p-3">
-              <div>
-                <label className="block text-xs text-gray-300 font-medium mb-1">
-                  Transaction Date *
-                </label>
-                <DatePicker value={bulkDate} onChange={setBulkDate} />
-              </div>
+      {/* Stays mounted so typed rows survive switching tabs. */}
+      <div className={activeTab === 'BULK_ENTRY' ? 'contents' : 'hidden'}>
+        <BulkEntryTab
+          preferredAccountId={preferredAccountId}
+          onAddAccount={() => setIsAddAccountModalOpen(true)}
+          onCancel={() => setActiveTab('RECORDS')}
+          onSaved={() => {
+            resetPagination();
+            fetchExpenses();
+          }}
+          onSuccessNotification={onSuccessNotification}
+        />
+      </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs text-gray-300 font-medium">
-                    Payment Account *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddAccountModalOpen(true)}
-                    className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                  >
-                    + Add Bank / Account
-                  </button>
-                </div>
-                <select
-                  value={bulkAccount}
-                  onChange={(e) => setBulkAccount(e.target.value)}
-                  className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-                >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} ({formatBDT(acc.currentBalance)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+      {isAddExpenseOpen && <AddExpenseModal onClose={() => setIsAddExpenseOpen(false)} onSaved={handleExpenseAdded} />}
 
-            <CategoryExpenseGroups groups={bulkGroups} onChange={setBulkGroups} categories={bulkCategories} />
+      {editingTx && <EditExpenseModal tx={editingTx} onClose={() => setEditingTx(null)} onSaved={handleExpenseEdited} />}
 
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('RECORDS')}
-                className="px-4 py-2 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSavingBulk}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
-              >
-                Save All Expenses ({formatBDT(bulkGrandTotal)})
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Add Single Expense Modal */}
-      <Modal
-        isOpen={isAddExpenseOpen}
-        onClose={() => setIsAddExpenseOpen(false)}
-        title="Add Expense"
-      >
-        <form onSubmit={handleSaveSingleExpense} className="space-y-3">
-          {formValidationMsg && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800 text-red-200 text-xs rounded flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-              <span>{formValidationMsg}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Date *
-              </label>
-              <DatePicker value={singleDate} onChange={setSingleDate} />
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Amount (৳ BDT) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={singleAmount}
-                onChange={(e) => setSingleAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Payment Account *
-              </label>
-              <select
-                value={singleAccount}
-                onChange={(e) => setSingleAccount(e.target.value)}
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                {accounts.filter(a => a.status === 'ACTIVE').map((acc) => (
-                  <option key={acc.id} value={acc.id}>{acc.name} ({formatBDT(acc.currentBalance)})</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Main Category *
-              </label>
-              <select
-                value={singleCat}
-                onChange={(e) => {
-                  setSingleCat(e.target.value);
-                  setSingleSubcat('');
-                }}
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                {mainExpenseCategories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Subcategory Dropdown (if selected main category has subcategories) */}
-          {singleSubcategories.length > 0 && (
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Subcategory (Optional)
-              </label>
-              <select
-                value={singleSubcat}
-                onChange={(e) => setSingleSubcat(e.target.value)}
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="">No subcategory</option>
-                {singleSubcategories.map((sub, idx) => (
-                  <option key={idx} value={sub}>{sub}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs text-gray-300 font-medium mb-1">
-              Description *
-            </label>
-            <input
-              type="text"
-              required
-              value={singleDesc}
-              onChange={(e) => setSingleDesc(e.target.value)}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-300 font-medium mb-1">
-              Reference Number (Optional)
-            </label>
-            <input
-              type="text"
-              value={singleRef}
-              onChange={(e) => setSingleRef(e.target.value)}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-line">
-            <button
-              type="button"
-              onClick={() => setIsAddExpenseOpen(false)}
-              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingAdd}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
-            >
-              {isSavingAdd && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save Expense</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit Expense Modal */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingTx(null);
-        }}
-        title="Edit Expense"
-      >
-        <form onSubmit={handleSaveEdit} className="space-y-3">
-          {editErrorMsg && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800 text-red-200 text-xs rounded flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-              <span>{editErrorMsg}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Date *
-              </label>
-              <DatePicker value={editDate} onChange={setEditDate} />
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Amount (৳ BDT) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Payment Account *
-              </label>
-              <select
-                value={editAccount}
-                onChange={(e) => setEditAccount(e.target.value)}
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({formatBDT(acc.currentBalance)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Main Category *
-              </label>
-              <select
-                value={editCat}
-                onChange={(e) => {
-                  setEditCat(e.target.value);
-                  setEditSubcat('');
-                }}
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                {mainExpenseCategories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Subcategory Dropdown for Edit */}
-          {editSubcategories.length > 0 && (
-            <div>
-              <label className="block text-xs text-gray-300 font-medium mb-1">
-                Subcategory (Optional)
-              </label>
-              <select
-                value={editSubcat}
-                onChange={(e) => setEditSubcat(e.target.value)}
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="">No subcategory</option>
-                {editSubcategories.map((sub, idx) => (
-                  <option key={idx} value={sub}>{sub}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs text-gray-300 font-medium mb-1">
-              Description *
-            </label>
-            <input
-              type="text"
-              required
-              value={editDesc}
-              onChange={(e) => setEditDesc(e.target.value)}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-300 font-medium mb-1">
-              Reference Number (Optional)
-            </label>
-            <input
-              type="text"
-              value={editRef}
-              onChange={(e) => setEditRef(e.target.value)}
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-line">
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setEditingTx(null);
-              }}
-              className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded text-xs transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingEdit}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5"
-            >
-              {isSavingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save Changes</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Details Modal */}
-      <Modal
-        isOpen={Boolean(selectedTx)}
-        onClose={() => setSelectedTx(null)}
-        title="Expense Details"
-      >
-        {selectedTx && (
-          <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-2 bg-app border border-line p-3 rounded">
-              <div>
-                <span className="text-gray-500 text-[10px] uppercase font-mono block">Date</span>
-                <span className="font-semibold text-gray-200">{formatDate(selectedTx.date)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 text-[10px] uppercase font-mono block">Amount</span>
-                <span className="font-semibold text-rose-400 font-mono text-sm">-{formatBDT(selectedTx.amount)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 text-[10px] uppercase font-mono block">Category</span>
-                <span className="text-gray-200">{selectedTx.category}</span>
-                {selectedTx.subcategory && (
-                  <span className="text-blue-400 font-mono text-[10px] block">↳ {selectedTx.subcategory}</span>
-                )}
-              </div>
-              <div>
-                <span className="text-gray-500 text-[10px] uppercase font-mono block">Account</span>
-                <span className="text-gray-200">{selectedTx.accountName}</span>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-gray-500 text-[10px] uppercase font-mono block mb-1">Description</span>
-              <p className="p-2.5 bg-app border border-line rounded text-gray-300">
-                {selectedTx.description && selectedTx.description !== 'Daily Expense' ? selectedTx.description : ((selectedTx as any).desc || (selectedTx.category ? `${selectedTx.category} Expense` : 'Expense'))}
-              </p>
-            </div>
-
-            {selectedTx.reference && (
-              <div>
-                <span className="text-gray-500 text-[10px] uppercase font-mono block mb-1">Reference</span>
-                <p className="p-2 bg-app border border-line rounded font-mono text-gray-400">{selectedTx.reference}</p>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setSelectedTx(null)}
-                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-raised text-gray-300 rounded transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {selectedTx && <ExpenseDetailsModal selectedTx={selectedTx} onClose={() => setSelectedTx(null)} />}
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal
@@ -1143,81 +463,15 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         isDestructive={true}
       />
 
-      {/* Quick Add Account Modal */}
-      <Modal
-        isOpen={isAddAccountModalOpen}
-        onClose={() => {
-          setIsAddAccountModalOpen(false);
-          setQuickAccountError(null);
-        }}
-        title="Add New Account"
-      >
-        <form onSubmit={handleCreateQuickAccount} className="space-y-3 text-xs">
-          {quickAccountError && (
-            <div className="p-2.5 bg-red-950/40 border border-red-800 text-red-300 rounded flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{quickAccountError}</span>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-gray-400 mb-1 font-medium">Account Name *</label>
-            <input
-              type="text"
-              required
-              value={quickAccName}
-              onChange={(e) => setQuickAccName(e.target.value)}
-              placeholder="e.g. City Bank Salary, bKash Personal"
-              className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-gray-400 mb-1 font-medium">Account Type</label>
-              <select
-                value={quickAccType}
-                onChange={(e) => setQuickAccType(e.target.value as any)}
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="BANK">Bank Account</option>
-                <option value="MOBILE_BANKING">Mobile Banking (bKash/Nagad)</option>
-                <option value="CASH">Cash in Hand</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-gray-400 mb-1 font-medium">Opening Balance (৳)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={quickAccBalance}
-                onChange={(e) => setQuickAccBalance(e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 font-mono focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
-            <button
-              type="button"
-              onClick={() => setIsAddAccountModalOpen(false)}
-              className="px-3 py-1.5 bg-[#1e2129] hover:bg-[#262a34] text-gray-300 rounded text-xs transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingQuickAccount}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded font-medium text-xs flex items-center gap-1.5 transition-colors"
-            >
-              {isSavingQuickAccount && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>{isSavingQuickAccount ? 'Creating...' : 'Create & Select'}</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {isAddAccountModalOpen && (
+        <QuickAccountModal
+          onClose={() => setIsAddAccountModalOpen(false)}
+          onCreated={(accountId) => {
+            setPreferredAccountId(accountId);
+            setIsAddAccountModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };

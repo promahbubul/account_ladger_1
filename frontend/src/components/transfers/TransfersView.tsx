@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatBDT, formatDate } from '../../lib/formatters';
 import { useFinance } from '../../context/FinanceContext';
+import { getErrorMessage } from '../../lib/errors';
 export interface TransferItem {
   id: string;
   sourceAccountId: string;
@@ -47,8 +48,8 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTx, setSelectedTx] = useState<any | null>(null);
-  const [txToReverse, setTxToReverse] = useState<any | null>(null);
+  const [selectedTx, setSelectedTx] = useState<(TransferItem & { accountName?: string }) | null>(null);
+  const [txToReverse, setTxToReverse] = useState<(TransferItem & { accountName?: string }) | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Transfer form
@@ -112,9 +113,9 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
         hasNextPage: Boolean(data.hasNextPage),
         hasPreviousPage: Boolean(data.hasPreviousPage),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch transfers error:', err);
-      setErrorMsg(err.message || 'Error fetching transfers');
+      setErrorMsg(getErrorMessage(err) || 'Error fetching transfers');
     } finally {
       setIsLoading(false);
     }
@@ -206,8 +207,8 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
         setErrorMessage(err);
         toast.updateToast(toastId, { type: 'error', message: err });
       }
-    } catch (err: any) {
-      const errMsg = err?.message || 'Network error while transferring funds';
+    } catch (err: unknown) {
+      const errMsg = getErrorMessage(err) || 'Network error while transferring funds';
       setErrorMessage(errMsg);
       toast.updateToast(toastId, { type: 'error', message: errMsg });
     } finally {

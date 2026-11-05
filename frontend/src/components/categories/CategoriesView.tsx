@@ -17,6 +17,7 @@ import { TablePagination } from '../common/TablePagination';
 import { useCursorPagination } from '../../hooks/useCursorPagination';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { useToast } from '../../context/ToastContext';
+import { getErrorMessage } from '../../lib/errors';
 
 interface CategoriesViewProps {
   onSuccessNotification?: (msg: string) => void;
@@ -127,9 +128,9 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
         hasPreviousPage: Boolean(data.hasPreviousPage),
         nextCursor: data.nextCursor || null,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch categories error:', err);
-      setErrorMsg(err.message || 'Error fetching categories');
+      setErrorMsg(getErrorMessage(err) || 'Error fetching categories');
     } finally {
       setIsLoading(false);
     }
@@ -204,8 +205,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
       setInitialSubcats('');
       setSubcatTags([]);
       setInitialBudget('');
-    } catch (err: any) {
-      const errMsg = err?.message || 'Network error while adding category';
+    } catch (err: unknown) {
+      const errMsg = getErrorMessage(err) || 'Network error while adding category';
       setModalError(errMsg);
       toast.updateToast(toastId, { type: 'error', message: errMsg });
     } finally {
@@ -263,8 +264,8 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
       } else {
         toast.updateToast(toastId, { type: 'error', message: res.error || 'Failed to add subcategory' });
       }
-    } catch (err: any) {
-      toast.updateToast(toastId, { type: 'error', message: err?.message || 'Network error while adding subcategory' });
+    } catch (err: unknown) {
+      toast.updateToast(toastId, { type: 'error', message: getErrorMessage(err) || 'Network error while adding subcategory' });
     } finally {
       setIsSubmitting(false);
     }
@@ -358,7 +359,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
         <div className="flex items-center gap-2 w-full md:w-auto text-xs">
           <select
             value={typeFilter}
-            onChange={(e) => handleTypeChange(e.target.value as any)}
+            onChange={(e) => handleTypeChange(e.target.value as 'INCOME' | 'EXPENSE' | 'ALL')}
             className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Types</option>
@@ -368,7 +369,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
 
           <select
             value={statusFilter}
-            onChange={(e) => handleStatusChange(e.target.value as any)}
+            onChange={(e) => handleStatusChange(e.target.value as 'ACTIVE' | 'ARCHIVED' | 'ALL')}
             className="bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Status</option>
@@ -593,7 +594,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ onSuccessNotific
               <select
                 value={newCatType}
                 onChange={(e) => {
-                  setNewCatType(e.target.value as any);
+                  setNewCatType(e.target.value as 'INCOME' | 'EXPENSE');
                   setNewCatParentId('');
                 }}
                 className="w-full bg-app border border-line-strong rounded px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"

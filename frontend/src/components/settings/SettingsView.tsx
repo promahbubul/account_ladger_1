@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
+import { getErrorMessage } from '../../lib/errors';
 
 export const SettingsView: React.FC = () => {
   const { user, updateProfile } = useAuth();
@@ -57,8 +58,8 @@ export const SettingsView: React.FC = () => {
     let jsonStr: string;
     try {
       jsonStr = await exportData();
-    } catch (err: any) {
-      setImportStatus({ success: false, message: err.message || 'Could not create the backup.' });
+    } catch (err: unknown) {
+      setImportStatus({ success: false, message: getErrorMessage(err) || 'Could not create the backup.' });
       return;
     }
     const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -82,8 +83,8 @@ export const SettingsView: React.FC = () => {
       } else {
         setImportStatus({ success: false, message: 'Invalid data format.' });
       }
-    } catch (err: any) {
-      setImportStatus({ success: false, message: `JSON syntax error: ${err.message}` });
+    } catch (err: unknown) {
+      setImportStatus({ success: false, message: `JSON syntax error: ${getErrorMessage(err)}` });
     }
   };
 
@@ -102,8 +103,8 @@ export const SettingsView: React.FC = () => {
         } else {
           setImportStatus({ success: false, message: 'Invalid file format.' });
         }
-      } catch (err: any) {
-        setImportStatus({ success: false, message: `Error parsing file: ${err.message}` });
+      } catch (err: unknown) {
+        setImportStatus({ success: false, message: `Error parsing file: ${getErrorMessage(err)}` });
       }
     };
     reader.readAsText(file);
