@@ -161,7 +161,8 @@ export const USER_SELECT =
 export const userFilters = (filters = {}) => {
   const query = sqlFilters();
   if (filters.role && filters.role !== 'ALL') query.add('role', '=', filters.role);
-  if (filters.status && filters.status !== 'ALL') query.add('is_active', '=', filters.status === 'ACTIVE');
+  if (filters.status === 'UNVERIFIED') query.add('email_verified', '=', false);
+  else if (filters.status && filters.status !== 'ALL') query.add('is_active', '=', filters.status === 'ACTIVE');
   query.addSearch(filters.search, ['username', 'email', 'full_name']);
   return query;
 };

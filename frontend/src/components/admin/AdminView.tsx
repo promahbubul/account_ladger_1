@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
-import { RefreshCw, Activity, Users, FileText, Sliders } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { AdminDashboardTab } from './AdminDashboardTab';
 import { AdminUsersTab } from './AdminUsersTab';
 import { AdminLogsTab } from './AdminLogsTab';
@@ -68,74 +68,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   return (
     <div className="h-full flex flex-col min-h-0 w-full min-w-0 space-y-3">
-      {/* Admin Section Tabs */}
-      <div className="flex border-b border-line gap-1 pb-px overflow-x-auto flex-shrink-0">
-        <button
-          onClick={() => {
-            setActiveSection('dashboard');
-            if (onNavigateTab) onNavigateTab('admin-dashboard');
-          }}
-          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'dashboard'
-              ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
-          }`}
-        >
-          <Activity className="w-3.5 h-3.5" />
-          <span>System Dashboard</span>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveSection('users');
-            if (onNavigateTab) onNavigateTab('admin-users');
-          }}
-          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'users'
-              ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>User Management</span>
-          {stats?.totalUsers !== undefined && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-line-soft text-gray-300">
-              {stats.totalUsers}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveSection('logs');
-            if (onNavigateTab) onNavigateTab('admin-logs');
-          }}
-          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'logs'
-              ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Audit & Security Logs</span>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveSection('settings');
-            if (onNavigateTab) onNavigateTab('admin-settings');
-          }}
-          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeSection === 'settings'
-              ? 'text-purple-400 border-purple-500 bg-surface'
-              : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-surface'
-          }`}
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          <span>System Settings</span>
-        </button>
-
-        <div className="ml-auto flex items-center pr-1">
+      <div className="flex justify-end flex-shrink-0">
           <button
             onClick={() => {
               fetchStatsAndSettings();
@@ -147,7 +80,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <RefreshCw className={`w-3.5 h-3.5 ${isStatsLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
-        </div>
       </div>
 
       {loadError && (

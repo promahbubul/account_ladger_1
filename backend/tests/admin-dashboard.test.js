@@ -83,6 +83,21 @@ test('Admin dashboard', async (t) => {
     assert.equal((await call('POST', '/users', { ...base, email: user.email.toUpperCase() })).status, 409);
   });
 
+  await t.test('users can be listed by unverified email', async () => {
+    const email = `unverified_${unique}@test.local`;
+    await dbService.createUser({
+      id: `unv_${unique}`,
+      username: `unverified_${unique}`,
+      email,
+      passwordHash: await bcrypt.hash(password, 4),
+      role: 'USER',
+      isActive: true,
+      emailVerified: false,
+    });
+    const { items } = await (await call('GET', `/users?limit=100&status=UNVERIFIED&search=${unique}`)).json();
+    assert.deepEqual(items.map((u) => u.email), [email]);
+  });
+
   await t.test('editing changes only what was sent', async () => {
     const user = await makeUser('keeprole', 'ADMIN');
     const res = await call('PUT', `/users/${user.id}`, { fullName: 'Renamed' });

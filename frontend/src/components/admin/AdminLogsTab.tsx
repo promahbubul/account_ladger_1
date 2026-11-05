@@ -9,38 +9,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { TableErrorRow, TableLoadingRow, TableEmptyRow } from '../common/StateViews';
 import { AuditLog } from './types';
 import { getErrorMessage } from '../../lib/errors';
-
-const ACTIONS = [
-  'LOGIN',
-  'LOGIN_FAILED',
-  'LOGIN_GOOGLE',
-  'REGISTER_UNVERIFIED',
-  'REGISTER_GOOGLE',
-  'ACCOUNT_AUTO_LINKED_GOOGLE',
-  'PASSWORD_RESET',
-  'PASSWORD_RESET_REQUESTED',
-  'CREATE_USER',
-  'UPDATE_USER',
-  'ACTIVATE_USER',
-  'DEACTIVATE_USER',
-  'RESET_PASSWORD',
-  'DELETE_USER',
-  'UPDATE_SETTINGS',
-];
-
-const BADGE_STYLES = {
-  danger: 'bg-red-950/70 text-red-300 border border-red-800/60',
-  login: 'bg-blue-950/70 text-blue-300 border border-blue-800/60',
-  admin: 'bg-purple-950/70 text-purple-300 border border-purple-800/60',
-  other: 'bg-gray-800 text-gray-300 border border-gray-700',
-};
-
-const badgeStyle = (action: string) => {
-  if (action === 'LOGIN_FAILED' || action === 'DELETE_USER' || action === 'DEACTIVATE_USER') return BADGE_STYLES.danger;
-  if (action.startsWith('LOGIN')) return BADGE_STYLES.login;
-  if (action.includes('USER') || action === 'RESET_PASSWORD' || action === 'UPDATE_SETTINGS') return BADGE_STYLES.admin;
-  return BADGE_STYLES.other;
-};
+import { AUDIT_ACTIONS, actionBadgeStyle, actionLabel } from './auditActions';
 
 export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const { token } = useAuth();
@@ -126,8 +95,8 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
           className="w-full sm:w-56 bg-app border border-line-strong rounded px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
         >
           <option value="ALL">All actions</option>
-          {ACTIONS.map((action) => (
-            <option key={action} value={action}>{action}</option>
+          {Object.entries(AUDIT_ACTIONS).map(([action, label]) => (
+            <option key={action} value={action}>{label}</option>
           ))}
         </select>
       </div>
@@ -135,8 +104,8 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
       {/* Viewport-based Audit Logs Table */}
       <div className="bg-surface border border-line rounded overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 z-10 bg-surface-sunken shadow-sm">
+          <table className="block md:table w-full text-left text-xs border-collapse">
+            <thead className="hidden md:table-header-group sticky top-0 z-10 bg-surface-sunken shadow-sm">
               <tr className="border-b border-line text-gray-400 uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 px-3">Timestamp</th>
                 <th className="py-2.5 px-3">Action</th>
@@ -146,7 +115,7 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
                 <th className="py-2.5 px-3">IP Address</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-divider">
+            <tbody className="block md:table-row-group divide-y divide-divider">
               {logError ? (
                 <TableErrorRow
                   colSpan={6}
@@ -171,25 +140,25 @@ export const AdminLogsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
                 />
               ) : (
                 logItems.map((log) => (
-                  <tr key={log.id} className="hover:bg-surface-hover transition-colors">
-                    <td className="py-2.5 px-3 font-mono text-[11px] text-gray-400 whitespace-nowrap">
+                  <tr key={log.id} className="grid grid-cols-[1fr_auto] gap-y-1 py-2.5 md:py-0 md:table-row hover:bg-surface-hover transition-colors">
+                    <td className="px-3 md:py-2.5 tabular-nums text-[11px] text-gray-400 whitespace-nowrap">
                       {formatDateTime(log.createdAt)}
                     </td>
-                    <td className="py-2.5 px-3">
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${badgeStyle(log.action)}`}>
-                        {log.action}
+                    <td className="px-3 md:py-2.5">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${actionBadgeStyle(log.action)}`}>
+                        {actionLabel(log.action)}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-gray-200">
+                    <td className="col-span-2 px-3 md:py-2.5 text-gray-200 break-all md:break-normal">
                       {log.userEmail || log.userId || '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px] hidden lg:table-cell">
+                    <td className="py-2.5 px-3 text-gray-400 text-[11px] hidden lg:table-cell">
                       {log.entityType}
                     </td>
-                    <td className="py-2.5 px-3 text-gray-300">
+                    <td className="col-span-2 px-3 md:py-2.5 text-gray-300">
                       {log.details || '-'}
                     </td>
-                    <td className="py-2.5 px-3 text-gray-400 font-mono text-[11px]">
+                    <td className={`col-span-2 px-3 md:py-2.5 text-gray-400 tabular-nums text-[11px] ${log.ipAddress ? '' : 'hidden md:table-cell'}`}>
                       {log.ipAddress || '-'}
                     </td>
                   </tr>
