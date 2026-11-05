@@ -216,6 +216,114 @@
   --color-warn-ink: #92400e;
 }
 
+/* Website: soft colour behind the top of the page, slow enough not to pull attention from the text. */
+.site-gradient {
+  --glow-1: rgba(20, 184, 166, 0.2);
+  --glow-2: rgba(59, 130, 246, 0.16);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+:root[data-theme='light'] .site-gradient {
+  --glow-1: rgba(20, 184, 166, 0.18);
+  --glow-2: rgba(59, 130, 246, 0.14);
+}
+
+.site-gradient::before {
+  content: '';
+  position: absolute;
+  inset: -20% -10% 0;
+  z-index: -1;
+  background:
+    radial-gradient(45% 55% at 18% 20%, var(--glow-1), transparent 70%),
+    radial-gradient(40% 50% at 82% 12%, var(--glow-2), transparent 70%);
+  animation: site-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes site-drift {
+  from { transform: translate3d(-2%, 0, 0) scale(1); }
+  to { transform: translate3d(2%, 2%, 0) scale(1.05); }
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, var(--color-accent), #3b82f6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-gradient {
+  background-image: linear-gradient(120deg, #0f766e, #0d9488 55%, #0f766e);
+  background-size: 200% 100%;
+  transition: background-position 0.4s ease, transform 0.15s ease;
+}
+
+.btn-gradient:hover {
+  background-position: 100% 0;
+  transform: translateY(-1px);
+}
+
+.site-card {
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.site-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-accent);
+}
+
+.mockup-shadow {
+  box-shadow: 0 24px 60px -24px rgba(15, 23, 42, 0.35);
+}
+
+:root:not([data-theme='light']) .mockup-shadow {
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+}
+
+.float-slow {
+  animation: site-float 7s ease-in-out infinite;
+}
+
+@keyframes site-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-gradient::before,
+  .float-slow {
+    animation: none;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .btn-gradient,
+  .site-card {
+    transition: none;
+  }
+
+  .btn-gradient:hover,
+  .site-card:hover {
+    transform: none;
+  }
+}
+
 :root[data-theme='light'] .only-dark,
 :root:not([data-theme='light']) .only-light {
   display: none;

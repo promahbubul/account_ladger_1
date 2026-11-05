@@ -102,10 +102,10 @@ export const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
   return (
     <div className="min-h-screen bg-site-card text-ink flex flex-col">
-      <header className="border-b border-site-line bg-site-card">
+      <header className="sticky top-0 z-20 border-b border-site-line bg-site-card/85 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 font-semibold text-ink">
+            <Link href="/" className="flex items-center gap-2 font-semibold text-ink whitespace-nowrap">
               <img src="/logo.png" alt="" className="w-7 h-7 object-contain" />
               Account Ledger
             </Link>
@@ -129,7 +129,7 @@ export const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 </Link>
                 <Link
                   href="/register"
-                  className="px-3.5 py-2 text-sm font-medium rounded-md bg-accent-solid text-white hover:bg-accent-solid-hover"
+                  className="btn-gradient hidden sm:block whitespace-nowrap px-3.5 py-2 text-sm font-medium rounded-md bg-accent-solid text-white"
                 >
                   Create account
                 </Link>
@@ -154,9 +154,14 @@ export const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }
               </Link>
             ))}
             {!user && (
-              <Link href="/login" className="block py-2 text-sm text-ink-2">
-                Sign in
-              </Link>
+              <>
+                <Link href="/login" className="block py-2 text-sm text-ink-2">
+                  Sign in
+                </Link>
+                <Link href="/register" className="block py-2 text-sm font-medium text-accent">
+                  Create account
+                </Link>
+              </>
             )}
           </nav>
         )}

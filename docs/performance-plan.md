@@ -196,6 +196,7 @@
 
 `components/landing` সরিয়ে `components/site`: Home, Features, Download, Privacy, Terms আলাদা পাতা, হালকা design। Login থাকলেও website খোলা থাকে; header-এর account menu থেকে Dashboard ও Profile। নতুন `/profile` পাতা। ছবিগুলো `frontend/public/screens`-এ, আসল app-এর sample data দিয়ে তোলা; app-এর design বদলালে আবার তুলতে হবে।
 
+- Mockup, gradient আর animation-এর style `index.css`-এ (`site-gradient`, `reveal`, `float-slow`, `btn-gradient`)। Device-এ motion কমানো থাকলে সব animation বন্ধ হয়।
 - [ ] **Contact পাতা:** `components/site/siteConfig.ts`-এ `CONTACT_EMAIL` দিলেই পাতা আর link চালু হয়। এখন যোগাযোগের জায়গায় GitHub Issues দেখায়।
 - [ ] **Login ও app-এর ভেতরের design:** এখনো আগের মতো গাঢ়, এই কাজে বদলায়নি।
 

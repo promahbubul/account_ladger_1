@@ -1,21 +1,71 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download } from 'lucide-react';
+import { Briefcase, CalendarDays, Download, HandCoins, Wallet } from 'lucide-react';
 import { Link, usePathname } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { SiteLayout } from './SiteLayout';
 import { APK_URL, CONTACT_EMAIL } from './siteConfig';
 
-const PRIMARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md bg-accent-solid text-white hover:bg-accent-solid-hover';
+const PRIMARY = 'btn-gradient inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md bg-accent-solid text-white';
 const SECONDARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-site-line-strong text-ink hover:bg-site-hover';
 
 // Each picture exists in both themes, and only the one matching the page is shown and loaded.
-const Screenshot: React.FC<{ name: string; alt: string; className?: string }> = ({ name, alt, className = '' }) => (
-  <div className={className}>
-    <img src={`/screens/${name}-light.jpg`} alt={alt} loading="lazy" className="only-light block w-full h-auto rounded-md border border-site-line" />
-    <img src={`/screens/${name}-dark.jpg`} alt={alt} loading="lazy" className="only-dark block w-full h-auto rounded-md border border-site-line" />
+const Screenshot: React.FC<{ name: string; alt: string }> = ({ name, alt }) => (
+  <>
+    <img src={`/screens/${name}-light.jpg`} alt={alt} loading="lazy" className="only-light block w-full h-auto" />
+    <img src={`/screens/${name}-dark.jpg`} alt={alt} loading="lazy" className="only-dark block w-full h-auto" />
+  </>
+);
+
+const BrowserFrame: React.FC<{ name: string; alt: string; className?: string }> = ({ name, alt, className = '' }) => (
+  <div className={`mockup-shadow rounded-xl border border-site-line bg-site-card overflow-hidden ${className}`}>
+    <div className="flex items-center gap-1.5 px-3.5 py-2.5 border-b border-site-line" aria-hidden="true">
+      <span className="w-2.5 h-2.5 rounded-full bg-[#f87171]" />
+      <span className="w-2.5 h-2.5 rounded-full bg-[#fbbf24]" />
+      <span className="w-2.5 h-2.5 rounded-full bg-[#34d399]" />
+    </div>
+    <Screenshot name={name} alt={alt} />
   </div>
 );
+
+const PhoneFrame: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={`mockup-shadow rounded-[2rem] border-[7px] border-[#111827] bg-[#111827] ring-1 ring-site-line-strong overflow-hidden ${className}`}>
+    <div className="rounded-[1.5rem] overflow-hidden">
+      <Screenshot name="mobile" alt="The Account Ledger Android app, with sample data" />
+    </div>
+  </div>
+);
+
+// Fades content in the first time it scrolls into view. CSS turns this off for reduced motion.
+const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: string }> = ({ children, delay = 0, className = '' }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setShown(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShown(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className={`reveal ${shown ? 'reveal-in' : ''} ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+};
 
 const ApkButton: React.FC<{ className?: string }> = ({ className = PRIMARY }) => (
   <a href={APK_URL} className={className}>
@@ -24,62 +74,112 @@ const ApkButton: React.FC<{ className?: string }> = ({ className = PRIMARY }) =>
   </a>
 );
 
+const HIGHLIGHTS = [
+  {
+    Icon: Wallet,
+    title: 'Every account together',
+    text: 'See the balance of your cash, bank and mobile accounts, and move money between them.',
+  },
+  {
+    Icon: CalendarDays,
+    title: 'Daily expenses, quickly',
+    text: "Enter a whole day's spending at once, sorted by category, and set a monthly budget for each.",
+  },
+  {
+    Icon: HandCoins,
+    title: 'Money you lent or borrowed',
+    text: 'Keep track of who owes what, and record each repayment as it comes in.',
+  },
+];
+
 const HomePage: React.FC = () => {
   const { user } = useAuth();
   return (
     <>
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-12">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink">
-            Know where your money went.
-          </h1>
-          <p className="mt-4 text-lg text-ink-2">
-            Record your cash, bank and bKash accounts in one place, along with what you spend, what you lend, and what each project costs.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            {user ? (
-              <Link href={user.role === 'ADMIN' ? '/admin' : '/dashboard'} className={PRIMARY}>Go to dashboard</Link>
-            ) : (
-              <Link href="/register" className={PRIMARY}>Create a free account</Link>
-            )}
-            <ApkButton className={SECONDARY} />
-          </div>
-        </div>
-        {/* The full dashboard is unreadable at phone width, so phones see the app instead. */}
-        <Screenshot name="dashboard" alt="The Account Ledger dashboard, with sample data" className="mt-12 hidden sm:block" />
-        <Screenshot name="mobile" alt="The Account Ledger Android app, with sample data" className="mt-10 sm:hidden max-w-xs mx-auto" />
-      </section>
+      <section className="site-gradient">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-16 sm:pb-24">
+          <Reveal className="max-w-2xl">
+            <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink">
+              Know where <span className="text-gradient">your money</span> went.
+            </h1>
+            <p className="mt-4 text-lg text-ink-2">
+              Record your cash, bank and bKash accounts in one place, along with what you spend, what you lend, and what each project costs.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              {user ? (
+                <Link href={user.role === 'ADMIN' ? '/admin' : '/dashboard'} className={PRIMARY}>Go to dashboard</Link>
+              ) : (
+                <Link href="/register" className={PRIMARY}>Create a free account</Link>
+              )}
+              <ApkButton className={SECONDARY} />
+            </div>
+          </Reveal>
 
-      <section className="border-t border-site-line">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid sm:grid-cols-3 gap-8">
-          <div>
-            <h2 className="font-semibold text-ink">Every account together</h2>
-            <p className="mt-2 text-sm text-ink-2">See the balance of your cash, bank and mobile accounts, and move money between them.</p>
-          </div>
-          <div>
-            <h2 className="font-semibold text-ink">Daily expenses, quickly</h2>
-            <p className="mt-2 text-sm text-ink-2">Enter a whole day's spending at once, sorted by category, and set a monthly budget for each.</p>
-          </div>
-          <div>
-            <h2 className="font-semibold text-ink">Money you lent or borrowed</h2>
-            <p className="mt-2 text-sm text-ink-2">Keep track of who owes what, and record each repayment as it comes in.</p>
-          </div>
+          <Reveal delay={150} className="relative mt-12 sm:mt-14">
+            {/* The full dashboard is unreadable at phone width, so phones see the app instead. */}
+            <div className="hidden sm:block lg:pr-24">
+              <BrowserFrame name="dashboard" alt="The Account Ledger dashboard, with sample data" />
+            </div>
+            <div className="hidden lg:block absolute right-0 bottom-[-2.5rem] w-52">
+              <PhoneFrame className="float-slow" />
+            </div>
+            <div className="sm:hidden max-w-[17rem] mx-auto">
+              <PhoneFrame className="float-slow" />
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      <section className="border-t border-site-line bg-site-sunken">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid lg:grid-cols-5 gap-10 items-center">
-          <div className="lg:col-span-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-ink">Running a project? Keep its money separate.</h2>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 grid sm:grid-cols-3 gap-5">
+        {HIGHLIGHTS.map(({ Icon, title, text }, index) => (
+          <Reveal key={title} delay={index * 100}>
+            <div className="site-card h-full rounded-xl border border-site-line bg-site-card p-5">
+              <div className="w-9 h-9 rounded-lg btn-gradient text-white flex items-center justify-center" aria-hidden="true">
+                <Icon className="w-4 h-4" />
+              </div>
+              <h2 className="mt-4 font-semibold text-ink">{title}</h2>
+              <p className="mt-2 text-sm text-ink-2">{text}</p>
+            </div>
+          </Reveal>
+        ))}
+      </section>
+
+      <section className="border-y border-site-line bg-site-sunken">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 grid lg:grid-cols-5 gap-10 items-center">
+          <Reveal className="lg:col-span-2">
+            <div className="inline-flex w-9 h-9 rounded-lg btn-gradient text-white items-center justify-center" aria-hidden="true">
+              <Briefcase className="w-4 h-4" />
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ink">Running a project? Keep its money separate.</h2>
             <p className="mt-3 text-ink-2">
               Contractors can give each project its own ledger: funds received, spending by head such as cement or labor, and who spent what. It stays out of your personal accounts.
             </p>
             <Link href="/features" className="mt-5 inline-block text-sm font-medium text-accent hover:underline">
               See all features
             </Link>
-          </div>
-          <Screenshot name="project" alt="A project's funds and expenses by head, with sample data" className="lg:col-span-3" />
+          </Reveal>
+          <Reveal delay={150} className="lg:col-span-3">
+            <BrowserFrame name="project" alt="A project's funds and expenses by head, with sample data" />
+          </Reveal>
         </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+        <Reveal>
+          <div className="rounded-2xl p-8 sm:p-12 text-center text-white" style={{ backgroundImage: 'linear-gradient(120deg, #115e59, #0f766e 50%, #1d4ed8)' }}>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Start with your first account today.</h2>
+            <p className="mt-3 text-white/85">Use it in your browser, or install it on your Android phone.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link href={user ? (user.role === 'ADMIN' ? '/admin' : '/dashboard') : '/register'} className="inline-flex items-center px-4 py-2.5 text-sm font-medium rounded-md bg-[#fff] text-[#115e59] hover:bg-[#f0fdfa]">
+                {user ? 'Go to dashboard' : 'Create a free account'}
+              </Link>
+              <a href={APK_URL} className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md border border-white/50 text-white hover:bg-white/10">
+                <Download className="w-4 h-4" />
+                Download for Android
+              </a>
+            </div>
+          </div>
+        </Reveal>
       </section>
     </>
   );
@@ -113,7 +213,7 @@ const FEATURES = [
 ];
 
 const FeaturesPage: React.FC = () => (
-  <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
+  <section className="site-gradient"><div className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
     <h1 className="text-3xl font-semibold tracking-tight text-ink">Features</h1>
     <p className="mt-3 max-w-2xl text-ink-2">Available on the web and on Android, from the same account.</p>
     <dl className="mt-10 max-w-3xl divide-y divide-site-line border-y border-site-line">
@@ -124,12 +224,14 @@ const FeaturesPage: React.FC = () => (
         </div>
       ))}
     </dl>
-    <Screenshot name="reports" alt="The reports page, with sample data" className="mt-12" />
-  </section>
+    <Reveal className="mt-12">
+      <BrowserFrame name="reports" alt="The reports page, with sample data" />
+    </Reveal>
+  </div></section>
 );
 
 const DownloadPage: React.FC = () => (
-  <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid md:grid-cols-2 gap-12">
+  <section className="site-gradient"><div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid md:grid-cols-2 gap-12">
     <div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink">Download for Android</h1>
       <p className="mt-3 text-ink-2">
@@ -154,8 +256,10 @@ const DownloadPage: React.FC = () => (
         Android warns about any app from outside the Play Store. To update, install the newest download over the old one; your data stays in your account.
       </p>
     </div>
-    <Screenshot name="mobile" alt="The Account Ledger Android app, with sample data" className="max-w-xs mx-auto md:ml-auto md:mr-0" />
-  </section>
+    <div className="max-w-[17rem] w-full mx-auto md:ml-auto md:mr-8 self-start">
+      <PhoneFrame className="float-slow" />
+    </div>
+  </div></section>
 );
 
 const ContactLine: React.FC = () =>
