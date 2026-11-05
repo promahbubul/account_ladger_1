@@ -3,11 +3,25 @@ import { dbService } from './src/services/db.service.js';
 import { config } from './src/config/env.js';
 import { logger } from './src/utils/logger.js';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// A failed cleanup only leaves old logs for the next run, so it must never stop the server.
+async function removeOldAuditLogs() {
+  try {
+    const removed = await dbService.deleteOldAuditLogs(config.auditLogRetentionDays);
+    if (removed > 0) logger.info(`Removed ${removed} audit logs older than ${config.auditLogRetentionDays} days.`);
+  } catch (err) {
+    logger.error('Audit log cleanup failed:', err);
+  }
+}
+
 async function start() {
   try {
     // 1. Initialize Database connection & seed state
     logger.info('Initializing AccountLedger.com Database...');
     await dbService.initialize();
+    removeOldAuditLogs();
+    setInterval(removeOldAuditLogs, DAY_MS).unref();
 
     // 2. Create Express application
     const app = createApp();

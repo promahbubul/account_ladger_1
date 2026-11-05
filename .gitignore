@@ -35,3 +35,6 @@ playwright-report/
 # Local data and mobile env
 backend/data/
 mobile/.env
+
+# The Android app lives in GitHub Releases, not in git.
+frontend/public/*.apk

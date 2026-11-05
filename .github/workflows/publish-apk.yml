@@ -6,8 +6,6 @@
 name: Publish APK
 
 on:
-  push:
-    tags: ["apk-*"]
   workflow_dispatch:
     inputs:
       apk_url:

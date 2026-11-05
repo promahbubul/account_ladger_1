@@ -147,6 +147,12 @@ test('the expenses page adds, edits and deletes a record, and keeps bulk rows be
   await expect(row).toHaveCount(0);
 });
 
+test('the landing page downloads the APK from the newest release', async ({ page }) => {
+  await page.goto('/download');
+  const link = page.locator('a[href$=".apk"]').first();
+  await expect(link).toHaveAttribute('href', /github\.com\/promahbubul\/account_ladger_1\/releases\/latest\/download\//);
+});
+
 test('an admin can open users and audit logs', async ({ page }) => {
   await signIn(page, ADMIN);
   await page.locator('aside a[href="/admin/users"]').click();

@@ -20,9 +20,9 @@
 | 1 | Backend: আসল SQL paging, index, gzip | ✅ শেষ (`2b1e3a2`) |
 | 2 | Web: login-এ সব transaction আনা বন্ধ | ✅ শেষ (`a1f13ac`) |
 | 3 | Mobile: admin paging, list-এর গতি | ✅ শেষ |
-| 4 | Backend: ছোট বাকি কাজ | 🟡 1-2 শেষ; 3-4 পরে, 5 মালিকের সিদ্ধান্ত |
+| 4 | Backend: ছোট বাকি কাজ | 🟡 1, 2, 5 শেষ; 3-4 data বাড়লে |
 | 5 | Test ও CI | ✅ শেষ |
-| 6 | Structure পরিষ্কার | 🟡 1, 2, 4, 5, 7, 8 শেষ; 3, 6 মালিকের সিদ্ধান্ত |
+| 6 | Structure পরিষ্কার | ✅ শেষ |
 
 ## কেন এই plan
 
@@ -153,7 +153,7 @@
 - 4: Mobile-এর Transactions, Expenses, Income, Loans, Repayments, Transfers এখন cursor দিয়ে পাতা আনে, web-এর মতো। `page` আছে শুধু পুরোনো APK আর Project entries-এর জন্য। Project entries-এর API-তে cursor নেই, আর project-এ নতুন row একসাথে কম আসে, তাই ওটা বদলানো হয়নি।
 - 8: `any` প্রায় 96 থেকে 2। `catch` এখন `unknown`, message পড়ে `lib/errors.ts`-এর `getErrorMessage`। বাকি 2টা `useStableActions`-এ, ওখানে সব action-এর signature নিতে হয়।
 
-**যা বাকি:** 3 আর 6, দুটোই মালিকের সিদ্ধান্ত।
+**যা বাকি:** কিছু নয়। 3 আর 6-ও শেষ, নিচের তালিকায় বিস্তারিত।
 
 1. `db.service.js` (৩,০০০+ লাইন) ভাগ করুন: account, transaction, transfer, loan, admin আলাদা ফাইলে।
 2. বড় view ভাগ করুন: `AdminView`, `ExpensesView`, `ActionModals`, `FinanceContext`।
@@ -184,9 +184,9 @@
 
 **মালিকের সিদ্ধান্ত লাগবে**
 
-- [ ] **4.5 Audit log কত দিন রাখা হবে** (যেমন 90 দিন / 1 বছর)। বললে পুরোনো log মোছার কাজ যোগ হবে।
-- [ ] **6.3 Prisma রাখা না সরানো।** `src`-এ Prisma ব্যবহার হয় না; সরালে `backend/prisma` আর dependency যাবে।
-- [ ] **6.6 21 MB APK git থেকে সরানো:** Expo-র download link নাকি GitHub Releases।
+- [x] **4.5 Audit log:** ১ বছর রাখা হয়। Server চালুর সময় আর প্রতি ২৪ ঘণ্টায় পুরোনো log মোছে (`deleteOldAuditLogs`)। বদলাতে `AUDIT_LOG_RETENTION_DAYS` দিন।
+- [x] **6.3 Prisma সরানো হয়েছে।** Schema-র একমাত্র জায়গা এখন `db.service.js`। `seed.js` গেছে `backend/scripts/`-এ। পুরোনো migration git history-তে আছে। `docs/database-*.md`-এ Prisma-র উল্লেখ পুরোনো নকশার ইতিহাস হিসেবে রাখা।
+- [x] **6.6 APK এখন GitHub Releases-এ।** Landing page `releases/latest` দেখায়, পুরোনো Vercel link redirect হয়। নতুন APK দিতে: Actions → Publish APK → Run workflow, আর Expo-র `.apk` link দিন। আগের ফাইল git history-তে থাকে, তাই repo-র আকার কমেনি।
 
 **জানা সীমাবদ্ধতা**
 
@@ -199,7 +199,7 @@
 - [ ] Live web-এ login করে Transactions, Transfers, Loans-এর পরের পাতা দেখা।
 - [ ] Live web-এ project খুলে Export PDF চালানো।
 - [ ] নতুন APK install করে দেখা form-এ লেখার সময় keyboard ঘর ঢাকে কি না।
-- [ ] APK ঠিক থাকলে Landing page-এর APK বদলানোর কথা জানানো।
+- [ ] APK ঠিক থাকলে Actions → Publish APK চালিয়ে নতুন APK দেওয়া (Expo-র `.apk` link লাগবে)।
 - [ ] Admin password বদলানো।
 - [x] Test চালানোর ভুলে production-এ ঢোকা দুই `@test.local` user আর তাদের 270টা row মোছা হয়েছে (2026-11-05), পরে আবার দেখে নিশ্চিত।
 - [ ] Production-এ পুরোনো `user@example.com` আর দ্বিতীয় admin সরানো, audit log দেখা। Claude Code-এ production database পড়া আটকানো আছে; চাইলে permission দিতে হবে, আর মোছার আগে তালিকা দেখে আলাদা সম্মতি দিতে হবে।

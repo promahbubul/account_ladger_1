@@ -1,6 +1,6 @@
 # AccountLedger — Personal Accounting Ledger & Money Manager
 
-AccountLedger is a modern, production-grade personal financial accounting engine designed for tracking income, expenses, accounts, transfers, and loans in BDT. The application is cleanly structured into two independent services: a frontend Single Page Application (`frontend/`) and a dedicated Express.js REST API service with PostgreSQL & Prisma (`backend/`).
+AccountLedger is a modern, production-grade personal financial accounting engine designed for tracking income, expenses, accounts, transfers, and loans in BDT. The application is cleanly structured into two independent services: a frontend Single Page Application (`frontend/`) and a dedicated Express.js REST API service with PostgreSQL (`backend/`).
 
 ---
 
@@ -38,8 +38,7 @@ AccountLedger/
 │   │   ├── utils/
 │   │   ├── validators/
 │   │   └── app.js
-│   ├── prisma/
-│   │   ├── schema.prisma
+│   ├── scripts/
 │   │   └── seed.js
 │   ├── tests/
 │   │   ├── api.test.js
@@ -97,17 +96,12 @@ AccountLedger/
    npm install
    ```
 
-4. **Run database migrations & Prisma client generation:**
-   ```bash
-   npm run prisma:generate
-   ```
-
-5. **Seed initial system state (safe & idempotent):**
+4. **Seed initial system state (safe & idempotent):**
    ```bash
    npm run seed
    ```
 
-6. **Run backend test suite:**
+5. **Run backend test suite:**
    ```bash
    npm test
    ```

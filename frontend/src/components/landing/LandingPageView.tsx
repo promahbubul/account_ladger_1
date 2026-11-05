@@ -25,10 +25,9 @@ export const LandingPageView: React.FC = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  const apkDownloadUrl = '/AccountLedger-release.apk';
-  const fullDownloadUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/AccountLedger-release.apk`
-    : 'https://account-ladger.vercel.app/AccountLedger-release.apk';
+  // Always the newest release; see .github/workflows/publish-apk.yml.
+  const apkDownloadUrl = 'https://github.com/promahbubul/account_ladger_1/releases/latest/download/AccountLedger-release.apk';
+  const fullDownloadUrl = apkDownloadUrl;
 
   const handleCopyLink = () => {
     if (navigator.clipboard) {

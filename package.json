@@ -14,8 +14,7 @@
     "test:mobile": "npm --prefix mobile test",
     "test:e2e": "playwright test",
     "seed:backend": "npm --prefix backend run seed",
-    "lint": "eslint .",
-    "prisma:generate": "npm --prefix backend run prisma:generate"
+    "lint": "eslint ."
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

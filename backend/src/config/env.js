@@ -63,6 +63,7 @@ export const config = {
   trustProxy: Number(process.env.TRUST_PROXY ?? (isProduction ? 1 : 0)),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5000',
   databaseUrl: process.env.DATABASE_URL || '',
+  auditLogRetentionDays: Number(process.env.AUDIT_LOG_RETENTION_DAYS) || 365,
   directUrl: process.env.DIRECT_URL || '',
   jwtSecret: resolveJwtSecret(),
   // Only used to seed development data; production never seeds.
